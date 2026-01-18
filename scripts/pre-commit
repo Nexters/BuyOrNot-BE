@@ -1,0 +1,20 @@
+#!/bin/bash
+echo "🔍 Running pre-commit checks..."
+
+# 포맷 자동 수정
+./gradlew spotlessApply --daemon -q || {
+    echo "❌ Spotless apply failed"
+    exit 1
+}
+
+# 변경된 파일 다시 staging
+git add -u
+
+# 컴파일 체크
+./gradlew compileJava --daemon -q || {
+    echo "❌ Compilation failed"
+    exit 1
+}
+
+echo "✅ Pre-commit checks passed"
+exit 0
