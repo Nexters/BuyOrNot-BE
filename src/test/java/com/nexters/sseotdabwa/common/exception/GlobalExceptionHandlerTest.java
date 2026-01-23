@@ -1,9 +1,15 @@
 package com.nexters.sseotdabwa.common.exception;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.Getter;
+import lombok.Setter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -11,6 +17,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 class GlobalExceptionHandlerTest {
@@ -63,6 +71,46 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.path").value("/test/exception"));
     }
 
+    @Test
+    @DisplayName("MethodArgumentNotValidException 발생 시 400 에러를 반환한다")
+    void handleMethodArgumentNotValidException_returns_badRequest() throws Exception {
+        String invalidJson = "{\"name\": \"\"}";
+
+        mockMvc.perform(post("/test/validation")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.code").value("COMMON_400"))
+                .andExpect(jsonPath("$.path").value("/test/validation"));
+    }
+
+    @Test
+    @DisplayName("BindException 발생 시 400 에러를 반환한다")
+    void handleBindException_returns_badRequest() throws Exception {
+        mockMvc.perform(get("/test/bind-validation")
+                        .param("name", "")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.code").value("COMMON_400"))
+                .andExpect(jsonPath("$.path").value("/test/bind-validation"));
+    }
+
+    @Test
+    @DisplayName("검증 예외 발생 시 첫 번째 필드 에러 메시지를 반환한다")
+    void handleValidationException_returns_first_field_error_message() throws Exception {
+        String invalidJson = "{\"name\": \"ab\"}";
+
+        mockMvc.perform(post("/test/validation")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").exists());
+    }
+
     @RestController
     static class TestController {
 
@@ -80,5 +128,21 @@ class GlobalExceptionHandlerTest {
         public void throwException() {
             throw new RuntimeException("예상치 못한 오류");
         }
+
+        @PostMapping("/test/validation")
+        public void validateRequest(@Valid @RequestBody TestRequest request) {
+        }
+
+        @GetMapping("/test/bind-validation")
+        public void validateBind(@Valid TestRequest request) {
+        }
+    }
+
+    @Getter
+    @Setter
+    static class TestRequest {
+        @NotBlank(message = "이름은 필수입니다.")
+        @Size(min = 3, max = 20, message = "이름은 3자 이상 20자 이하여야 합니다.")
+        private String name;
     }
 }
