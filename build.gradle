@@ -33,9 +33,9 @@ dependencies {
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'com.mysql:mysql-connector-j'
     annotationProcessor 'org.projectlombok:lombok'
-    testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
@@ -60,14 +60,14 @@ tasks.named('test') {
 //    }
 //}
 
-// Git Hook 자동 설치
-tasks.register('installGitHook', Copy) {
-    from file('scripts/pre-commit')
-    into file('.git/hooks')
-}
-
-// 빌드 시 자동 설치
-tasks.named('compileJava') {
-    dependsOn 'installGitHook'
-    dependsOn 'spotlessCheck'
-}
+//// Git Hook 자동 설치
+//tasks.register('installGitHook', Copy) {
+//    from file('scripts/pre-commit')
+//    into file('.git/hooks')
+//}
+//
+//// 빌드 시 자동 설치
+//tasks.named('compileJava') {
+//    dependsOn 'installGitHook'
+//    dependsOn 'spotlessCheck'
+//}
