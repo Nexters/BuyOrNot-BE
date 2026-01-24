@@ -42,21 +42,21 @@ tasks.named('test') {
 }
 
 // ===== Spotless 설정 =====
-spotless {
-    java {
-        target("**/*.java")
-        importOrder()
-        removeUnusedImports()
-        trimTrailingWhitespace()
-        endWithNewline()
-    }
-
-    format 'misc', {
-        target '*.md', '.gitignore', '*.yml', '*.yaml'
-        trimTrailingWhitespace()
-        endWithNewline()
-    }
-}
+//spotless {
+//    java {
+//        target("**/*.java")
+//        importOrder()
+//        removeUnusedImports()
+//        trimTrailingWhitespace()
+//        endWithNewline()
+//    }
+//
+//    format 'misc', {
+//        target '*.md', '.gitignore', '*.yml', '*.yaml'
+//        trimTrailingWhitespace()
+//        endWithNewline()
+//    }
+//}
 
 // Git Hook 자동 설치
 tasks.register('installGitHook', Copy) {
