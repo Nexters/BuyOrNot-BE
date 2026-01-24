@@ -1,15 +1,9 @@
 package com.nexters.sseotdabwa.common.exception;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.Getter;
-import lombok.Setter;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,6 +14,14 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import lombok.Getter;
+import lombok.Setter;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class GlobalExceptionHandlerTest {
 
@@ -34,16 +36,15 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    @DisplayName("GlobalException 발생 시 ErrorResponse 형식으로 응답한다")
+    @DisplayName("GlobalException 발생 시 ApiResponse 형식으로 응답한다")
     void handleGlobalException_returns_errorResponse() throws Exception {
         mockMvc.perform(get("/test/global-exception")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.timestamp").exists())
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.code").value("COMMON_400"))
-                .andExpect(jsonPath("$.message").value("잘못된 요청입니다."))
-                .andExpect(jsonPath("$.path").value("/test/global-exception"));
+                .andExpect(jsonPath("$.data").doesNotExist())
+                .andExpect(jsonPath("$.status").value("400"))
+                .andExpect(jsonPath("$.errorCode").value("COMMON_400"))
+                .andExpect(jsonPath("$.message").value("잘못된 요청입니다."));
     }
 
     @Test
@@ -52,11 +53,10 @@ class GlobalExceptionHandlerTest {
         mockMvc.perform(get("/test/custom-message")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.timestamp").exists())
-                .andExpect(jsonPath("$.status").value(404))
-                .andExpect(jsonPath("$.code").value("COMMON_404"))
-                .andExpect(jsonPath("$.message").value("사용자를 찾을 수 없습니다."))
-                .andExpect(jsonPath("$.path").value("/test/custom-message"));
+                .andExpect(jsonPath("$.data").doesNotExist())
+                .andExpect(jsonPath("$.status").value("404"))
+                .andExpect(jsonPath("$.errorCode").value("COMMON_404"))
+                .andExpect(jsonPath("$.message").value("사용자를 찾을 수 없습니다."));
     }
 
     @Test
@@ -65,10 +65,10 @@ class GlobalExceptionHandlerTest {
         mockMvc.perform(get("/test/exception")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.timestamp").exists())
-                .andExpect(jsonPath("$.status").value(500))
-                .andExpect(jsonPath("$.code").value("COMMON_500"))
-                .andExpect(jsonPath("$.path").value("/test/exception"));
+                .andExpect(jsonPath("$.data").doesNotExist())
+                .andExpect(jsonPath("$.status").value("500"))
+                .andExpect(jsonPath("$.errorCode").value("COMMON_500"))
+                .andExpect(jsonPath("$.message").value("서버 내부 오류가 발생했습니다."));
     }
 
     @Test
@@ -80,10 +80,9 @@ class GlobalExceptionHandlerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidJson))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.timestamp").exists())
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.code").value("COMMON_400"))
-                .andExpect(jsonPath("$.path").value("/test/validation"));
+                .andExpect(jsonPath("$.data").doesNotExist())
+                .andExpect(jsonPath("$.status").value("400"))
+                .andExpect(jsonPath("$.errorCode").value("COMMON_400"));
     }
 
     @Test
@@ -93,10 +92,9 @@ class GlobalExceptionHandlerTest {
                         .param("name", "")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.timestamp").exists())
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.code").value("COMMON_400"))
-                .andExpect(jsonPath("$.path").value("/test/bind-validation"));
+                .andExpect(jsonPath("$.data").doesNotExist())
+                .andExpect(jsonPath("$.status").value("400"))
+                .andExpect(jsonPath("$.errorCode").value("COMMON_400"));
     }
 
     @Test
@@ -141,6 +139,7 @@ class GlobalExceptionHandlerTest {
     @Getter
     @Setter
     static class TestRequest {
+
         @NotBlank(message = "이름은 필수입니다.")
         @Size(min = 3, max = 20, message = "이름은 3자 이상 20자 이하여야 합니다.")
         private String name;

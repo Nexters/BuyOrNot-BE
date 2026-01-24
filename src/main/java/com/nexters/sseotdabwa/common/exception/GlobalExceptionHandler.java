@@ -1,7 +1,6 @@
 package com.nexters.sseotdabwa.common.exception;
 
-import jakarta.servlet.http.HttpServletRequest;
-import java.time.LocalDateTime;
+import com.nexters.sseotdabwa.common.response.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
@@ -15,76 +14,68 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(GlobalException.class)
-    public ResponseEntity<ErrorResponse> handleGlobalException(
-            GlobalException exception,
-            HttpServletRequest request
-    ) {
-        log.warn("GlobalException: {} - {}", exception.getErrorCode().getCode(), exception.getMessage());
+    public ResponseEntity<ApiResponse<Void>> handleGlobalException(GlobalException exception) {
+        ErrorCode errorCode = exception.getErrorCode();
+        log.warn("GlobalException: {} - {}", errorCode.getCode(), exception.getMessage());
 
-        ErrorResponse errorResponse = ErrorResponse.of(exception, request.getRequestURI());
+        ApiResponse<Void> response = ApiResponse.error(
+                exception.getMessage(),
+                errorCode.getHttpStatus(),
+                errorCode.getCode()
+        );
 
         return ResponseEntity
-                .status(exception.getErrorCode().getHttpStatus())
-                .body(errorResponse);
+                .status(errorCode.getHttpStatus())
+                .body(response);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleMethodArgumentNotValidException(
-            MethodArgumentNotValidException exception,
-            HttpServletRequest request
+    public ResponseEntity<ApiResponse<Void>> handleMethodArgumentNotValidException(
+            MethodArgumentNotValidException exception
     ) {
         String message = extractFieldErrorMessage(exception);
         log.warn("MethodArgumentNotValidException: {}", message);
 
-        ErrorResponse errorResponse = ErrorResponse.of(
-                LocalDateTime.now(),
-                CommonErrorCode.BAD_REQUEST.getHttpStatus().value(),
-                CommonErrorCode.BAD_REQUEST.getCode(),
+        ApiResponse<Void> response = ApiResponse.error(
                 message,
-                request.getRequestURI()
+                CommonErrorCode.BAD_REQUEST.getHttpStatus(),
+                CommonErrorCode.BAD_REQUEST.getCode()
         );
 
         return ResponseEntity
                 .status(CommonErrorCode.BAD_REQUEST.getHttpStatus())
-                .body(errorResponse);
+                .body(response);
     }
 
     @ExceptionHandler(BindException.class)
-    public ResponseEntity<ErrorResponse> handleBindException(
-            BindException exception,
-            HttpServletRequest request
-    ) {
+    public ResponseEntity<ApiResponse<Void>> handleBindException(BindException exception) {
         String message = extractBindingErrorMessage(exception);
         log.warn("BindException: {}", message);
 
-        ErrorResponse errorResponse = ErrorResponse.of(
-                LocalDateTime.now(),
-                CommonErrorCode.BAD_REQUEST.getHttpStatus().value(),
-                CommonErrorCode.BAD_REQUEST.getCode(),
+        ApiResponse<Void> response = ApiResponse.error(
                 message,
-                request.getRequestURI()
+                CommonErrorCode.BAD_REQUEST.getHttpStatus(),
+                CommonErrorCode.BAD_REQUEST.getCode()
         );
 
         return ResponseEntity
                 .status(CommonErrorCode.BAD_REQUEST.getHttpStatus())
-                .body(errorResponse);
+                .body(response);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleException(
-            Exception exception,
-            HttpServletRequest request
-    ) {
+    public ResponseEntity<ApiResponse<Void>> handleException(Exception exception) {
         log.error("Unexpected Exception: ", exception);
 
-        ErrorResponse errorResponse = ErrorResponse.of(
-                CommonErrorCode.INTERNAL_SERVER_ERROR,
-                request.getRequestURI()
+        ApiResponse<Void> response = ApiResponse.error(
+                CommonErrorCode.INTERNAL_SERVER_ERROR.getMessage(),
+                CommonErrorCode.INTERNAL_SERVER_ERROR.getHttpStatus(),
+                CommonErrorCode.INTERNAL_SERVER_ERROR.getCode()
         );
 
         return ResponseEntity
                 .status(CommonErrorCode.INTERNAL_SERVER_ERROR.getHttpStatus())
-                .body(errorResponse);
+                .body(response);
     }
 
     private String extractFieldErrorMessage(MethodArgumentNotValidException exception) {
