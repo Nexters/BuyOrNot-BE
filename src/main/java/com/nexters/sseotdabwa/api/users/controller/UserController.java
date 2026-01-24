@@ -1,9 +1,11 @@
-package com.nexters.sseotdabwa.api.users;
+package com.nexters.sseotdabwa.api.users.controller;
 
-import com.nexters.sseotdabwa.api.users.facade.UserFacade;
-import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.nexters.sseotdabwa.api.users.facade.UserFacade;
+
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/v1/users")
