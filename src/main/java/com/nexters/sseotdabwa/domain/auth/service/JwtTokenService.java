@@ -17,11 +17,15 @@ import io.jsonwebtoken.security.Keys;
 
 /**
  * JWT 토큰 발급 및 검증 서비스
- * - Access Token: API 인증에 사용
- * - Refresh Token: Access Token 갱신에 사용
+ * - Access Token: API 인증에 사용 (type: access)
+ * - Refresh Token: Access Token 갱신에 사용 (type: refresh)
  */
 @Service
 public class JwtTokenService {
+
+    private static final String TOKEN_TYPE_CLAIM = "type";
+    private static final String TOKEN_TYPE_ACCESS = "access";
+    private static final String TOKEN_TYPE_REFRESH = "refresh";
 
     private final SecretKey secretKey;
     private final long accessTokenExpiration;
@@ -37,25 +41,26 @@ public class JwtTokenService {
     }
 
     /**
-     * Access Token 생성 (짧은 만료 시간)
+     * Access Token 생성 (짧은 만료 시간, type: access)
      */
     public String createAccessToken(Long userId) {
-        return createToken(userId, accessTokenExpiration);
+        return createToken(userId, accessTokenExpiration, TOKEN_TYPE_ACCESS);
     }
 
     /**
-     * Refresh Token 생성 (긴 만료 시간)
+     * Refresh Token 생성 (긴 만료 시간, type: refresh)
      */
     public String createRefreshToken(Long userId) {
-        return createToken(userId, refreshTokenExpiration);
+        return createToken(userId, refreshTokenExpiration, TOKEN_TYPE_REFRESH);
     }
 
-    private String createToken(Long userId, long expiration) {
+    private String createToken(Long userId, long expiration, String tokenType) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expiration);
 
         return Jwts.builder()
                 .subject(String.valueOf(userId))
+                .claim(TOKEN_TYPE_CLAIM, tokenType)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(secretKey)
@@ -66,18 +71,12 @@ public class JwtTokenService {
      * 토큰에서 사용자 ID 추출
      */
     public Long getUserIdFromToken(String token) {
-        Claims claims = Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
-
+        Claims claims = getClaims(token);
         return Long.parseLong(claims.getSubject());
     }
 
     /**
-     * 토큰 유효성 검증
-     * @return 유효하면 true, 만료/변조 등 문제가 있으면 false
+     * Access Token 유효성 검증 (서명, 만료, 타입 검사)
      */
     public boolean validateToken(String token) {
         if (!StringUtils.hasText(token)) {
@@ -95,5 +94,33 @@ public class JwtTokenService {
         } catch (JwtException e) {
             return false;
         }
+    }
+
+    /**
+     * Refresh Token 유효성 검증 (서명, 만료, 타입이 refresh인지 검사)
+     * @return 유효한 refresh 토큰이면 true
+     */
+    public boolean validateRefreshToken(String token) {
+        if (!StringUtils.hasText(token)) {
+            return false;
+        }
+
+        try {
+            Claims claims = getClaims(token);
+            String tokenType = claims.get(TOKEN_TYPE_CLAIM, String.class);
+            return TOKEN_TYPE_REFRESH.equals(tokenType);
+        } catch (ExpiredJwtException e) {
+            return false;
+        } catch (JwtException e) {
+            return false;
+        }
+    }
+
+    private Claims getClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(secretKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 }

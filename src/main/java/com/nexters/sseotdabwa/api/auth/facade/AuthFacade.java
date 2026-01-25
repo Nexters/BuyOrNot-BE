@@ -67,11 +67,11 @@ public class AuthFacade {
 
     /**
      * Access Token 갱신
-     * - Refresh Token이 유효하면 새 Access Token 발급
+     * - Refresh Token이 유효하고 타입이 refresh인 경우에만 새 Access Token 발급
      * - Refresh Token은 그대로 유지
      */
     public TokenResponse refreshToken(TokenRefreshRequest request) {
-        if (!jwtTokenService.validateToken(request.refreshToken())) {
+        if (!jwtTokenService.validateRefreshToken(request.refreshToken())) {
             throw new GlobalException(AuthErrorCode.INVALID_REFRESH_TOKEN);
         }
 
