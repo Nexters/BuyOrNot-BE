@@ -19,9 +19,12 @@ WORKDIR /app
 
 # timezone
 ENV TZ=Asia/Seoul
+RUN addgroup --system app && adduser --system --ingroup app app
 
 # jar 복사 (bootJar 결과물)
 COPY --from=build /app/build/libs/*.jar app.jar
+RUN chown app:app /app/app.jar
+USER app
 
 EXPOSE 8080
 

@@ -4,7 +4,7 @@ metadata:
   name: buyornot-be
   namespace: buyornot-prod
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: buyornot-be
@@ -22,3 +22,6 @@ spec:
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: "prod"
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false

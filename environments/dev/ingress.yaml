@@ -3,10 +3,13 @@ kind: Ingress
 metadata:
   name: buyornot-be
   namespace: buyornot-dev
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
   ingressClassName: nginx
   rules:
-    - http:
+    - host: dev.buy-or-not.com
+      http:
         paths:
           - path: /
             pathType: Prefix
