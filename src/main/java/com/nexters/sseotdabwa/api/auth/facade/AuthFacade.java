@@ -44,10 +44,11 @@ public class AuthFacade {
         KakaoUserInfo kakaoUserInfo = kakaoOAuthService.getUserInfo(request.accessToken());
 
         // 기존 회원 조회 또는 신규 가입
-        User user = userService.findBySocialIdAndProvider(kakaoUserInfo.getId(), SocialAccount.KAKAO)
+        String socialId = String.valueOf(kakaoUserInfo.getId());
+        User user = userService.findBySocialIdAndProvider(socialId, SocialAccount.KAKAO)
                 .orElseGet(() -> userService.createUser(
                         new UserCreateCommand(
-                                kakaoUserInfo.getId(),
+                                socialId,
                                 kakaoUserInfo.getEmail(),
                                 kakaoUserInfo.getNickname(),
                                 SocialAccount.KAKAO,
