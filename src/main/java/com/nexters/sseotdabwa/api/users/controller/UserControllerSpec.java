@@ -4,6 +4,7 @@ import com.nexters.sseotdabwa.api.users.dto.UserResponse;
 import com.nexters.sseotdabwa.common.response.ApiResponse;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -29,5 +30,5 @@ public interface UserControllerSpec {
                     description = "인증 필요"
             )
     })
-    ApiResponse<UserResponse> getMyInfo(User user);
+    ApiResponse<UserResponse> getMyInfo(@Parameter(hidden = true) User user);
 }
