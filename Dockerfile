@@ -1,5 +1,5 @@
 # ---------- build stage ----------
-FROM eclipse-temurin:17-jdk AS build
+FROM eclipse-temurin:21-jdk AS build
 WORKDIR /app
 
 # Gradle 캐시 효율을 위해 먼저 메타 파일 복사
@@ -14,7 +14,7 @@ COPY . .
 RUN ./gradlew --no-daemon clean bootJar
 
 # ---------- run stage ----------
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:21-jre
 WORKDIR /app
 
 # timezone
