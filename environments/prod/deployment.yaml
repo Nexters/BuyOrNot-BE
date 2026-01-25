@@ -22,6 +22,9 @@ spec:
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: "prod"
+          envFrom:
+            - secretRef:
+                name: buyornot-db
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
