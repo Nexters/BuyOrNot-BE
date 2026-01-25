@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: buyornot-be
-          image: ${DOCKERHUB_ID}/${IMAGE_NAME}:dev
+          image: haeun1107/sseotdabwa-be:dev
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
