@@ -46,7 +46,7 @@ class KakaoOAuthServiceTest {
         ReflectionTestUtils.setField(kakaoOAuthService, "userInfoUrl", "https://kapi.kakao.com/v2/user/me");
 
         KakaoUserInfo mockUserInfo = new KakaoUserInfo();
-        ReflectionTestUtils.setField(mockUserInfo, "id", "12345");
+        ReflectionTestUtils.setField(mockUserInfo, "id", 12345L);
 
         given(webClient.get()).willReturn(requestHeadersUriSpec);
         given(requestHeadersUriSpec.uri(anyString())).willReturn(requestHeadersSpec);
@@ -60,7 +60,7 @@ class KakaoOAuthServiceTest {
 
         // then
         assertThat(result).isNotNull();
-        assertThat(result.getId()).isEqualTo("12345");
+        assertThat(result.getId()).isEqualTo(12345L);
     }
 
     @Test

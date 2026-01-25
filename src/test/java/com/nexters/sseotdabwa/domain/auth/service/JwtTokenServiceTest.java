@@ -92,4 +92,45 @@ class JwtTokenServiceTest {
         // then
         assertThat(extractedUserId).isEqualTo(userId);
     }
+
+    @Test
+    @DisplayName("RefreshToken 검증 성공")
+    void validateRefreshToken_success() {
+        // given
+        Long userId = 1L;
+        String refreshToken = jwtTokenService.createRefreshToken(userId);
+
+        // when
+        boolean result = jwtTokenService.validateRefreshToken(refreshToken);
+
+        // then
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    @DisplayName("AccessToken으로 RefreshToken 검증 시 실패")
+    void validateRefreshToken_withAccessToken_returnsFalse() {
+        // given
+        Long userId = 1L;
+        String accessToken = jwtTokenService.createAccessToken(userId);
+
+        // when
+        boolean result = jwtTokenService.validateRefreshToken(accessToken);
+
+        // then
+        assertThat(result).isFalse();
+    }
+
+    @Test
+    @DisplayName("잘못된 토큰으로 RefreshToken 검증 시 실패")
+    void validateRefreshToken_malformed_returnsFalse() {
+        // given
+        String malformedToken = "invalid.token.format";
+
+        // when
+        boolean result = jwtTokenService.validateRefreshToken(malformedToken);
+
+        // then
+        assertThat(result).isFalse();
+    }
 }

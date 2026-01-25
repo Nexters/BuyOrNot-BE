@@ -53,7 +53,7 @@ class AuthControllerTest {
     @DisplayName("카카오 로그인 성공 - 신규 사용자")
     void loginWithKakao_newUser_success() throws Exception {
         // given
-        KakaoUserInfo mockUserInfo = createMockKakaoUserInfo("12345", "test@kakao.com", "테스트", null);
+        KakaoUserInfo mockUserInfo = createMockKakaoUserInfo(12345L, "test@kakao.com", "테스트", null);
 
         given(kakaoOAuthService.getUserInfo(anyString())).willReturn(mockUserInfo);
 
@@ -70,7 +70,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.status").value("200"));
     }
 
-    private KakaoUserInfo createMockKakaoUserInfo(String id, String email, String nickname, String profileImage) {
+    private KakaoUserInfo createMockKakaoUserInfo(Long id, String email, String nickname, String profileImage) {
         KakaoUserInfo userInfo = new KakaoUserInfo();
         ReflectionTestUtils.setField(userInfo, "id", id);
 
@@ -99,7 +99,7 @@ class AuthControllerTest {
                 .build();
         userRepository.save(existingUser);
 
-        KakaoUserInfo mockUserInfo = createMockKakaoUserInfo("12345", "test@kakao.com", "새닉네임", null);
+        KakaoUserInfo mockUserInfo = createMockKakaoUserInfo(12345L, "test@kakao.com", "새닉네임", null);
 
         given(kakaoOAuthService.getUserInfo(anyString())).willReturn(mockUserInfo);
 
@@ -180,6 +180,6 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.errorCode").value("AUTH_003"));
+                .andExpect(jsonPath("$.errorCode").value("AUTH_001"));
     }
 }

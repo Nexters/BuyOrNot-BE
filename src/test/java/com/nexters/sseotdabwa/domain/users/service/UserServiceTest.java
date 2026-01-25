@@ -110,6 +110,7 @@ class UserServiceTest {
         assertThat(created.getEmail()).isEqualTo("test@kakao.com");
         assertThat(created.getNickname()).isEqualTo("테스트");
         assertThat(created.getSocialAccount()).isEqualTo(SocialAccount.KAKAO);
+        assertThat(created.getProfileImage()).isEqualTo("https://example.com/profile.jpg");
     }
 
     @Test
