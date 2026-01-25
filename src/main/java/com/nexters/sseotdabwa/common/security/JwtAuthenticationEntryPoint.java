@@ -1,12 +1,12 @@
 package com.nexters.sseotdabwa.common.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nexters.sseotdabwa.api.auth.exception.AuthErrorCode;
 import com.nexters.sseotdabwa.common.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -27,14 +27,16 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
                          HttpServletResponse response,
                          AuthenticationException authException) throws IOException {
 
-        response.setStatus(HttpStatus.UNAUTHORIZED.value());
+        AuthErrorCode errorCode = AuthErrorCode.AUTHENTICATION_REQUIRED;
+
+        response.setStatus(errorCode.getHttpStatus().value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
 
         ApiResponse<Void> errorResponse = ApiResponse.error(
-                "인증이 필요합니다.",
-                HttpStatus.UNAUTHORIZED,
-                "AUTH_001"
+                errorCode.getMessage(),
+                errorCode.getHttpStatus(),
+                errorCode.getCode()
         );
 
         objectMapper.writeValue(response.getWriter(), errorResponse);
