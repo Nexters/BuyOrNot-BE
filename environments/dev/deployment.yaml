@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: buyornot-be
+  namespace: buyornot-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: buyornot-be
+  template:
+    metadata:
+      labels:
+        app: buyornot-be
+    spec:
+      containers:
+        - name: buyornot-be
+          image: ${DOCKERHUB_ID}/${IMAGE_NAME}:dev
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "dev"
+          # readiness/liveness는 actuator 붙이면 그때 추가
+          # readinessProbe:
+          #   httpGet:
+          #     path: /actuator/health/readiness
+          #     port: 8080
+          #   initialDelaySeconds: 10
+          #   periodSeconds: 10
+          # livenessProbe:
+          #   httpGet:
+          #     path: /actuator/health/liveness
+          #     port: 8080
+          #   initialDelaySeconds: 30
+          #   periodSeconds: 20

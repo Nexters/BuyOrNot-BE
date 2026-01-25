@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: buyornot-be
+  namespace: buyornot-prod
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: buyornot-be
+  template:
+    metadata:
+      labels:
+        app: buyornot-be
+    spec:
+      containers:
+        - name: buyornot-be
+          image: haeun1107/sseotdabwa-be:prod
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "prod"
