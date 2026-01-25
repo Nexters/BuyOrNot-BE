@@ -1,5 +1,8 @@
 package com.nexters.sseotdabwa.domain.auth.service;
 
+import java.time.Duration;
+import java.util.concurrent.TimeoutException;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
@@ -21,6 +24,8 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class KakaoOAuthService {
 
+    private static final Duration API_TIMEOUT = Duration.ofSeconds(5);
+
     private final WebClient webClient;
 
     @Value("${oauth.kakao.user-info-url}")
@@ -41,6 +46,9 @@ public class KakaoOAuthService {
                 .onStatus(HttpStatusCode::is5xxServerError, response ->
                         Mono.error(new GlobalException(AuthErrorCode.KAKAO_API_ERROR)))
                 .bodyToMono(KakaoUserInfo.class)
+                .timeout(API_TIMEOUT)
+                .onErrorMap(TimeoutException.class, e ->
+                        new GlobalException(AuthErrorCode.KAKAO_API_TIMEOUT))
                 .blockOptional()
                 .orElseThrow(() -> new GlobalException(AuthErrorCode.KAKAO_USER_INFO_FAILED));
     }
