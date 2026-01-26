@@ -1,6 +1,6 @@
 package com.nexters.sseotdabwa.domain.users.enums;
 
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -35,10 +35,9 @@ public enum NicknameAdjective {
 
     private final String displayName;
 
-    private static final Random RANDOM = new Random();
+    private static final NicknameAdjective[] CACHED_VALUES = values();
 
     public static NicknameAdjective random() {
-        NicknameAdjective[] values = values();
-        return values[RANDOM.nextInt(values.length)];
+        return CACHED_VALUES[ThreadLocalRandom.current().nextInt(CACHED_VALUES.length)];
     }
 }

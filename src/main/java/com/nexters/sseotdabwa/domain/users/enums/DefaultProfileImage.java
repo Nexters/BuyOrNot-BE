@@ -1,6 +1,6 @@
 package com.nexters.sseotdabwa.domain.users.enums;
 
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -23,11 +23,10 @@ public enum DefaultProfileImage {
 
     private final String url;
 
-    private static final Random RANDOM = new Random();
+    private static final DefaultProfileImage[] CACHED_VALUES = values();
 
     public static DefaultProfileImage random() {
-        DefaultProfileImage[] values = values();
-        return values[RANDOM.nextInt(values.length)];
+        return CACHED_VALUES[ThreadLocalRandom.current().nextInt(CACHED_VALUES.length)];
     }
 
     public static String randomUrl() {

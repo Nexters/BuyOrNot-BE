@@ -1,6 +1,6 @@
 package com.nexters.sseotdabwa.domain.users.service;
 
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.stereotype.Component;
 
@@ -15,7 +15,6 @@ import com.nexters.sseotdabwa.domain.users.enums.NicknameNoun;
 public class RandomNicknameGenerator {
 
     private static final int NUMBER_BOUND = 10000;
-    private final Random random = new Random();
 
     /**
      * 랜덤 닉네임 생성
@@ -24,7 +23,7 @@ public class RandomNicknameGenerator {
     public String generate() {
         NicknameAdjective adjective = NicknameAdjective.random();
         NicknameNoun noun = NicknameNoun.random();
-        int number = random.nextInt(NUMBER_BOUND);
+        int number = ThreadLocalRandom.current().nextInt(NUMBER_BOUND);
         return String.format("%s%s_%04d", adjective.getDisplayName(), noun.getDisplayName(), number);
     }
 }
