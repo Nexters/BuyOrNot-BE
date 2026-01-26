@@ -13,22 +13,24 @@ RUN ./gradlew --no-daemon dependencies || true
 COPY . .
 RUN ./gradlew --no-daemon clean bootJar
 
-# ---------- run stage ----------
+# ---- run stage ----
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
-# timezone
 ENV TZ=Asia/Seoul
-RUN addgroup --system app && adduser --system --ingroup app app
 
-# jar 복사 (bootJar 결과물)
-COPY --from=build /app/build/libs/*.jar app.jar
-RUN chown app:app /app/app.jar
-USER app
+# 10001 사용자/그룹 생성 (non-root)
+RUN addgroup --system --gid 10001 app \
+ && adduser  --system --uid 10001 --ingroup app app
+
+# jar 복사
+COPY --from=build /app/build/libs/*.jar /app/app.jar
+
+# 소유권 정리
+RUN chown -R 10001:10001 /app
+
+# 숫자 UID/GID로 실행 (k8s runAsNonRoot 검증 OK)
+USER 10001:10001
 
 EXPOSE 8080
-
-# 기본값은 dev로 두되, K8s에서 env로 덮어씀
-ENV SPRING_PROFILES_ACTIVE=dev
-
 ENTRYPOINT ["java","-Duser.timezone=Asia/Seoul","-jar","/app/app.jar"]
