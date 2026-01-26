@@ -1,0 +1,8 @@
+services:
+  be:
+    image: ${IMAGE_NAME:-buyornot22/sseotdabwa-be}:dev
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      TZ: Asia/Seoul
