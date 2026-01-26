@@ -76,7 +76,8 @@ public class JwtTokenService {
     }
 
     /**
-     * Access Token 유효성 검증 (서명, 만료, 타입 검사)
+     * Access Token 유효성 검증 (서명, 만료, 타입이 access인지 검사)
+     * @return 유효한 access 토큰이면 true
      */
     public boolean validateToken(String token) {
         if (!StringUtils.hasText(token)) {
@@ -84,11 +85,9 @@ public class JwtTokenService {
         }
 
         try {
-            Jwts.parser()
-                    .verifyWith(secretKey)
-                    .build()
-                    .parseSignedClaims(token);
-            return true;
+            Claims claims = getClaims(token);
+            String tokenType = claims.get(TOKEN_TYPE_CLAIM, String.class);
+            return TOKEN_TYPE_ACCESS.equals(tokenType);
         } catch (ExpiredJwtException e) {
             return false;
         } catch (JwtException e) {
