@@ -1,6 +1,7 @@
 package com.nexters.sseotdabwa.domain.users.service;
 
 import java.util.Optional;
+import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,19 +33,21 @@ class UserServiceTest {
     @DisplayName("소셜 ID와 Provider로 사용자 조회 성공")
     void findBySocialIdAndProvider_success() {
         // given
+        String uniqueSocialId = UUID.randomUUID().toString();
+        String uniqueNickname = "테스트_" + UUID.randomUUID().toString().substring(0, 8);
         User user = User.builder()
-                .socialId("12345")
-                .nickname("테스트")
+                .socialId(uniqueSocialId)
+                .nickname(uniqueNickname)
                 .socialAccount(SocialAccount.KAKAO)
                 .build();
         userRepository.save(user);
 
         // when
-        Optional<User> found = userService.findBySocialIdAndProvider("12345", SocialAccount.KAKAO);
+        Optional<User> found = userService.findBySocialIdAndProvider(uniqueSocialId, SocialAccount.KAKAO);
 
         // then
         assertThat(found).isPresent();
-        assertThat(found.get().getSocialId()).isEqualTo("12345");
+        assertThat(found.get().getSocialId()).isEqualTo(uniqueSocialId);
     }
 
     @Test
@@ -61,9 +64,11 @@ class UserServiceTest {
     @DisplayName("ID로 사용자 조회 성공")
     void findById_success() {
         // given
+        String uniqueSocialId = UUID.randomUUID().toString();
+        String uniqueNickname = "테스트_" + UUID.randomUUID().toString().substring(0, 8);
         User user = User.builder()
-                .socialId("12345")
-                .nickname("테스트")
+                .socialId(uniqueSocialId)
+                .nickname(uniqueNickname)
                 .socialAccount(SocialAccount.KAKAO)
                 .build();
         User savedUser = userRepository.save(user);
@@ -91,9 +96,11 @@ class UserServiceTest {
     @DisplayName("사용자 생성 성공")
     void createUser_success() {
         // given
+        String uniqueSocialId = UUID.randomUUID().toString();
+        String uniqueNickname = "테스트_" + UUID.randomUUID().toString().substring(0, 8);
         UserCreateCommand command = new UserCreateCommand(
-                "12345",
-                "테스트",
+                uniqueSocialId,
+                uniqueNickname,
                 SocialAccount.KAKAO,
                 "https://example.com/profile.jpg"
         );
@@ -103,8 +110,8 @@ class UserServiceTest {
 
         // then
         assertThat(created.getId()).isNotNull();
-        assertThat(created.getSocialId()).isEqualTo("12345");
-        assertThat(created.getNickname()).isEqualTo("테스트");
+        assertThat(created.getSocialId()).isEqualTo(uniqueSocialId);
+        assertThat(created.getNickname()).isEqualTo(uniqueNickname);
         assertThat(created.getSocialAccount()).isEqualTo(SocialAccount.KAKAO);
         assertThat(created.getProfileImage()).isEqualTo("https://example.com/profile.jpg");
     }
@@ -113,19 +120,22 @@ class UserServiceTest {
     @DisplayName("프로필 업데이트 성공")
     void updateProfile_success() {
         // given
+        String uniqueSocialId = UUID.randomUUID().toString();
+        String uniqueNickname = "기존닉네임_" + UUID.randomUUID().toString().substring(0, 8);
+        String newNickname = "새닉네임_" + UUID.randomUUID().toString().substring(0, 8);
         User user = User.builder()
-                .socialId("12345")
-                .nickname("기존 닉네임")
+                .socialId(uniqueSocialId)
+                .nickname(uniqueNickname)
                 .socialAccount(SocialAccount.KAKAO)
                 .profileImage("https://example.com/old.jpg")
                 .build();
         userRepository.save(user);
 
         // when
-        userService.updateProfile(user, "새 닉네임", "https://example.com/new.jpg");
+        userService.updateProfile(user, newNickname, "https://example.com/new.jpg");
 
         // then
-        assertThat(user.getNickname()).isEqualTo("새 닉네임");
+        assertThat(user.getNickname()).isEqualTo(newNickname);
         assertThat(user.getProfileImage()).isEqualTo("https://example.com/new.jpg");
     }
 
@@ -133,9 +143,11 @@ class UserServiceTest {
     @DisplayName("프로필 이미지만 업데이트 성공 - 닉네임은 유지")
     void updateProfileImage_success() {
         // given
+        String uniqueSocialId = UUID.randomUUID().toString();
+        String uniqueNickname = "기존닉네임_" + UUID.randomUUID().toString().substring(0, 8);
         User user = User.builder()
-                .socialId("12345")
-                .nickname("기존 닉네임")
+                .socialId(uniqueSocialId)
+                .nickname(uniqueNickname)
                 .socialAccount(SocialAccount.KAKAO)
                 .profileImage("https://example.com/old.jpg")
                 .build();
@@ -145,7 +157,7 @@ class UserServiceTest {
         userService.updateProfileImage(user, "https://example.com/new.jpg");
 
         // then
-        assertThat(user.getNickname()).isEqualTo("기존 닉네임");
+        assertThat(user.getNickname()).isEqualTo(uniqueNickname);
         assertThat(user.getProfileImage()).isEqualTo("https://example.com/new.jpg");
     }
 

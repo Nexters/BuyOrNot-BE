@@ -1,5 +1,7 @@
 package com.nexters.sseotdabwa.api.auth.controller;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,7 +55,8 @@ class AuthControllerTest {
     @DisplayName("카카오 로그인 성공 - 신규 사용자")
     void loginWithKakao_newUser_success() throws Exception {
         // given
-        KakaoUserInfo mockUserInfo = createMockKakaoUserInfo(12345L, "test@kakao.com", "테스트", null);
+        long uniqueKakaoId = System.nanoTime();
+        KakaoUserInfo mockUserInfo = createMockKakaoUserInfo(uniqueKakaoId, "test@kakao.com", "테스트", null);
 
         given(kakaoOAuthService.getUserInfo(anyString())).willReturn(mockUserInfo);
 
@@ -91,14 +94,17 @@ class AuthControllerTest {
     @DisplayName("카카오 로그인 성공 - 기존 사용자")
     void loginWithKakao_existingUser_success() throws Exception {
         // given
+        long uniqueKakaoId = System.nanoTime();
+        String uniqueSocialId = String.valueOf(uniqueKakaoId);
+        String uniqueNickname = "기존사용자_" + UUID.randomUUID().toString().substring(0, 8);
         User existingUser = User.builder()
-                .socialId("12345")
-                .nickname("기존사용자")
+                .socialId(uniqueSocialId)
+                .nickname(uniqueNickname)
                 .socialAccount(SocialAccount.KAKAO)
                 .build();
         userRepository.save(existingUser);
 
-        KakaoUserInfo mockUserInfo = createMockKakaoUserInfo(12345L, "test@kakao.com", "새닉네임", null);
+        KakaoUserInfo mockUserInfo = createMockKakaoUserInfo(uniqueKakaoId, "test@kakao.com", "새닉네임", null);
 
         given(kakaoOAuthService.getUserInfo(anyString())).willReturn(mockUserInfo);
 
@@ -148,9 +154,11 @@ class AuthControllerTest {
     @DisplayName("토큰 갱신 성공")
     void refreshToken_success() throws Exception {
         // given
+        String uniqueSocialId = UUID.randomUUID().toString();
+        String uniqueNickname = "테스트_" + UUID.randomUUID().toString().substring(0, 8);
         User user = User.builder()
-                .socialId("12345")
-                .nickname("테스트")
+                .socialId(uniqueSocialId)
+                .nickname(uniqueNickname)
                 .socialAccount(SocialAccount.KAKAO)
                 .build();
         User savedUser = userRepository.save(user);
