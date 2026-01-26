@@ -28,4 +28,4 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            haeun1107/sseotdabwa-be:dev
+            buyornot22/sseotdabwa-be:dev

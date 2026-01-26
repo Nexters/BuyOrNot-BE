@@ -28,4 +28,4 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            haeun1107/sseotdabwa-be:prod
+            buyornot22/sseotdabwa-be:prod
