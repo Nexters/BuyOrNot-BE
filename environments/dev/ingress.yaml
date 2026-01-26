@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: buyornot-be
+  namespace: buyornot-dev
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - dev.buy-or-not.com
+      secretName: dev-buy-or-not-tls
+  rules:
+    - host: dev.buy-or-not.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: buyornot-be
+                port:
+                  number: 80

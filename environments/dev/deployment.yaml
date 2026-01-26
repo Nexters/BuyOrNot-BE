@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: buyornot-be
+  namespace: buyornot-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: buyornot-be
+  template:
+    metadata:
+      labels:
+        app: buyornot-be
+    spec:
+      containers:
+        - name: buyornot-be
+          image: buyornot22/sseotdabwa-be:dev
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "dev"
+          envFrom:
+            - secretRef:
+                name: buyornot-db
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false

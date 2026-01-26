@@ -37,4 +37,4 @@ out/
 .vscode/
 
 ### Others ###
-application.yaml
+.DS_Store

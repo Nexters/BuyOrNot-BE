@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: buyornot-be
+  namespace: buyornot-prod
+spec:
+  type: ClusterIP
+  selector:
+    app: buyornot-be
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080

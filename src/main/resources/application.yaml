@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: sseotdabwa
+  profiles:
+    active: dev
