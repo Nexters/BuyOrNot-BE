@@ -39,7 +39,7 @@ class JwtTokenServiceTest {
 
         // then
         assertThat(token).isNotBlank();
-        assertThat(jwtTokenService.validateToken(token)).isTrue();
+        assertThat(jwtTokenService.validateRefreshToken(token)).isTrue();
         assertThat(jwtTokenService.getUserIdFromToken(token)).isEqualTo(userId);
     }
 
