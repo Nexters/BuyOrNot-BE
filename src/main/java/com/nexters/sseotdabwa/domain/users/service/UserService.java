@@ -2,6 +2,7 @@ package com.nexters.sseotdabwa.domain.users.service;
 
 import java.util.Optional;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,16 +46,35 @@ public class UserService {
 
     /**
      * 신규 사용자 생성 (소셜 로그인 시)
+     * - 랜덤 닉네임과 프로필 이미지 자동 부여
+     * - 닉네임 중복 시 재시도 (DB unique constraint로 race condition 방지)
+     * @throws GlobalException 최대 재시도 횟수 초과 시
      */
     @Transactional
     public User createUser(UserCreateCommand command) {
-        User user = User.builder()
-                .socialId(command.socialId())
-                .nickname(command.nickname())
-                .socialAccount(command.socialAccount())
-                .profileImage(command.profileImage())
-                .build();
-        return userRepository.save(user);
+        for (int attempt = 0; attempt < MAX_NICKNAME_RETRY; attempt++) {
+            try {
+                String nickname = (attempt == 0) ? command.nickname() : randomNicknameGenerator.generate();
+                User user = User.builder()
+                        .socialId(command.socialId())
+                        .nickname(nickname)
+                        .socialAccount(command.socialAccount())
+                        .profileImage(command.profileImage())
+                        .build();
+                return userRepository.save(user);
+            } catch (DataIntegrityViolationException e) {
+                if (!isNicknameConflict(e)) {
+                    throw e;
+                }
+                // 닉네임 중복인 경우 다음 시도에서 새 닉네임 생성
+            }
+        }
+        throw new GlobalException(UserErrorCode.NICKNAME_GENERATION_FAILED);
+    }
+
+    private boolean isNicknameConflict(DataIntegrityViolationException e) {
+        String message = e.getMessage();
+        return message != null && message.toLowerCase().contains("nickname");
     }
 
     /**
