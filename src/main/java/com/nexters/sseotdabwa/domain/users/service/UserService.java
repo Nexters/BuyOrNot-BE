@@ -23,7 +23,10 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true)
 public class UserService {
 
+    private static final int MAX_NICKNAME_RETRY = 5;
+
     private final UserRepository userRepository;
+    private final RandomNicknameGenerator randomNicknameGenerator;
 
     /**
      * 소셜 ID와 소셜 계정 타입으로 사용자 조회
@@ -68,5 +71,19 @@ public class UserService {
     @Transactional
     public void updateProfileImage(User user, String profileImage) {
         user.updateProfileImage(profileImage);
+    }
+
+    /**
+     * 중복되지 않는 유니크 닉네임 생성
+     * @throws GlobalException 최대 재시도 횟수 초과 시
+     */
+    public String generateUniqueNickname() {
+        for (int i = 0; i < MAX_NICKNAME_RETRY; i++) {
+            String nickname = randomNicknameGenerator.generate();
+            if (!userRepository.existsByNickname(nickname)) {
+                return nickname;
+            }
+        }
+        throw new GlobalException(UserErrorCode.NICKNAME_GENERATION_FAILED);
     }
 }

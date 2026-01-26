@@ -93,7 +93,6 @@ class AuthControllerTest {
         // given
         User existingUser = User.builder()
                 .socialId("12345")
-                .email("test@kakao.com")
                 .nickname("기존사용자")
                 .socialAccount(SocialAccount.KAKAO)
                 .build();
@@ -151,7 +150,6 @@ class AuthControllerTest {
         // given
         User user = User.builder()
                 .socialId("12345")
-                .email("test@kakao.com")
                 .nickname("테스트")
                 .socialAccount(SocialAccount.KAKAO)
                 .build();

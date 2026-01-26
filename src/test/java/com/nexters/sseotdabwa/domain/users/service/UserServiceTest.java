@@ -148,4 +148,35 @@ class UserServiceTest {
         assertThat(user.getNickname()).isEqualTo("기존 닉네임");
         assertThat(user.getProfileImage()).isEqualTo("https://example.com/new.jpg");
     }
+
+    @Test
+    @DisplayName("유니크 닉네임 생성 성공")
+    void generateUniqueNickname_success() {
+        // when
+        String nickname = userService.generateUniqueNickname();
+
+        // then
+        assertThat(nickname).isNotNull();
+        assertThat(nickname).matches("^.+_\\d{4}$");
+        assertThat(userRepository.existsByNickname(nickname)).isFalse();
+    }
+
+    @Test
+    @DisplayName("유니크 닉네임 생성 - 중복되지 않는 닉네임 반환")
+    void generateUniqueNickname_returnsUniqueNickname() {
+        // when
+        String nickname1 = userService.generateUniqueNickname();
+
+        // 첫 번째 닉네임으로 사용자 생성
+        userRepository.save(User.builder()
+                .socialId("user1")
+                .nickname(nickname1)
+                .socialAccount(SocialAccount.KAKAO)
+                .build());
+
+        String nickname2 = userService.generateUniqueNickname();
+
+        // then
+        assertThat(nickname2).isNotEqualTo(nickname1);
+    }
 }
