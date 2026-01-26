@@ -8,7 +8,6 @@ import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
  */
 public record UserCreateCommand(
         String socialId,
-        String email,
         String nickname,
         SocialAccount socialAccount,
         String profileImage

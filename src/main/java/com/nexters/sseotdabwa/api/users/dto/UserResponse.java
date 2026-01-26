@@ -8,7 +8,6 @@ import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
  */
 public record UserResponse(
         Long id,
-        String email,
         String nickname,
         String profileImage,
         SocialAccount socialAccount
@@ -16,7 +15,6 @@ public record UserResponse(
     public static UserResponse from(User user) {
         return new UserResponse(
                 user.getId(),
-                user.getEmail(),
                 user.getNickname(),
                 user.getProfileImage(),
                 user.getSocialAccount()

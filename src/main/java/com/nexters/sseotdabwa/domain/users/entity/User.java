@@ -30,8 +30,6 @@ public class User extends BaseEntity {
     @Column(nullable = false, unique = true)
     private String socialId;
 
-    private String email;
-
     private String nickname;
 
     @Enumerated(EnumType.STRING)
@@ -41,10 +39,9 @@ public class User extends BaseEntity {
     private String profileImage;
 
     @Builder
-    public User(String socialId, String email, String nickname, SocialAccount socialAccount,
+    public User(String socialId, String nickname, SocialAccount socialAccount,
             String profileImage) {
         this.socialId = socialId;
-        this.email = email;
         this.nickname = nickname;
         this.socialAccount = socialAccount;
         this.profileImage = profileImage;
@@ -52,6 +49,10 @@ public class User extends BaseEntity {
 
     public void updateProfile(String nickname, String profileImage) {
         this.nickname = nickname;
+        this.profileImage = profileImage;
+    }
+
+    public void updateProfileImage(String profileImage) {
         this.profileImage = profileImage;
     }
 }

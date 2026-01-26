@@ -47,7 +47,6 @@ public class UserService {
     public User createUser(UserCreateCommand command) {
         User user = User.builder()
                 .socialId(command.socialId())
-                .email(command.email())
                 .nickname(command.nickname())
                 .socialAccount(command.socialAccount())
                 .profileImage(command.profileImage())
@@ -61,5 +60,13 @@ public class UserService {
     @Transactional
     public void updateProfile(User user, String nickname, String profileImage) {
         user.updateProfile(nickname, profileImage);
+    }
+
+    /**
+     * 사용자 프로필 이미지만 업데이트 (닉네임은 유지)
+     */
+    @Transactional
+    public void updateProfileImage(User user, String profileImage) {
+        user.updateProfileImage(profileImage);
     }
 }

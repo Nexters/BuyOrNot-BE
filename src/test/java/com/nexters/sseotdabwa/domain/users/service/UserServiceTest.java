@@ -34,7 +34,6 @@ class UserServiceTest {
         // given
         User user = User.builder()
                 .socialId("12345")
-                .email("test@kakao.com")
                 .nickname("테스트")
                 .socialAccount(SocialAccount.KAKAO)
                 .build();
@@ -64,7 +63,6 @@ class UserServiceTest {
         // given
         User user = User.builder()
                 .socialId("12345")
-                .email("test@kakao.com")
                 .nickname("테스트")
                 .socialAccount(SocialAccount.KAKAO)
                 .build();
@@ -95,7 +93,6 @@ class UserServiceTest {
         // given
         UserCreateCommand command = new UserCreateCommand(
                 "12345",
-                "test@kakao.com",
                 "테스트",
                 SocialAccount.KAKAO,
                 "https://example.com/profile.jpg"
@@ -107,7 +104,6 @@ class UserServiceTest {
         // then
         assertThat(created.getId()).isNotNull();
         assertThat(created.getSocialId()).isEqualTo("12345");
-        assertThat(created.getEmail()).isEqualTo("test@kakao.com");
         assertThat(created.getNickname()).isEqualTo("테스트");
         assertThat(created.getSocialAccount()).isEqualTo(SocialAccount.KAKAO);
         assertThat(created.getProfileImage()).isEqualTo("https://example.com/profile.jpg");
@@ -119,7 +115,6 @@ class UserServiceTest {
         // given
         User user = User.builder()
                 .socialId("12345")
-                .email("test@kakao.com")
                 .nickname("기존 닉네임")
                 .socialAccount(SocialAccount.KAKAO)
                 .profileImage("https://example.com/old.jpg")
@@ -131,6 +126,26 @@ class UserServiceTest {
 
         // then
         assertThat(user.getNickname()).isEqualTo("새 닉네임");
+        assertThat(user.getProfileImage()).isEqualTo("https://example.com/new.jpg");
+    }
+
+    @Test
+    @DisplayName("프로필 이미지만 업데이트 성공 - 닉네임은 유지")
+    void updateProfileImage_success() {
+        // given
+        User user = User.builder()
+                .socialId("12345")
+                .nickname("기존 닉네임")
+                .socialAccount(SocialAccount.KAKAO)
+                .profileImage("https://example.com/old.jpg")
+                .build();
+        userRepository.save(user);
+
+        // when
+        userService.updateProfileImage(user, "https://example.com/new.jpg");
+
+        // then
+        assertThat(user.getNickname()).isEqualTo("기존 닉네임");
         assertThat(user.getProfileImage()).isEqualTo("https://example.com/new.jpg");
     }
 }
