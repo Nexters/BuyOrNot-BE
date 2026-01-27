@@ -12,26 +12,26 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum NicknameNoun {
-    HAMSTER("햄스터"),
-    SQUIRREL("다람쥐"),
-    HEDGEHOG("고슴도치"),
     OTTER("수달"),
     RABBIT("토끼"),
-    CAT("고양이"),
-    PUPPY("강아지"),
     PENGUIN("펭귄"),
     PANDA("판다"),
-    BEAR("곰돌이"),
     SEAL("물범"),
     QUOKKA("쿼카"),
-    ALPACA("알파카"),
-    CAPYBARA("카피바라"),
-    RACCOON("너구리"),
     FOX("여우"),
-    KOALA("코알라"),
-    SLOTH("나무늘보"),
-    DUCKLING("아기오리"),
-    CHICK("병아리");
+    DUCK("오리"),
+    SPARROW("참새"),
+    SEA_LION("물개"),
+    HIPPO("하마"),
+    CAMEL("낙타"),
+    GIRAFFE("기린"),
+    DEER("사슴"),
+    BEAVER("비버"),
+    LLAMA("라마"),
+    CHEETAH("치타"),
+    WHALE("고래"),
+    MAGPIE("까치"),
+    GOOSE("거위");
 
     private final String displayName;
 
