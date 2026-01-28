@@ -13,3 +13,12 @@ spring:
       hibernate:
         format_sql: false
     database-platform: org.hibernate.dialect.MySQLDialect
+
+oauth:
+  kakao:
+    user-info-url: https://kapi.kakao.com/v2/user/me
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-token-expiration: 3600000
+  refresh-token-expiration: 604800000
