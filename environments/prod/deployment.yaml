@@ -16,7 +16,6 @@ spec:
       containers:
         - name: buyornot-be
           image: buyornot22/sseotdabwa-be:prod
-          imagePullPolicy: Always
           ports:
             - containerPort: 8080
           env:
