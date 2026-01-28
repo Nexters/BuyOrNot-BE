@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 import com.nexters.sseotdabwa.common.entity.BaseEntity;
 import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
@@ -18,10 +19,14 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "users")
+@Table(name = "users", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_users_nickname", columnNames = "nickname")
+})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User extends BaseEntity {
+
+    public static final String NICKNAME_UNIQUE_CONSTRAINT = "uk_users_nickname";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,7 +35,7 @@ public class User extends BaseEntity {
     @Column(nullable = false, unique = true)
     private String socialId;
 
-    @Column(unique = true)
+    @Column
     private String nickname;
 
     @Enumerated(EnumType.STRING)
