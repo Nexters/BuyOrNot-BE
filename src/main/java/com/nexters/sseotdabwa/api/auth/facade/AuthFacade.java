@@ -13,6 +13,7 @@ import com.nexters.sseotdabwa.domain.auth.service.JwtTokenService;
 import com.nexters.sseotdabwa.domain.auth.service.KakaoOAuthService;
 import com.nexters.sseotdabwa.domain.auth.service.dto.KakaoUserInfo;
 import com.nexters.sseotdabwa.domain.users.entity.User;
+import com.nexters.sseotdabwa.domain.users.enums.DefaultProfileImage;
 import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
 import com.nexters.sseotdabwa.domain.users.service.UserService;
 import com.nexters.sseotdabwa.domain.users.service.command.UserCreateCommand;
@@ -35,29 +36,25 @@ public class AuthFacade {
 
     /**
      * 카카오 소셜 로그인
-     * 1. 카카오 Access Token으로 사용자 정보 조회
-     * 2. 기존 회원이면 프로필 업데이트, 신규 회원이면 가입 처리
+     * 1. 카카오 Access Token으로 사용자 정보 조회 (socialId만 사용)
+     * 2. 기존 회원이면 로그인, 신규 회원이면 랜덤 닉네임/프로필로 가입 처리
      * 3. JWT Access/Refresh Token 발급
      */
     public TokenResponse loginWithKakao(KakaoLoginRequest request) {
-        // 카카오 API로 사용자 정보 조회
+        // 카카오 API로 사용자 정보 조회 (socialId 확인용)
         KakaoUserInfo kakaoUserInfo = kakaoOAuthService.getUserInfo(request.accessToken());
 
-        // 기존 회원 조회 또는 신규 가입
+        // 기존 회원 조회 또는 신규 가입 (신규 회원은 랜덤 닉네임/프로필 이미지 부여)
         String socialId = String.valueOf(kakaoUserInfo.getId());
         User user = userService.findBySocialIdAndProvider(socialId, SocialAccount.KAKAO)
                 .orElseGet(() -> userService.createUser(
                         new UserCreateCommand(
                                 socialId,
-                                kakaoUserInfo.getEmail(),
-                                kakaoUserInfo.getNickname(),
+                                userService.generateUniqueNickname(),
                                 SocialAccount.KAKAO,
-                                kakaoUserInfo.getProfileImage()
+                                DefaultProfileImage.randomUrl()
                         )
                 ));
-
-        // 카카오에서 변경된 프로필 정보 동기화
-        userService.updateProfile(user, kakaoUserInfo.getNickname(), kakaoUserInfo.getProfileImage());
 
         // JWT 토큰 발급
         String accessToken = jwtTokenService.createAccessToken(user.getId());
