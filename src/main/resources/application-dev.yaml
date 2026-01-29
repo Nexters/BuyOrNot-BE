@@ -17,6 +17,14 @@ spring:
 oauth:
   kakao:
     user-info-url: https://kapi.kakao.com/v2/user/me
+  apple:
+    keys-url: https://appleid.apple.com/auth/keys
+    token-url: https://appleid.apple.com/auth/token
+    issuer: https://appleid.apple.com
+    team-id: ${APPLE_TEAM_ID}
+    key-id: ${APPLE_KEY_ID}
+    client-id: ${APPLE_CLIENT_ID}
+    private-key: ${APPLE_PRIVATE_KEY}
 
 jwt:
   secret: ${JWT_SECRET}
