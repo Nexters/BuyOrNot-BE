@@ -17,6 +17,12 @@ spring:
 oauth:
   kakao:
     user-info-url: https://kapi.kakao.com/v2/user/me
+  google:
+    keys-url: https://www.googleapis.com/oauth2/v3/certs
+    issuer: https://accounts.google.com
+    web-client-id: ${GOOGLE_WEB_CLIENT_ID}
+    ios-client-id: ${GOOGLE_IOS_CLIENT_ID}
+    android-client-id: ${GOOGLE_ANDROID_CLIENT_ID}
 
 jwt:
   secret: ${JWT_SECRET}
