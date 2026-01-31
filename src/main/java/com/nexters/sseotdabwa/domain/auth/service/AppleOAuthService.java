@@ -75,14 +75,15 @@ public class AppleOAuthService {
      * 3. id_token 검증 및 사용자 정보 추출
      *
      * @param authorizationCode Apple 로그인 후 받은 Authorization Code
+     * @param redirectUri Web 로그인 시 사용된 redirect_uri (iOS 네이티브는 null 가능)
      * @return Apple 사용자 정보 (sub)
      */
-    public AppleUserInfo getAppleUserInfo(String authorizationCode) {
+    public AppleUserInfo getAppleUserInfo(String authorizationCode, String redirectUri) {
         // 1. client_secret JWT 생성
         String clientSecret = generateClientSecret();
 
         // 2. Apple Token API 호출
-        AppleTokenResponse tokenResponse = exchangeCodeForToken(authorizationCode, clientSecret);
+        AppleTokenResponse tokenResponse = exchangeCodeForToken(authorizationCode, clientSecret, redirectUri);
 
         // 3. id_token 검증 및 사용자 정보 추출
         return verifyAndGetUserInfo(tokenResponse.getIdToken());
@@ -136,13 +137,21 @@ public class AppleOAuthService {
 
     /**
      * Authorization Code를 Apple Token API로 교환
+     *
+     * @param authorizationCode Apple 로그인 후 받은 Authorization Code
+     * @param clientSecret 생성된 client_secret JWT
+     * @param redirectUri Web 로그인 시 사용된 redirect_uri (iOS 네이티브는 null 가능)
      */
-    private AppleTokenResponse exchangeCodeForToken(String authorizationCode, String clientSecret) {
+    private AppleTokenResponse exchangeCodeForToken(String authorizationCode, String clientSecret, String redirectUri) {
         MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
         formData.add("client_id", clientId);
         formData.add("client_secret", clientSecret);
         formData.add("code", authorizationCode);
         formData.add("grant_type", "authorization_code");
+
+        if (redirectUri != null && !redirectUri.isBlank()) {
+            formData.add("redirect_uri", redirectUri);
+        }
 
         try {
             return webClient.post()

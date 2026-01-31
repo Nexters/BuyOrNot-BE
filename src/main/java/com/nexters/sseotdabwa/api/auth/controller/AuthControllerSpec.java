@@ -58,6 +58,10 @@ public interface AuthControllerSpec {
 
                     - 신규 사용자: 자동 회원가입 후 토큰 발급 (랜덤 닉네임/프로필 이미지 부여)
                     - 기존 사용자: 토큰 발급
+
+                    **redirectUri 파라미터:**
+                    - iOS 앱 (ASAuthorizationAppleIDProvider): 생략 가능
+                    - Web: 필수 (초기 인증 요청에서 사용한 redirect_uri와 동일한 값)
                     """
     )
     @ApiResponses(value = {

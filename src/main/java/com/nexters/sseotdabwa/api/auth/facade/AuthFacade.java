@@ -13,8 +13,8 @@ import com.nexters.sseotdabwa.common.exception.GlobalException;
 import com.nexters.sseotdabwa.domain.auth.service.AppleOAuthService;
 import com.nexters.sseotdabwa.domain.auth.service.JwtTokenService;
 import com.nexters.sseotdabwa.domain.auth.service.KakaoOAuthService;
-import com.nexters.sseotdabwa.domain.auth.service.dto.AppleUserInfo;
-import com.nexters.sseotdabwa.domain.auth.service.dto.KakaoUserInfo;
+import com.nexters.sseotdabwa.domain.auth.service.external.AppleUserInfo;
+import com.nexters.sseotdabwa.domain.auth.service.external.KakaoUserInfo;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.enums.DefaultProfileImage;
 import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
@@ -75,7 +75,7 @@ public class AuthFacade {
      */
     public TokenResponse loginWithApple(AppleLoginRequest request) {
         // Apple Authorization Code로 사용자 정보 조회 (socialId 확인용)
-        AppleUserInfo appleUserInfo = appleOAuthService.getAppleUserInfo(request.authorizationCode());
+        AppleUserInfo appleUserInfo = appleOAuthService.getAppleUserInfo(request.authorizationCode(), request.redirectUri());
 
         // 기존 회원 조회 또는 신규 가입 (신규 회원은 랜덤 닉네임/프로필 이미지 부여)
         String socialId = appleUserInfo.getSub();
