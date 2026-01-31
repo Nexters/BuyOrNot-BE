@@ -4,6 +4,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.nexters.sseotdabwa.api.auth.dto.GoogleLoginRequest;
+import com.nexters.sseotdabwa.api.auth.dto.AppleLoginRequest;
 import com.nexters.sseotdabwa.api.auth.dto.KakaoLoginRequest;
 import com.nexters.sseotdabwa.api.auth.dto.TokenRefreshRequest;
 import com.nexters.sseotdabwa.api.auth.dto.TokenResponse;
@@ -11,10 +12,13 @@ import com.nexters.sseotdabwa.api.auth.exception.AuthErrorCode;
 import com.nexters.sseotdabwa.api.users.dto.UserResponse;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
 import com.nexters.sseotdabwa.domain.auth.service.GoogleOAuthService;
+import com.nexters.sseotdabwa.domain.auth.service.AppleOAuthService;
 import com.nexters.sseotdabwa.domain.auth.service.JwtTokenService;
 import com.nexters.sseotdabwa.domain.auth.service.KakaoOAuthService;
 import com.nexters.sseotdabwa.domain.auth.service.dto.GoogleUserInfo;
 import com.nexters.sseotdabwa.domain.auth.service.dto.KakaoUserInfo;
+import com.nexters.sseotdabwa.domain.auth.service.external.AppleUserInfo;
+import com.nexters.sseotdabwa.domain.auth.service.external.KakaoUserInfo;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.enums.DefaultProfileImage;
 import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
@@ -36,6 +40,7 @@ public class AuthFacade {
 
     private final KakaoOAuthService kakaoOAuthService;
     private final GoogleOAuthService googleOAuthService;
+    private final AppleOAuthService appleOAuthService;
     private final JwtTokenService jwtTokenService;
     private final UserService userService;
 
@@ -57,6 +62,35 @@ public class AuthFacade {
                                 socialId,
                                 userService.generateUniqueNickname(),
                                 SocialAccount.KAKAO,
+                                DefaultProfileImage.randomUrl()
+                        )
+                ));
+
+        // JWT 토큰 발급
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+        String refreshToken = jwtTokenService.createRefreshToken(user.getId());
+
+        return new TokenResponse(accessToken, refreshToken, "Bearer", UserResponse.from(user));
+    }
+
+    /**
+     * Apple 소셜 로그인
+     * 1. Authorization Code를 Apple Token API로 교환하여 사용자 정보 추출 (socialId만 사용)
+     * 2. 기존 회원이면 로그인, 신규 회원이면 랜덤 닉네임/프로필로 가입 처리
+     * 3. JWT Access/Refresh Token 발급
+     */
+    public TokenResponse loginWithApple(AppleLoginRequest request) {
+        // Apple Authorization Code로 사용자 정보 조회 (socialId 확인용)
+        AppleUserInfo appleUserInfo = appleOAuthService.getAppleUserInfo(request.authorizationCode(), request.redirectUri());
+
+        // 기존 회원 조회 또는 신규 가입 (신규 회원은 랜덤 닉네임/프로필 이미지 부여)
+        String socialId = appleUserInfo.getSub();
+        User user = userService.findBySocialIdAndProvider(socialId, SocialAccount.APPLE)
+                .orElseGet(() -> userService.createUser(
+                        new UserCreateCommand(
+                                socialId,
+                                userService.generateUniqueNickname(),
+                                SocialAccount.APPLE,
                                 DefaultProfileImage.randomUrl()
                         )
                 ));

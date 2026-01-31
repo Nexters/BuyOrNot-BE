@@ -1,4 +1,4 @@
-package com.nexters.sseotdabwa.domain.auth.service.dto;
+package com.nexters.sseotdabwa.domain.auth.service.external;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -6,12 +6,12 @@ import lombok.NoArgsConstructor;
 import java.util.List;
 
 /**
- * Google 공개키 응답 DTO
- * - https://www.googleapis.com/oauth2/v3/certs 응답
+ * Apple 공개키 응답 DTO
+ * - https://appleid.apple.com/auth/keys 응답
  */
 @Getter
 @NoArgsConstructor
-public class GooglePublicKeys {
+public class ApplePublicKeys {
 
     private List<Key> keys;
 
