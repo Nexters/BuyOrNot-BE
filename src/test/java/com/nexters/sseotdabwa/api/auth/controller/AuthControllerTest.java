@@ -15,19 +15,23 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nexters.sseotdabwa.api.auth.dto.AppleLoginRequest;
+import com.nexters.sseotdabwa.api.auth.dto.GoogleLoginRequest;
 import com.nexters.sseotdabwa.api.auth.dto.KakaoLoginRequest;
 import com.nexters.sseotdabwa.api.auth.dto.TokenRefreshRequest;
 import com.nexters.sseotdabwa.api.auth.exception.AuthErrorCode;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
 import com.nexters.sseotdabwa.domain.auth.service.AppleOAuthService;
+import com.nexters.sseotdabwa.domain.auth.service.GoogleOAuthService;
 import com.nexters.sseotdabwa.domain.auth.service.JwtTokenService;
 import com.nexters.sseotdabwa.domain.auth.service.KakaoOAuthService;
-import com.nexters.sseotdabwa.domain.auth.service.dto.AppleUserInfo;
-import com.nexters.sseotdabwa.domain.auth.service.dto.KakaoUserInfo;
+import com.nexters.sseotdabwa.domain.auth.service.external.AppleUserInfo;
+import com.nexters.sseotdabwa.domain.auth.service.external.GoogleUserInfo;
+import com.nexters.sseotdabwa.domain.auth.service.external.KakaoUserInfo;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
 import com.nexters.sseotdabwa.domain.users.repository.UserRepository;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -56,6 +60,9 @@ class AuthControllerTest {
 
     @MockBean
     private AppleOAuthService appleOAuthService;
+
+    @MockBean
+    private GoogleOAuthService googleOAuthService;
 
     @Test
     @DisplayName("카카오 로그인 성공 - 신규 사용자")
@@ -206,9 +213,9 @@ class AuthControllerTest {
                 .sub(uniqueAppleSub)
                 .build();
 
-        given(appleOAuthService.getAppleUserInfo(anyString())).willReturn(mockUserInfo);
+        given(appleOAuthService.getAppleUserInfo(anyString(), any())).willReturn(mockUserInfo);
 
-        AppleLoginRequest request = new AppleLoginRequest("valid_authorization_code");
+        AppleLoginRequest request = new AppleLoginRequest("valid_authorization_code", null);
 
         // when & then
         mockMvc.perform(post("/api/v1/auth/apple/login")
@@ -238,9 +245,9 @@ class AuthControllerTest {
                 .sub(uniqueAppleSub)
                 .build();
 
-        given(appleOAuthService.getAppleUserInfo(anyString())).willReturn(mockUserInfo);
+        given(appleOAuthService.getAppleUserInfo(anyString(), any())).willReturn(mockUserInfo);
 
-        AppleLoginRequest request = new AppleLoginRequest("valid_authorization_code");
+        AppleLoginRequest request = new AppleLoginRequest("valid_authorization_code", null);
 
         // when & then
         mockMvc.perform(post("/api/v1/auth/apple/login")
@@ -255,7 +262,7 @@ class AuthControllerTest {
     @DisplayName("Apple Authorization Code가 비어있으면 400 에러")
     void loginWithApple_emptyCode_returns400() throws Exception {
         // given
-        AppleLoginRequest request = new AppleLoginRequest("");
+        AppleLoginRequest request = new AppleLoginRequest("", null);
 
         // when & then
         mockMvc.perform(post("/api/v1/auth/apple/login")
@@ -269,10 +276,10 @@ class AuthControllerTest {
     @DisplayName("유효하지 않은 Apple Authorization Code로 로그인 시 401 에러")
     void loginWithApple_invalidCode_returns401() throws Exception {
         // given
-        given(appleOAuthService.getAppleUserInfo(anyString()))
+        given(appleOAuthService.getAppleUserInfo(anyString(), any()))
                 .willThrow(new GlobalException(AuthErrorCode.APPLE_INVALID_AUTHORIZATION_CODE));
 
-        AppleLoginRequest request = new AppleLoginRequest("invalid_code");
+        AppleLoginRequest request = new AppleLoginRequest("invalid_code", null);
 
         // when & then
         mockMvc.perform(post("/api/v1/auth/apple/login")
@@ -286,10 +293,10 @@ class AuthControllerTest {
     @DisplayName("Apple Token API 호출 실패 시 502 에러")
     void loginWithApple_tokenApiFailed_returns502() throws Exception {
         // given
-        given(appleOAuthService.getAppleUserInfo(anyString()))
+        given(appleOAuthService.getAppleUserInfo(anyString(), any()))
                 .willThrow(new GlobalException(AuthErrorCode.APPLE_TOKEN_API_FAILED));
 
-        AppleLoginRequest request = new AppleLoginRequest("valid_code");
+        AppleLoginRequest request = new AppleLoginRequest("valid_code", null);
 
         // when & then
         mockMvc.perform(post("/api/v1/auth/apple/login")
@@ -297,5 +304,109 @@ class AuthControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.errorCode").value("AUTH_208"));
+    }
+
+    // ==================== Google 로그인 테스트 ====================
+
+    @Test
+    @DisplayName("Google 로그인 성공 - 신규 사용자 (랜덤 닉네임/프로필 이미지 부여)")
+    void loginWithGoogle_newUser_success() throws Exception {
+        // given
+        String uniqueGoogleSub = "google_user_" + System.nanoTime();
+        GoogleUserInfo mockUserInfo = GoogleUserInfo.builder()
+                .sub(uniqueGoogleSub)
+                .build();
+
+        given(googleOAuthService.verifyAndGetUserInfo(anyString())).willReturn(mockUserInfo);
+
+        GoogleLoginRequest request = new GoogleLoginRequest("valid_id_token");
+
+        // when & then
+        mockMvc.perform(post("/api/v1/auth/google/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.accessToken").exists())
+                .andExpect(jsonPath("$.data.refreshToken").exists())
+                .andExpect(jsonPath("$.data.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.status").value("200"));
+    }
+
+    @Test
+    @DisplayName("Google 로그인 성공 - 기존 사용자")
+    void loginWithGoogle_existingUser_success() throws Exception {
+        // given
+        String uniqueGoogleSub = "google_user_" + System.nanoTime();
+        String uniqueNickname = "기존사용자_" + UUID.randomUUID().toString().substring(0, 8);
+        User existingUser = User.builder()
+                .socialId(uniqueGoogleSub)
+                .nickname(uniqueNickname)
+                .socialAccount(SocialAccount.GOOGLE)
+                .build();
+        userRepository.save(existingUser);
+
+        GoogleUserInfo mockUserInfo = GoogleUserInfo.builder()
+                .sub(uniqueGoogleSub)
+                .build();
+
+        given(googleOAuthService.verifyAndGetUserInfo(anyString())).willReturn(mockUserInfo);
+
+        GoogleLoginRequest request = new GoogleLoginRequest("valid_id_token");
+
+        // when & then
+        mockMvc.perform(post("/api/v1/auth/google/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.accessToken").exists())
+                .andExpect(jsonPath("$.data.refreshToken").exists());
+    }
+
+    @Test
+    @DisplayName("Google ID Token이 비어있으면 400 에러")
+    void loginWithGoogle_emptyToken_returns400() throws Exception {
+        // given
+        GoogleLoginRequest request = new GoogleLoginRequest("");
+
+        // when & then
+        mockMvc.perform(post("/api/v1/auth/google/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("COMMON_400"));
+    }
+
+    @Test
+    @DisplayName("유효하지 않은 Google ID Token으로 로그인 시 401 에러")
+    void loginWithGoogle_invalidToken_returns401() throws Exception {
+        // given
+        given(googleOAuthService.verifyAndGetUserInfo(anyString()))
+                .willThrow(new GlobalException(AuthErrorCode.GOOGLE_INVALID_TOKEN));
+
+        GoogleLoginRequest request = new GoogleLoginRequest("invalid_token");
+
+        // when & then
+        mockMvc.perform(post("/api/v1/auth/google/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("AUTH_301"));
+    }
+
+    @Test
+    @DisplayName("Google 공개키 조회 실패 시 502 에러")
+    void loginWithGoogle_keyFetchFailed_returns502() throws Exception {
+        // given
+        given(googleOAuthService.verifyAndGetUserInfo(anyString()))
+                .willThrow(new GlobalException(AuthErrorCode.GOOGLE_KEY_FETCH_FAILED));
+
+        GoogleLoginRequest request = new GoogleLoginRequest("valid_token");
+
+        // when & then
+        mockMvc.perform(post("/api/v1/auth/google/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.errorCode").value("AUTH_305"));
     }
 }

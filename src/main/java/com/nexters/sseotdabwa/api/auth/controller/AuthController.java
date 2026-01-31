@@ -1,5 +1,6 @@
 package com.nexters.sseotdabwa.api.auth.controller;
 
+import com.nexters.sseotdabwa.api.auth.dto.GoogleLoginRequest;
 import com.nexters.sseotdabwa.api.auth.dto.AppleLoginRequest;
 import com.nexters.sseotdabwa.api.auth.dto.KakaoLoginRequest;
 import com.nexters.sseotdabwa.api.auth.dto.TokenRefreshRequest;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 인증 API 컨트롤러
  * - 카카오 소셜 로그인
  * - Apple 소셜 로그인
+ * - Google 소셜 로그인
  * - Access Token 갱신
  */
 @RestController
@@ -38,6 +40,13 @@ public class AuthController implements AuthControllerSpec {
     @PostMapping("/apple/login")
     public ApiResponse<TokenResponse> loginWithApple(@Valid @RequestBody AppleLoginRequest request) {
         TokenResponse response = authFacade.loginWithApple(request);
+        return ApiResponse.success(response, HttpStatus.OK);
+    }
+
+    @Override
+    @PostMapping("/google/login")
+    public ApiResponse<TokenResponse> loginWithGoogle(@Valid @RequestBody GoogleLoginRequest request) {
+        TokenResponse response = authFacade.loginWithGoogle(request);
         return ApiResponse.success(response, HttpStatus.OK);
     }
 

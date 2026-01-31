@@ -1,5 +1,6 @@
 package com.nexters.sseotdabwa.api.auth.controller;
 
+import com.nexters.sseotdabwa.api.auth.dto.GoogleLoginRequest;
 import jakarta.validation.Valid;
 
 import org.springframework.web.bind.annotation.RequestBody;
@@ -80,6 +81,35 @@ public interface AuthControllerSpec {
             )
     })
     ApiResponse<TokenResponse> loginWithApple(@Valid @RequestBody AppleLoginRequest request);
+
+    @Operation(
+            summary = "[Google] 소셜 로그인",
+            description = """
+                    Google 소셜 로그인 API입니다.
+
+                    클라이언트(iOS/Android/Web)에서 Google SDK로 발급받은 ID Token을 전달하면,
+                    서버에서 Google 공개키로 토큰을 검증하고 JWT 토큰을 발급합니다.
+
+                    - 신규 사용자: 자동 회원가입 후 토큰 발급 (랜덤 닉네임/프로필 이미지 부여)
+                    - 기존 사용자: 토큰 발급
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "로그인 성공 (JWT 토큰 + 사용자 정보 반환)",
+                    content = @Content(schema = @Schema(implementation = TokenResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "유효하지 않은 Google ID Token"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "502",
+                    description = "Google 공개키 조회 실패"
+            )
+    })
+    ApiResponse<TokenResponse> loginWithGoogle(@Valid @RequestBody GoogleLoginRequest request);
 
     @Operation(
             summary = "토큰 갱신",
