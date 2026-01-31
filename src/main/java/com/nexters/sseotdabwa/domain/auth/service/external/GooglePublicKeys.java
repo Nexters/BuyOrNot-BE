@@ -1,6 +1,7 @@
 package com.nexters.sseotdabwa.domain.auth.service.external;
 
 import java.util.List;
+import java.util.Objects;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -35,7 +36,7 @@ public class GooglePublicKeys {
             return null;
         }
         return keys.stream()
-                .filter(key -> key.getKid().equals(kid))
+                .filter(key -> Objects.equals(key.getKid(), kid))
                 .findFirst()
                 .orElse(null);
     }
