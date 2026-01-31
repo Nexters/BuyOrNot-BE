@@ -20,17 +20,18 @@ import com.nexters.sseotdabwa.api.auth.dto.KakaoLoginRequest;
 import com.nexters.sseotdabwa.api.auth.dto.TokenRefreshRequest;
 import com.nexters.sseotdabwa.api.auth.exception.AuthErrorCode;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
-import com.nexters.sseotdabwa.domain.auth.service.GoogleOAuthService;
 import com.nexters.sseotdabwa.domain.auth.service.AppleOAuthService;
+import com.nexters.sseotdabwa.domain.auth.service.GoogleOAuthService;
 import com.nexters.sseotdabwa.domain.auth.service.JwtTokenService;
 import com.nexters.sseotdabwa.domain.auth.service.KakaoOAuthService;
-import com.nexters.sseotdabwa.domain.auth.service.dto.GoogleUserInfo;
-import com.nexters.sseotdabwa.domain.auth.service.dto.AppleUserInfo;
-import com.nexters.sseotdabwa.domain.auth.service.dto.KakaoUserInfo;
+import com.nexters.sseotdabwa.domain.auth.service.external.AppleUserInfo;
+import com.nexters.sseotdabwa.domain.auth.service.external.GoogleUserInfo;
+import com.nexters.sseotdabwa.domain.auth.service.external.KakaoUserInfo;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
 import com.nexters.sseotdabwa.domain.users.repository.UserRepository;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -212,9 +213,9 @@ class AuthControllerTest {
                 .sub(uniqueAppleSub)
                 .build();
 
-        given(appleOAuthService.getAppleUserInfo(anyString())).willReturn(mockUserInfo);
+        given(appleOAuthService.getAppleUserInfo(anyString(), any())).willReturn(mockUserInfo);
 
-        AppleLoginRequest request = new AppleLoginRequest("valid_authorization_code");
+        AppleLoginRequest request = new AppleLoginRequest("valid_authorization_code", null);
 
         // when & then
         mockMvc.perform(post("/api/v1/auth/apple/login")
@@ -244,9 +245,9 @@ class AuthControllerTest {
                 .sub(uniqueAppleSub)
                 .build();
 
-        given(appleOAuthService.getAppleUserInfo(anyString())).willReturn(mockUserInfo);
+        given(appleOAuthService.getAppleUserInfo(anyString(), any())).willReturn(mockUserInfo);
 
-        AppleLoginRequest request = new AppleLoginRequest("valid_authorization_code");
+        AppleLoginRequest request = new AppleLoginRequest("valid_authorization_code", null);
 
         // when & then
         mockMvc.perform(post("/api/v1/auth/apple/login")
@@ -261,7 +262,7 @@ class AuthControllerTest {
     @DisplayName("Apple Authorization Code가 비어있으면 400 에러")
     void loginWithApple_emptyCode_returns400() throws Exception {
         // given
-        AppleLoginRequest request = new AppleLoginRequest("");
+        AppleLoginRequest request = new AppleLoginRequest("", null);
 
         // when & then
         mockMvc.perform(post("/api/v1/auth/apple/login")
@@ -275,10 +276,10 @@ class AuthControllerTest {
     @DisplayName("유효하지 않은 Apple Authorization Code로 로그인 시 401 에러")
     void loginWithApple_invalidCode_returns401() throws Exception {
         // given
-        given(appleOAuthService.getAppleUserInfo(anyString()))
+        given(appleOAuthService.getAppleUserInfo(anyString(), any()))
                 .willThrow(new GlobalException(AuthErrorCode.APPLE_INVALID_AUTHORIZATION_CODE));
 
-        AppleLoginRequest request = new AppleLoginRequest("invalid_code");
+        AppleLoginRequest request = new AppleLoginRequest("invalid_code", null);
 
         // when & then
         mockMvc.perform(post("/api/v1/auth/apple/login")
@@ -292,10 +293,10 @@ class AuthControllerTest {
     @DisplayName("Apple Token API 호출 실패 시 502 에러")
     void loginWithApple_tokenApiFailed_returns502() throws Exception {
         // given
-        given(appleOAuthService.getAppleUserInfo(anyString()))
+        given(appleOAuthService.getAppleUserInfo(anyString(), any()))
                 .willThrow(new GlobalException(AuthErrorCode.APPLE_TOKEN_API_FAILED));
 
-        AppleLoginRequest request = new AppleLoginRequest("valid_code");
+        AppleLoginRequest request = new AppleLoginRequest("valid_code", null);
 
         // when & then
         mockMvc.perform(post("/api/v1/auth/apple/login")

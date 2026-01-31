@@ -29,8 +29,7 @@ public enum AuthErrorCode implements ErrorCode {
     GOOGLE_INVALID_ISSUER(HttpStatus.UNAUTHORIZED, "AUTH_303", "Google ID Token의 발급자가 올바르지 않습니다."),
     GOOGLE_INVALID_AUDIENCE(HttpStatus.UNAUTHORIZED, "AUTH_304", "Google ID Token의 대상이 올바르지 않습니다."),
     GOOGLE_KEY_FETCH_FAILED(HttpStatus.BAD_GATEWAY, "AUTH_305", "Google 공개키를 가져오는데 실패했습니다."),
-    GOOGLE_API_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "AUTH_306", "Google API 호출 시간이 초과되었습니다.");
-    KAKAO_API_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "AUTH_104", "카카오 API 호출 시간이 초과되었습니다."),
+    GOOGLE_API_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "AUTH_306", "Google API 호출 시간이 초과되었습니다."),
 
     // Apple OAuth 에러 (AUTH_201 ~ AUTH_210)
     APPLE_INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_201", "유효하지 않은 Apple Identity Token입니다."),

@@ -16,8 +16,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import com.nexters.sseotdabwa.api.auth.exception.AuthErrorCode;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
-import com.nexters.sseotdabwa.domain.auth.service.dto.GooglePublicKeys;
-import com.nexters.sseotdabwa.domain.auth.service.dto.GoogleUserInfo;
+import com.nexters.sseotdabwa.domain.auth.service.external.GooglePublicKeys;
+import com.nexters.sseotdabwa.domain.auth.service.external.GoogleUserInfo;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
