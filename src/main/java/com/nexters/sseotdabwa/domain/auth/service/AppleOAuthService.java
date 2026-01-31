@@ -22,9 +22,9 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import com.nexters.sseotdabwa.api.auth.exception.AuthErrorCode;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
-import com.nexters.sseotdabwa.domain.auth.service.dto.ApplePublicKeys;
-import com.nexters.sseotdabwa.domain.auth.service.dto.AppleTokenResponse;
-import com.nexters.sseotdabwa.domain.auth.service.dto.AppleUserInfo;
+import com.nexters.sseotdabwa.domain.auth.service.external.ApplePublicKeys;
+import com.nexters.sseotdabwa.domain.auth.service.external.AppleTokenResponse;
+import com.nexters.sseotdabwa.domain.auth.service.external.AppleUserInfo;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;

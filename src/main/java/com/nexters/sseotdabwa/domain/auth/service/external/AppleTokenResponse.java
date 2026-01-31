@@ -1,4 +1,4 @@
-package com.nexters.sseotdabwa.domain.auth.service.dto;
+package com.nexters.sseotdabwa.domain.auth.service.external;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
