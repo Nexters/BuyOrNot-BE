@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/feeds")
 @RequiredArgsConstructor
-public class FeedController {
+public class FeedController implements FeedControllerSpec {
 
     private final FeedFacade feedFacade;
 }
