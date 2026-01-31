@@ -14,12 +14,15 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nexters.sseotdabwa.api.auth.dto.AppleLoginRequest;
 import com.nexters.sseotdabwa.api.auth.dto.KakaoLoginRequest;
 import com.nexters.sseotdabwa.api.auth.dto.TokenRefreshRequest;
 import com.nexters.sseotdabwa.api.auth.exception.AuthErrorCode;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
+import com.nexters.sseotdabwa.domain.auth.service.AppleOAuthService;
 import com.nexters.sseotdabwa.domain.auth.service.JwtTokenService;
 import com.nexters.sseotdabwa.domain.auth.service.KakaoOAuthService;
+import com.nexters.sseotdabwa.domain.auth.service.dto.AppleUserInfo;
 import com.nexters.sseotdabwa.domain.auth.service.dto.KakaoUserInfo;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
@@ -50,6 +53,9 @@ class AuthControllerTest {
 
     @MockBean
     private KakaoOAuthService kakaoOAuthService;
+
+    @MockBean
+    private AppleOAuthService appleOAuthService;
 
     @Test
     @DisplayName("카카오 로그인 성공 - 신규 사용자")
@@ -187,5 +193,109 @@ class AuthControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.errorCode").value("AUTH_001"));
+    }
+
+    // ==================== Apple 로그인 테스트 ====================
+
+    @Test
+    @DisplayName("Apple 로그인 성공 - 신규 사용자 (랜덤 닉네임/프로필 이미지 부여)")
+    void loginWithApple_newUser_success() throws Exception {
+        // given
+        String uniqueAppleSub = "apple_user_" + System.nanoTime();
+        AppleUserInfo mockUserInfo = AppleUserInfo.builder()
+                .sub(uniqueAppleSub)
+                .build();
+
+        given(appleOAuthService.getAppleUserInfo(anyString())).willReturn(mockUserInfo);
+
+        AppleLoginRequest request = new AppleLoginRequest("valid_authorization_code");
+
+        // when & then
+        mockMvc.perform(post("/api/v1/auth/apple/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.accessToken").exists())
+                .andExpect(jsonPath("$.data.refreshToken").exists())
+                .andExpect(jsonPath("$.data.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.status").value("200"));
+    }
+
+    @Test
+    @DisplayName("Apple 로그인 성공 - 기존 사용자")
+    void loginWithApple_existingUser_success() throws Exception {
+        // given
+        String uniqueAppleSub = "apple_user_" + System.nanoTime();
+        String uniqueNickname = "기존사용자_" + UUID.randomUUID().toString().substring(0, 8);
+        User existingUser = User.builder()
+                .socialId(uniqueAppleSub)
+                .nickname(uniqueNickname)
+                .socialAccount(SocialAccount.APPLE)
+                .build();
+        userRepository.save(existingUser);
+
+        AppleUserInfo mockUserInfo = AppleUserInfo.builder()
+                .sub(uniqueAppleSub)
+                .build();
+
+        given(appleOAuthService.getAppleUserInfo(anyString())).willReturn(mockUserInfo);
+
+        AppleLoginRequest request = new AppleLoginRequest("valid_authorization_code");
+
+        // when & then
+        mockMvc.perform(post("/api/v1/auth/apple/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.accessToken").exists())
+                .andExpect(jsonPath("$.data.refreshToken").exists());
+    }
+
+    @Test
+    @DisplayName("Apple Authorization Code가 비어있으면 400 에러")
+    void loginWithApple_emptyCode_returns400() throws Exception {
+        // given
+        AppleLoginRequest request = new AppleLoginRequest("");
+
+        // when & then
+        mockMvc.perform(post("/api/v1/auth/apple/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("COMMON_400"));
+    }
+
+    @Test
+    @DisplayName("유효하지 않은 Apple Authorization Code로 로그인 시 401 에러")
+    void loginWithApple_invalidCode_returns401() throws Exception {
+        // given
+        given(appleOAuthService.getAppleUserInfo(anyString()))
+                .willThrow(new GlobalException(AuthErrorCode.APPLE_INVALID_AUTHORIZATION_CODE));
+
+        AppleLoginRequest request = new AppleLoginRequest("invalid_code");
+
+        // when & then
+        mockMvc.perform(post("/api/v1/auth/apple/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("AUTH_207"));
+    }
+
+    @Test
+    @DisplayName("Apple Token API 호출 실패 시 502 에러")
+    void loginWithApple_tokenApiFailed_returns502() throws Exception {
+        // given
+        given(appleOAuthService.getAppleUserInfo(anyString()))
+                .willThrow(new GlobalException(AuthErrorCode.APPLE_TOKEN_API_FAILED));
+
+        AppleLoginRequest request = new AppleLoginRequest("valid_code");
+
+        // when & then
+        mockMvc.perform(post("/api/v1/auth/apple/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.errorCode").value("AUTH_208"));
     }
 }

@@ -10,7 +10,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import com.nexters.sseotdabwa.api.auth.exception.AuthErrorCode;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
-import com.nexters.sseotdabwa.domain.auth.service.dto.KakaoUserInfo;
+import com.nexters.sseotdabwa.domain.auth.service.external.KakaoUserInfo;
 
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;

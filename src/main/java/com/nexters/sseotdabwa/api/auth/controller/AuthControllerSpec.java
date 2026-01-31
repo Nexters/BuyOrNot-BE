@@ -1,16 +1,20 @@
 package com.nexters.sseotdabwa.api.auth.controller;
 
+import jakarta.validation.Valid;
+
+import org.springframework.web.bind.annotation.RequestBody;
+
+import com.nexters.sseotdabwa.api.auth.dto.AppleLoginRequest;
 import com.nexters.sseotdabwa.api.auth.dto.KakaoLoginRequest;
 import com.nexters.sseotdabwa.api.auth.dto.TokenRefreshRequest;
 import com.nexters.sseotdabwa.api.auth.dto.TokenResponse;
 import com.nexters.sseotdabwa.common.response.ApiResponse;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.RequestBody;
 
 @Tag(name = "Auth", description = "인증 API")
 public interface AuthControllerSpec {
@@ -43,6 +47,39 @@ public interface AuthControllerSpec {
             )
     })
     ApiResponse<TokenResponse> loginWithKakao(@Valid @RequestBody KakaoLoginRequest request);
+
+    @Operation(
+            summary = "[Apple] 소셜 로그인",
+            description = """
+                    Apple 소셜 로그인 API입니다.
+
+                    클라이언트(iOS/Web)에서 Apple SDK로 발급받은 Authorization Code를 전달하면,
+                    서버에서 Apple Token API를 호출하여 사용자를 검증하고 JWT 토큰을 발급합니다.
+
+                    - 신규 사용자: 자동 회원가입 후 토큰 발급 (랜덤 닉네임/프로필 이미지 부여)
+                    - 기존 사용자: 토큰 발급
+
+                    **redirectUri 파라미터:**
+                    - iOS 앱 (ASAuthorizationAppleIDProvider): 생략 가능
+                    - Web: 필수 (초기 인증 요청에서 사용한 redirect_uri와 동일한 값)
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "로그인 성공 (JWT 토큰 + 사용자 정보 반환)",
+                    content = @Content(schema = @Schema(implementation = TokenResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "유효하지 않은 Apple Identity Token"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "502",
+                    description = "Apple 공개키 조회 실패"
+            )
+    })
+    ApiResponse<TokenResponse> loginWithApple(@Valid @RequestBody AppleLoginRequest request);
 
     @Operation(
             summary = "토큰 갱신",
