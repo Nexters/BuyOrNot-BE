@@ -58,7 +58,9 @@ public class AuthFacade {
         String email = kakaoUserInfo.getEmail();
         User user = userService.findBySocialIdAndProvider(socialId, SocialAccount.KAKAO)
                 .map(existingUser -> {
-                    existingUser.updateEmail(email);
+                    if (email != null && !email.isBlank()) {
+                        existingUser.updateEmail(email);
+                    }
                     return existingUser;
                 })
                 .orElseGet(() -> userService.createUser(
@@ -93,7 +95,9 @@ public class AuthFacade {
         String email = appleUserInfo.getEmail();
         User user = userService.findBySocialIdAndProvider(socialId, SocialAccount.APPLE)
                 .map(existingUser -> {
-                    existingUser.updateEmail(email);
+                    if (email != null && !email.isBlank()) {
+                        existingUser.updateEmail(email);
+                    }
                     return existingUser;
                 })
                 .orElseGet(() -> userService.createUser(
@@ -128,7 +132,9 @@ public class AuthFacade {
         String email = googleUserInfo.getEmail();
         User user = userService.findBySocialIdAndProvider(socialId, SocialAccount.GOOGLE)
                 .map(existingUser -> {
-                    existingUser.updateEmail(email);
+                    if (email != null && !email.isBlank()) {
+                        existingUser.updateEmail(email);
+                    }
                     return existingUser;
                 })
                 .orElseGet(() -> userService.createUser(
