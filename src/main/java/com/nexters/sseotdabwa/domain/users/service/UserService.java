@@ -76,6 +76,7 @@ public class UserService {
                     .nickname(nickname)
                     .socialAccount(command.socialAccount())
                     .profileImage(command.profileImage())
+                    .email(command.email())
                     .build();
             return userRepository.save(user);
         });

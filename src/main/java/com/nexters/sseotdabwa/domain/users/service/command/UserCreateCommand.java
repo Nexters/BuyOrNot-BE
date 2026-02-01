@@ -10,6 +10,7 @@ public record UserCreateCommand(
         String socialId,
         String nickname,
         SocialAccount socialAccount,
-        String profileImage
+        String profileImage,
+        String email
 ) {
 }

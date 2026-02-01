@@ -12,4 +12,5 @@ import lombok.Getter;
 public class GoogleUserInfo {
 
     private final String sub;  // Google User ID
+    private final String email;
 }

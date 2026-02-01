@@ -55,13 +55,19 @@ public class AuthFacade {
 
         // 기존 회원 조회 또는 신규 가입 (신규 회원은 랜덤 닉네임/프로필 이미지 부여)
         String socialId = String.valueOf(kakaoUserInfo.getId());
+        String email = kakaoUserInfo.getEmail();
         User user = userService.findBySocialIdAndProvider(socialId, SocialAccount.KAKAO)
+                .map(existingUser -> {
+                    existingUser.updateEmail(email);
+                    return existingUser;
+                })
                 .orElseGet(() -> userService.createUser(
                         new UserCreateCommand(
                                 socialId,
                                 userService.generateUniqueNickname(),
                                 SocialAccount.KAKAO,
-                                DefaultProfileImage.randomUrl()
+                                DefaultProfileImage.randomUrl(),
+                                email
                         )
                 ));
 
@@ -84,13 +90,19 @@ public class AuthFacade {
 
         // 기존 회원 조회 또는 신규 가입 (신규 회원은 랜덤 닉네임/프로필 이미지 부여)
         String socialId = appleUserInfo.getSub();
+        String email = appleUserInfo.getEmail();
         User user = userService.findBySocialIdAndProvider(socialId, SocialAccount.APPLE)
+                .map(existingUser -> {
+                    existingUser.updateEmail(email);
+                    return existingUser;
+                })
                 .orElseGet(() -> userService.createUser(
                         new UserCreateCommand(
                                 socialId,
                                 userService.generateUniqueNickname(),
                                 SocialAccount.APPLE,
-                                DefaultProfileImage.randomUrl()
+                                DefaultProfileImage.randomUrl(),
+                                email
                         )
                 ));
 
@@ -113,13 +125,19 @@ public class AuthFacade {
 
         // 기존 회원 조회 또는 신규 가입 (신규 회원은 랜덤 닉네임/프로필 이미지 부여)
         String socialId = googleUserInfo.getSub();
+        String email = googleUserInfo.getEmail();
         User user = userService.findBySocialIdAndProvider(socialId, SocialAccount.GOOGLE)
+                .map(existingUser -> {
+                    existingUser.updateEmail(email);
+                    return existingUser;
+                })
                 .orElseGet(() -> userService.createUser(
                         new UserCreateCommand(
                                 socialId,
                                 userService.generateUniqueNickname(),
                                 SocialAccount.GOOGLE,
-                                DefaultProfileImage.randomUrl()
+                                DefaultProfileImage.randomUrl(),
+                                email
                         )
                 ));
 

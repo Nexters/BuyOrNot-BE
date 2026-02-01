@@ -44,13 +44,21 @@ public class User extends BaseEntity {
 
     private String profileImage;
 
+    @Column
+    private String email;
+
     @Builder
     public User(String socialId, String nickname, SocialAccount socialAccount,
-            String profileImage) {
+            String profileImage, String email) {
         this.socialId = socialId;
         this.nickname = nickname;
         this.socialAccount = socialAccount;
         this.profileImage = profileImage;
+        this.email = email;
+    }
+
+    public void updateEmail(String email) {
+        this.email = email;
     }
 
     public void updateProfile(String nickname, String profileImage) {

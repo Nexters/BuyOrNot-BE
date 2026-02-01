@@ -79,7 +79,7 @@ class AppleOAuthServiceTest {
     @DisplayName("유효한 Identity Token으로 사용자 정보 조회 성공")
     void verifyAndGetUserInfo_success() {
         // given
-        String identityToken = createValidIdentityToken("test-sub-123");
+        String identityToken = createValidIdentityToken("test-sub-123", "test@icloud.com");
         ApplePublicKeys mockKeys = createMockApplePublicKeys();
 
         setupWebClientGetMock(mockKeys);
@@ -90,6 +90,25 @@ class AppleOAuthServiceTest {
         // then
         assertThat(result).isNotNull();
         assertThat(result.getSub()).isEqualTo("test-sub-123");
+        assertThat(result.getEmail()).isEqualTo("test@icloud.com");
+    }
+
+    @Test
+    @DisplayName("email 없는 Identity Token으로도 사용자 정보 조회 성공")
+    void verifyAndGetUserInfo_withoutEmail_success() {
+        // given
+        String identityToken = createValidIdentityToken("test-sub-456", null);
+        ApplePublicKeys mockKeys = createMockApplePublicKeys();
+
+        setupWebClientGetMock(mockKeys);
+
+        // when
+        AppleUserInfo result = appleOAuthService.verifyAndGetUserInfo(identityToken);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.getSub()).isEqualTo("test-sub-456");
+        assertThat(result.getEmail()).isNull();
     }
 
     @Test
@@ -188,10 +207,14 @@ class AppleOAuthServiceTest {
     }
 
     private String createValidIdentityToken(String sub) {
+        return createValidIdentityToken(sub, null);
+    }
+
+    private String createValidIdentityToken(String sub, String email) {
         Date now = new Date();
         Date expiration = new Date(now.getTime() + 3600000); // 1시간 후
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .header()
                 .keyId(TEST_KID)
                 .and()
@@ -199,8 +222,13 @@ class AppleOAuthServiceTest {
                 .audience().add(TEST_CLIENT_ID).and()
                 .subject(sub)
                 .issuedAt(now)
-                .expiration(expiration)
-                .signWith(testKeyPair.getPrivate())
+                .expiration(expiration);
+
+        if (email != null) {
+            builder.claim("email", email);
+        }
+
+        return builder.signWith(testKeyPair.getPrivate())
                 .compact();
     }
 

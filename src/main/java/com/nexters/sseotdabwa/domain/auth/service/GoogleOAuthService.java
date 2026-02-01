@@ -184,6 +184,7 @@ public class GoogleOAuthService {
     private GoogleUserInfo extractUserInfo(Claims claims) {
         return GoogleUserInfo.builder()
                 .sub(claims.getSubject())
+                .email(claims.get("email", String.class))
                 .build();
     }
 }
