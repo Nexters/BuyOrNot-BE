@@ -73,7 +73,7 @@ class GoogleOAuthServiceTest {
     @DisplayName("유효한 ID Token(Web Client)으로 사용자 정보 조회 성공")
     void verifyAndGetUserInfo_webClient_success() {
         // given
-        String idToken = createValidIdToken("test-sub-123", TEST_WEB_CLIENT_ID);
+        String idToken = createValidIdToken("test-sub-123", TEST_WEB_CLIENT_ID, "test@gmail.com");
         GooglePublicKeys mockKeys = createMockGooglePublicKeys();
 
         setupWebClientGetMock(mockKeys);
@@ -84,13 +84,14 @@ class GoogleOAuthServiceTest {
         // then
         assertThat(result).isNotNull();
         assertThat(result.getSub()).isEqualTo("test-sub-123");
+        assertThat(result.getEmail()).isEqualTo("test@gmail.com");
     }
 
     @Test
     @DisplayName("유효한 ID Token(iOS Client)으로 사용자 정보 조회 성공")
     void verifyAndGetUserInfo_iosClient_success() {
         // given
-        String idToken = createValidIdToken("test-sub-456", TEST_IOS_CLIENT_ID);
+        String idToken = createValidIdToken("test-sub-456", TEST_IOS_CLIENT_ID, "ios@gmail.com");
         GooglePublicKeys mockKeys = createMockGooglePublicKeys();
 
         setupWebClientGetMock(mockKeys);
@@ -101,6 +102,7 @@ class GoogleOAuthServiceTest {
         // then
         assertThat(result).isNotNull();
         assertThat(result.getSub()).isEqualTo("test-sub-456");
+        assertThat(result.getEmail()).isEqualTo("ios@gmail.com");
     }
 
     @Test
@@ -199,10 +201,14 @@ class GoogleOAuthServiceTest {
     }
 
     private String createValidIdToken(String sub, String audience) {
+        return createValidIdToken(sub, audience, null);
+    }
+
+    private String createValidIdToken(String sub, String audience, String email) {
         Date now = new Date();
         Date expiration = new Date(now.getTime() + 3600000); // 1시간 후
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .header()
                 .keyId(TEST_KID)
                 .and()
@@ -210,8 +216,13 @@ class GoogleOAuthServiceTest {
                 .audience().add(audience).and()
                 .subject(sub)
                 .issuedAt(now)
-                .expiration(expiration)
-                .signWith(testKeyPair.getPrivate())
+                .expiration(expiration);
+
+        if (email != null) {
+            builder.claim("email", email);
+        }
+
+        return builder.signWith(testKeyPair.getPrivate())
                 .compact();
     }
 

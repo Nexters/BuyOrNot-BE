@@ -300,6 +300,7 @@ public class AppleOAuthService {
     private AppleUserInfo extractUserInfo(Claims claims) {
         return AppleUserInfo.builder()
                 .sub(claims.getSubject())
+                .email(claims.get("email", String.class))
                 .build();
     }
 }

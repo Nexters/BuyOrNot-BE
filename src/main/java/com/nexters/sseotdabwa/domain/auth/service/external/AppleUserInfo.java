@@ -12,4 +12,5 @@ import lombok.Getter;
 public class AppleUserInfo {
 
     private final String sub;  // Apple User ID
+    private final String email;
 }

@@ -98,11 +98,13 @@ class UserServiceTest {
         // given
         String uniqueSocialId = UUID.randomUUID().toString();
         String uniqueNickname = "테스트_" + UUID.randomUUID().toString().substring(0, 8);
+        String email = "test@example.com";
         UserCreateCommand command = new UserCreateCommand(
                 uniqueSocialId,
                 uniqueNickname,
                 SocialAccount.KAKAO,
-                "https://example.com/profile.jpg"
+                "https://example.com/profile.jpg",
+                email
         );
 
         // when
@@ -114,6 +116,29 @@ class UserServiceTest {
         assertThat(created.getNickname()).isEqualTo(uniqueNickname);
         assertThat(created.getSocialAccount()).isEqualTo(SocialAccount.KAKAO);
         assertThat(created.getProfileImage()).isEqualTo("https://example.com/profile.jpg");
+        assertThat(created.getEmail()).isEqualTo(email);
+    }
+
+    @Test
+    @DisplayName("사용자 생성 성공 - email이 null인 경우")
+    void createUser_success_withNullEmail() {
+        // given
+        String uniqueSocialId = UUID.randomUUID().toString();
+        String uniqueNickname = "테스트_" + UUID.randomUUID().toString().substring(0, 8);
+        UserCreateCommand command = new UserCreateCommand(
+                uniqueSocialId,
+                uniqueNickname,
+                SocialAccount.KAKAO,
+                "https://example.com/profile.jpg",
+                null
+        );
+
+        // when
+        User created = userService.createUser(command);
+
+        // then
+        assertThat(created.getId()).isNotNull();
+        assertThat(created.getEmail()).isNull();
     }
 
     @Test
