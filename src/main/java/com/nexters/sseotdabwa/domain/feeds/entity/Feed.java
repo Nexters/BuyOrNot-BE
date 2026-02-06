@@ -27,7 +27,8 @@ public class Feed extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column
+    @Lob
+    @Column(name = "content", nullable = false)
     private String content;
 
     @Column(nullable = false)
