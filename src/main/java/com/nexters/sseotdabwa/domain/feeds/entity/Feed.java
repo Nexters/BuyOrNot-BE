@@ -27,10 +27,11 @@ public class Feed extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(nullable = false, length = 2000)
+    @Lob
+    @Column(name = "content", nullable = false)
     private String content;
 
-    @Column
+    @Column(nullable = false)
     private Long price;
 
     @Enumerated(EnumType.STRING)
@@ -51,12 +52,20 @@ public class Feed extends BaseEntity {
     @Column(nullable = false)
     private FeedStatus feedStatus;
 
+    @Column(nullable = false)
+    private Integer imageWidth;
+
+    @Column(nullable = false)
+    private Integer imageHeight;
+
     @Builder
-    public Feed(User user, String content, Long price, FeedCategory category) {
+    public Feed(User user, String content, Long price, FeedCategory category, Integer imageWidth, Integer imageHeight) {
         this.user = user;
         this.content = content;
         this.price = price;
         this.category = category;
+        this.imageWidth = imageWidth;
+        this.imageHeight = imageHeight;
         this.reportStatus = ReportStatus.NONE;
         this.feedStatus = FeedStatus.OPEN;
         this.yesCount = 0L;
