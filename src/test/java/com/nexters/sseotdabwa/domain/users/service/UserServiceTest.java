@@ -199,6 +199,26 @@ class UserServiceTest {
     }
 
     @Test
+    @DisplayName("사용자 삭제 성공")
+    void delete_success() {
+        // given
+        String uniqueSocialId = UUID.randomUUID().toString();
+        String uniqueNickname = "테스트_" + UUID.randomUUID().toString().substring(0, 8);
+        User user = User.builder()
+                .socialId(uniqueSocialId)
+                .nickname(uniqueNickname)
+                .socialAccount(SocialAccount.KAKAO)
+                .build();
+        User savedUser = userRepository.save(user);
+
+        // when
+        userService.delete(savedUser);
+
+        // then
+        assertThat(userRepository.findById(savedUser.getId())).isEmpty();
+    }
+
+    @Test
     @DisplayName("유니크 닉네임 생성 - 중복되지 않는 닉네임 반환")
     void generateUniqueNickname_returnsUniqueNickname() {
         // when
