@@ -8,6 +8,6 @@ package com.nexters.sseotdabwa.api.uploads.dto;
  */
 public record PresignedPutResponse(
         String uploadUrl,
-        String s3Key,
+        String s3ObjectKey,
         String viewUrl
 ) {}

@@ -47,6 +47,7 @@ public class S3StorageService {
         PutObjectRequest putReq = PutObjectRequest.builder()
                 .bucket(bucket)
                 .key(s3Key)
+                .contentType(contentType)
                 .build();
 
         // 2) 만료 시간 설정 (기본 10분)

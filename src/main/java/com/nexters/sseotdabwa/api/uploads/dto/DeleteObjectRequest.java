@@ -7,5 +7,5 @@ import jakarta.validation.constraints.NotBlank;
  */
 public record DeleteObjectRequest(
         @NotBlank(message = "s3Key는 필수입니다.")
-        String s3Key
+        String s3ObjectKey
 ) {}

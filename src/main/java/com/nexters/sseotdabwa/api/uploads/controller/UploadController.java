@@ -31,7 +31,7 @@ public class UploadController implements UploadControllerSpec {
     @DeleteMapping("/object")
     @Override
     public ApiResponse<Void> deleteObject(@RequestBody DeleteObjectRequest request) {
-        uploadFacade.deleteObject(request.s3Key());
+        uploadFacade.deleteObject(request.s3ObjectKey());
         return ApiResponse.success(null, HttpStatus.NO_CONTENT);
     }
 }

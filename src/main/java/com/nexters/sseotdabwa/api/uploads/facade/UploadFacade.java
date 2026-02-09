@@ -30,7 +30,7 @@ public class UploadFacade {
      * - 보통은 피드 삭제 등 도메인 로직에서 호출
      */
     @Transactional
-    public void deleteObject(String s3Key) {
-        s3StorageService.deleteObject(s3Key);
+    public void deleteObject(String s3ObjectKey) {
+        s3StorageService.deleteObject(s3ObjectKey);
     }
 }
