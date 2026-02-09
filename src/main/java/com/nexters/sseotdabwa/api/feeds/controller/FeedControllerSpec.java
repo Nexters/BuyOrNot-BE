@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -25,7 +26,8 @@ public interface FeedControllerSpec {
 
                     - 필수 입력: category, price, content(<=100자), s3ObjectKey, imageWidth, imageHeight
                     - 이미지는 Presigned URL 업로드 방식이며, 현재 API는 업로드 완료된 s3ObjectKey만 받습니다.
-                    """
+                    """,
+            security = @SecurityRequirement(name = "Bearer Authentication")
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
