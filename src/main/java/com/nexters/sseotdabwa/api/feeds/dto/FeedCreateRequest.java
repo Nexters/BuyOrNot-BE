@@ -8,11 +8,9 @@ public record FeedCreateRequest(
         @NotNull(message = "카테고리는 필수입니다.")
         FeedCategory category,
 
-        @NotNull(message = "가격은 필수입니다.")
         @Positive(message = "가격은 1 이상이어야 합니다.")
         Long price,
 
-        @NotBlank(message = "내용은 필수입니다.")
         @Size(max = 100, message = "내용은 100자 이하로 입력해주세요.")
         String content,
 
