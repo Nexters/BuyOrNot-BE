@@ -108,6 +108,14 @@ public class UserService {
     }
 
     /**
+     * 사용자 삭제
+     */
+    @Transactional
+    public void delete(User user) {
+        userRepository.delete(user);
+    }
+
+    /**
      * 중복되지 않는 유니크 닉네임 생성
      * @throws GlobalException 최대 재시도 횟수 초과 시
      */
