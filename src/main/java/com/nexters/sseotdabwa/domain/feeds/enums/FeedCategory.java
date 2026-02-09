@@ -14,7 +14,6 @@ public enum FeedCategory {
     LUXURY("명품·프리미엄"),
     FASHION("패션·잡화"),
     BEAUTY("화장품·뷰티"),
-    TREND("트렌드·가성비템"),
     FOOD("음식"),
     ELECTRONICS("전자기기"),
     TRAVEL("여행 쇼핑템"),
