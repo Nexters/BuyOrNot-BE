@@ -5,6 +5,9 @@ import com.nexters.sseotdabwa.api.uploads.dto.DeleteObjectRequest;
 import com.nexters.sseotdabwa.api.uploads.dto.PresignedPutResponse;
 import com.nexters.sseotdabwa.api.uploads.facade.UploadFacade;
 import com.nexters.sseotdabwa.common.response.ApiResponse;
+
+import jakarta.validation.Valid;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -23,14 +26,15 @@ public class UploadController implements UploadControllerSpec {
 
     @PostMapping("/presigned-put")
     @Override
-    public ApiResponse<PresignedPutResponse> createPresignedPut(@RequestBody CreatePresignedPutRequest request) {
+    public ApiResponse<PresignedPutResponse> createPresignedPut(@Valid @RequestBody CreatePresignedPutRequest request) {
         PresignedPutResponse response = uploadFacade.createPresignedPut(request);
         return ApiResponse.success(response, HttpStatus.OK);
     }
 
     @DeleteMapping("/object")
     @Override
-    public ApiResponse<Void> deleteObject(@RequestBody DeleteObjectRequest request) {
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public ApiResponse<Void> deleteObject(@Valid @RequestBody DeleteObjectRequest request) {
         uploadFacade.deleteObject(request.s3ObjectKey());
         return ApiResponse.success(null, HttpStatus.NO_CONTENT);
     }
