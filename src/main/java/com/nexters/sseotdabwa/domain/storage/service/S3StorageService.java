@@ -1,6 +1,9 @@
 package com.nexters.sseotdabwa.domain.storage.service;
 
+import com.nexters.sseotdabwa.api.uploads.exception.UploadErrorCode;
 import com.nexters.sseotdabwa.common.config.AwsProperties;
+import com.nexters.sseotdabwa.common.exception.GlobalException;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,6 +20,7 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequ
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.time.Duration;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -39,7 +43,20 @@ public class S3StorageService {
      * @return uploadUrl, s3Key, viewUrl
      *
      */
+
+    // 허용 contentType allowlist
+    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "image/heic",
+            "image/gif"
+    );
+
     public PresignedPutResult createPresignedPut(String originalFileName, String contentType) {
+        // ContentType 검증 (Stored XSS 방지)
+        validateContentType(contentType);
+
         String bucket = props.s3().bucket();
         String s3Key = buildS3Key(props.s3().keyPrefix(), originalFileName);
 
@@ -47,7 +64,7 @@ public class S3StorageService {
         PutObjectRequest putReq = PutObjectRequest.builder()
                 .bucket(bucket)
                 .key(s3Key)
-                .contentType(contentType)
+                .contentType(normalizeContentType(contentType))
                 .build();
 
         // 2) 만료 시간 설정 (기본 10분)
@@ -71,6 +88,21 @@ public class S3StorageService {
                 s3Key,
                 viewUrl
         );
+    }
+
+    // contentType normalize + allowlist 검증
+    private void validateContentType(String contentType) {
+        String normalized = normalizeContentType(contentType);
+        if (!StringUtils.hasText(contentType)) {
+            throw new GlobalException(UploadErrorCode.CONTENT_TYPE_REQUIRED);
+        }
+        if (!ALLOWED_CONTENT_TYPES.contains(normalized)) {
+            throw new GlobalException(UploadErrorCode.UNSUPPORTED_CONTENT_TYPE);
+        }
+    }
+
+    private String normalizeContentType(String contentType) {
+        return contentType == null ? null : contentType.trim().toLowerCase();
     }
 
     /**
