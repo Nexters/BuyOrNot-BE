@@ -24,7 +24,7 @@ public interface FeedControllerSpec {
             description = """
                     피드(투표) 등록 API입니다.
 
-                    - 필수 입력: category, price, content(<=100자), s3ObjectKey, imageWidth, imageHeight
+                    - 필수 입력: category, price, s3ObjectKey, imageWidth, imageHeight
                     - 이미지는 Presigned URL 업로드 방식이며, 현재 API는 업로드 완료된 s3ObjectKey만 받습니다.
                     """,
             security = @SecurityRequirement(name = "Bearer Authentication")

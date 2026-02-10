@@ -18,7 +18,7 @@ import lombok.RequiredArgsConstructor;
  * - 피드 생성 관련 핵심 비즈니스 로직 처리
  *
  * 정책:
- * - content: 필수, 100자 이하
+ * - content: 100자 이하
  * - image: presigned 업로드 후 s3ObjectKey 필수
  * - Feed : FeedImage = 1 : 1
  */
