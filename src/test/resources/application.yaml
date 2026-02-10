@@ -45,3 +45,13 @@ jwt:
   secret: test-jwt-secret-key-for-testing-purposes-only-minimum-256-bits-required
   access-token-expiration: 3600000
   refresh-token-expiration: 604800000
+
+aws:
+  region: ap-northeast-2
+  s3:
+    bucket: buy-or-not
+    key-prefix: feeds
+    presign-exp-minutes: 10
+    max-bytes: 20971520
+  cloudfront:
+    domain: https://d111.cloudfront.net
