@@ -103,7 +103,7 @@ public class S3StorageService {
         } catch (NoSuchKeyException e) {
             return false;
         } catch (S3Exception e) {
-            log.warn("headObject failed: {}", e.awsErrorDetails().errorMessage());
+            log.warn("headObject failed: {}", e.getMessage(), e);
             throw e;
         }
     }
@@ -118,6 +118,12 @@ public class S3StorageService {
         String safeName = (originalFileName == null || originalFileName.isBlank())
                 ? "file"
                 : originalFileName.trim();
+
+        // 경로 문자 제거 → key 오염 방지
+        safeName = safeName.replaceAll("[/\\\\]", "_");
+
+        // 연속 공백/특수문자 정리
+        safeName = safeName.replaceAll("\\s+", "_");
 
         String uuid = UUID.randomUUID().toString().replace("-", "");
         String fileName = uuid + "_" + safeName;
