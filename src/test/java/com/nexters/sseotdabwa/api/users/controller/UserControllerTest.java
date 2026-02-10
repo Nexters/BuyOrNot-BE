@@ -1,5 +1,6 @@
 package com.nexters.sseotdabwa.api.users.controller;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
@@ -10,6 +11,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.nexters.sseotdabwa.domain.auth.entity.RefreshToken;
+import com.nexters.sseotdabwa.domain.auth.repository.RefreshTokenRepository;
 import com.nexters.sseotdabwa.domain.auth.service.JwtTokenService;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
@@ -52,6 +55,9 @@ class UserControllerTest {
 
     @Autowired
     private VoteLogRepository voteLogRepository;
+
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
 
     @Autowired
     private JwtTokenService jwtTokenService;
@@ -120,6 +126,42 @@ class UserControllerTest {
         assertThat(userRepository.findById(otherUser.getId())).isPresent();
         assertThat(feedRepository.findByUserId(otherUser.getId())).hasSize(1);
         assertThat(feedImageRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("회원 탈퇴 시 Refresh Token도 삭제됨")
+    void withdraw_success_deletesRefreshTokens() throws Exception {
+        // given
+        User user = createUser();
+        User otherUser = createUser();
+
+        refreshTokenRepository.save(RefreshToken.builder()
+                .userId(user.getId())
+                .token("user-refresh-token-1")
+                .expiresAt(LocalDateTime.now().plusDays(14))
+                .build());
+        refreshTokenRepository.save(RefreshToken.builder()
+                .userId(user.getId())
+                .token("user-refresh-token-2")
+                .expiresAt(LocalDateTime.now().plusDays(14))
+                .build());
+        refreshTokenRepository.save(RefreshToken.builder()
+                .userId(otherUser.getId())
+                .token("other-user-refresh-token")
+                .expiresAt(LocalDateTime.now().plusDays(14))
+                .build());
+
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+
+        // when
+        mockMvc.perform(delete("/api/v1/users/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk());
+
+        // then
+        assertThat(refreshTokenRepository.findByToken("user-refresh-token-1")).isEmpty();
+        assertThat(refreshTokenRepository.findByToken("user-refresh-token-2")).isEmpty();
+        assertThat(refreshTokenRepository.findByToken("other-user-refresh-token")).isPresent();
     }
 
     @Test
