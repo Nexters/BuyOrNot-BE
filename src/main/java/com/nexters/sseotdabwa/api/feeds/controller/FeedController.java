@@ -21,6 +21,7 @@ public class FeedController implements FeedControllerSpec {
 
     @Override
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<FeedCreateResponse> createFeed(
             @CurrentUser User user,
             @Valid @RequestBody FeedCreateRequest request
