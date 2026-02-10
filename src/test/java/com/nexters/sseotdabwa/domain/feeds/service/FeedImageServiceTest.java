@@ -10,7 +10,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
+import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
+import com.nexters.sseotdabwa.domain.feeds.repository.FeedImageRepository;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
@@ -20,10 +22,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @Transactional
-class FeedServiceTest {
+class FeedImageServiceTest {
 
     @Autowired
-    private FeedService feedService;
+    private FeedImageService feedImageService;
+
+    @Autowired
+    private FeedImageRepository feedImageRepository;
 
     @Autowired
     private FeedRepository feedRepository;
@@ -32,49 +37,27 @@ class FeedServiceTest {
     private UserRepository userRepository;
 
     @Test
-    @DisplayName("유저 ID로 피드 목록 조회 성공")
-    void findByUserId_success() {
+    @DisplayName("피드 목록에 해당하는 이미지 삭제 성공")
+    void deleteByFeeds_success() {
         // given
         User user = createUser();
         Feed feed1 = createFeed(user);
         Feed feed2 = createFeed(user);
+        feedImageRepository.save(FeedImage.builder().feed(feed1).s3ObjectKey("key1").build());
+        feedImageRepository.save(FeedImage.builder().feed(feed2).s3ObjectKey("key2").build());
 
         // when
-        List<Feed> feeds = feedService.findByUserId(user.getId());
+        feedImageService.deleteByFeeds(List.of(feed1, feed2));
 
         // then
-        assertThat(feeds).hasSize(2);
-        assertThat(feeds).extracting(Feed::getId)
-                .containsExactlyInAnyOrder(feed1.getId(), feed2.getId());
+        assertThat(feedImageRepository.count()).isZero();
     }
 
     @Test
-    @DisplayName("유저 ID로 피드 삭제 성공")
-    void deleteByUserId_success() {
-        // given
-        User user = createUser();
-        createFeed(user);
-        createFeed(user);
-
-        // when
-        feedService.deleteByUserId(user.getId());
-
-        // then
-        List<Feed> feeds = feedRepository.findByUserId(user.getId());
-        assertThat(feeds).isEmpty();
-    }
-
-    @Test
-    @DisplayName("피드가 없는 유저 ID로 조회 시 빈 리스트 반환")
-    void findByUserId_noFeeds_returnsEmpty() {
-        // given
-        User user = createUser();
-
-        // when
-        List<Feed> feeds = feedService.findByUserId(user.getId());
-
-        // then
-        assertThat(feeds).isEmpty();
+    @DisplayName("빈 피드 목록으로 삭제 시 에러 없음")
+    void deleteByFeeds_emptyList_noError() {
+        // when & then
+        feedImageService.deleteByFeeds(List.of());
     }
 
     private User createUser() {

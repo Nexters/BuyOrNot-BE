@@ -13,6 +13,8 @@ import com.nexters.sseotdabwa.domain.feeds.service.command.FeedCreateCommand;
 
 import lombok.RequiredArgsConstructor;
 
+import java.util.List;
+
 /**
  * 피드 도메인 서비스
  * - 피드 생성 관련 핵심 비즈니스 로직 처리
@@ -83,5 +85,14 @@ public class FeedService {
      */
     private String normalizeContent(String content) {
         return content == null ? "" : content.trim();
+    }
+
+    public List<Feed> findByUserId(Long userId) {
+        return feedRepository.findByUserId(userId);
+    }
+
+    @Transactional
+    public void deleteByUserId(Long userId) {
+        feedRepository.deleteByUserId(userId);
     }
 }

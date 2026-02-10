@@ -8,18 +8,17 @@ import lombok.RequiredArgsConstructor;
 /**
  * 기본 프로필 이미지 목록
  * - 신규 회원 가입 시 랜덤으로 부여
- * - TODO: 실제 이미지 URL로 교체 필요
  */
 @Getter
 @RequiredArgsConstructor
 public enum DefaultProfileImage {
-    IMAGE_01("https://example.com/profiles/default_01.png"),
-    IMAGE_02("https://example.com/profiles/default_02.png"),
-    IMAGE_03("https://example.com/profiles/default_03.png"),
-    IMAGE_04("https://example.com/profiles/default_04.png"),
-    IMAGE_05("https://example.com/profiles/default_05.png"),
-    IMAGE_06("https://example.com/profiles/default_06.png"),
-    IMAGE_07("https://example.com/profiles/default_07.png");
+    IMAGE_01("https://sseotdabwa-image.s3.ap-northeast-2.amazonaws.com/Profile_image1.png"),
+    IMAGE_02("https://sseotdabwa-image.s3.ap-northeast-2.amazonaws.com/Profile_image2.png"),
+    IMAGE_03("https://sseotdabwa-image.s3.ap-northeast-2.amazonaws.com/Profile_image3.png"),
+    IMAGE_04("https://sseotdabwa-image.s3.ap-northeast-2.amazonaws.com/Profile_image4.png"),
+    IMAGE_05("https://sseotdabwa-image.s3.ap-northeast-2.amazonaws.com/Profile_image5.png"),
+    IMAGE_06("https://sseotdabwa-image.s3.ap-northeast-2.amazonaws.com/Profile_image6.png"),
+    IMAGE_07("https://sseotdabwa-image.s3.ap-northeast-2.amazonaws.com/Profile_image7.png");
 
     private final String url;
 
