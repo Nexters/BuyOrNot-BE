@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nexters.sseotdabwa.api.auth.dto.AppleLoginRequest;
 import com.nexters.sseotdabwa.api.auth.dto.GoogleLoginRequest;
 import com.nexters.sseotdabwa.api.auth.dto.KakaoLoginRequest;
+import com.nexters.sseotdabwa.api.auth.dto.LogoutRequest;
 import com.nexters.sseotdabwa.api.auth.dto.TokenRefreshRequest;
 import com.nexters.sseotdabwa.api.auth.exception.AuthErrorCode;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
@@ -469,5 +470,155 @@ class AuthControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.errorCode").value("AUTH_305"));
+    }
+
+    // ==================== 로그아웃 테스트 ====================
+
+    @Test
+    @DisplayName("로그아웃 성공 - DB에서 Refresh Token 삭제")
+    void logout_success_deletesRefreshTokenFromDb() throws Exception {
+        // given
+        User user = createAndSaveUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+        String refreshToken = jwtTokenService.createRefreshToken(user.getId());
+
+        refreshTokenRepository.save(RefreshToken.builder()
+                .userId(user.getId())
+                .token(refreshToken)
+                .expiresAt(LocalDateTime.now().plusDays(7))
+                .build());
+
+        LogoutRequest request = new LogoutRequest(refreshToken);
+
+        // when
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("200"));
+
+        // then
+        assertThat(refreshTokenRepository.findByToken(refreshToken)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("로그아웃 성공 - 다른 디바이스의 Refresh Token은 유지")
+    void logout_success_keepOtherDeviceTokens() throws Exception {
+        // given
+        User user = createAndSaveUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+        String refreshToken1 = jwtTokenService.createRefreshToken(user.getId());
+        String refreshToken2 = "other-device-refresh-token-" + UUID.randomUUID();
+
+        refreshTokenRepository.save(RefreshToken.builder()
+                .userId(user.getId())
+                .token(refreshToken1)
+                .expiresAt(LocalDateTime.now().plusDays(7))
+                .build());
+        refreshTokenRepository.save(RefreshToken.builder()
+                .userId(user.getId())
+                .token(refreshToken2)
+                .expiresAt(LocalDateTime.now().plusDays(7))
+                .build());
+
+        LogoutRequest request = new LogoutRequest(refreshToken1);
+
+        // when
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        // then
+        assertThat(refreshTokenRepository.findByToken(refreshToken1)).isEmpty();
+        assertThat(refreshTokenRepository.findByToken(refreshToken2)).isPresent();
+    }
+
+    @Test
+    @DisplayName("다른 사용자의 Refresh Token으로 로그아웃 시 401 에러")
+    void logout_otherUserToken_returns401() throws Exception {
+        // given
+        User user1 = createAndSaveUser();
+        User user2 = createAndSaveUser();
+        String accessToken = jwtTokenService.createAccessToken(user1.getId());
+        String otherUserRefreshToken = jwtTokenService.createRefreshToken(user2.getId());
+
+        refreshTokenRepository.save(RefreshToken.builder()
+                .userId(user2.getId())
+                .token(otherUserRefreshToken)
+                .expiresAt(LocalDateTime.now().plusDays(7))
+                .build());
+
+        LogoutRequest request = new LogoutRequest(otherUserRefreshToken);
+
+        // when & then
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("AUTH_001"));
+    }
+
+    @Test
+    @DisplayName("DB에 없는 Refresh Token으로 로그아웃 시 401 에러")
+    void logout_tokenNotInDb_returns401() throws Exception {
+        // given
+        User user = createAndSaveUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+        String refreshToken = jwtTokenService.createRefreshToken(user.getId());
+
+        LogoutRequest request = new LogoutRequest(refreshToken);
+
+        // when & then
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("AUTH_001"));
+    }
+
+    @Test
+    @DisplayName("미인증 상태에서 로그아웃 시 401 에러")
+    void logout_unauthenticated_returns401() throws Exception {
+        // given
+        LogoutRequest request = new LogoutRequest("some_refresh_token");
+
+        // when & then
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Refresh Token이 비어있으면 400 에러")
+    void logout_emptyRefreshToken_returns400() throws Exception {
+        // given
+        User user = createAndSaveUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+        LogoutRequest request = new LogoutRequest("");
+
+        // when & then
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("COMMON_400"));
+    }
+
+    private User createAndSaveUser() {
+        String uniqueSocialId = UUID.randomUUID().toString();
+        String uniqueNickname = "테스트_" + UUID.randomUUID().toString().substring(0, 8);
+        User user = User.builder()
+                .socialId(uniqueSocialId)
+                .nickname(uniqueNickname)
+                .socialAccount(SocialAccount.KAKAO)
+                .build();
+        return userRepository.save(user);
     }
 }
