@@ -187,14 +187,24 @@ public class AuthFacade {
 
         return new TokenResponse(accessToken, refreshToken, "Bearer", UserResponse.from(user));
     }
-  
+
     /**
      * 기본 프로필 이미지 URL 생성
      * - CloudFront 도메인 + "/" + 파일명
      */
     private String randomDefaultProfileImageUrl() {
-        String domain = (cloudfrontDomain != null) ? cloudfrontDomain.trim() : "";
+        // CloudFront 도메인이 설정되지 않은 경우 예외 처리
+        if (cloudfrontDomain == null || cloudfrontDomain.isBlank()) {
+            throw new GlobalException(AuthErrorCode.CLOUDFRONT_DOMAIN_NOT_CONFIGURED);
+        }
+
+        String domain = cloudfrontDomain.trim();
+
+        // 끝에 "/"가 있으면 제거
         if (domain.endsWith("/")) {
             domain = domain.substring(0, domain.length() - 1);
-        }      
+        }
+
+        return domain + "/" + DefaultProfileImage.randomFileName();
+    }
 }
