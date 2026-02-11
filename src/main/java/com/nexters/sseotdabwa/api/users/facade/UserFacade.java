@@ -10,6 +10,7 @@ import com.nexters.sseotdabwa.api.users.dto.UserWithdrawResponse;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedImageService;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedReviewService;
+import com.nexters.sseotdabwa.domain.auth.service.RefreshTokenService;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedService;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.service.UserService;
@@ -28,6 +29,7 @@ public class UserFacade {
     private final FeedImageService feedImageService;
     private final FeedReviewService feedReviewService;
     private final VoteLogService voteLogService;
+    private final RefreshTokenService refreshTokenService;
     private final UserService userService;
 
     /**
@@ -59,6 +61,7 @@ public class UserFacade {
 
         voteLogService.deleteByUserId(user.getId());
         feedService.deleteByUserId(user.getId());
+        refreshTokenService.deleteByUserId(user.getId());
         userService.delete(user);
 
         return response;
