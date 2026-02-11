@@ -46,8 +46,13 @@ public class SecurityConfig {
                 .exceptionHandling(exception ->
                         exception.authenticationEntryPoint(jwtAuthenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth
-                        // 인증 없이 접근 가능한 경로
-                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        // 인증 없이 접근 가능한 경로 (공개 API만 명시적으로 나열)
+                        .requestMatchers(
+                                "/api/v1/auth/kakao/login",
+                                "/api/v1/auth/apple/login",
+                                "/api/v1/auth/google/login",
+                                "/api/v1/auth/refresh"
+                        ).permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         // 그 외 모든 요청은 인증 필요
                         .anyRequest().authenticated()

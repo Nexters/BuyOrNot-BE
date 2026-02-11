@@ -3,10 +3,13 @@ package com.nexters.sseotdabwa.api.auth.controller;
 import com.nexters.sseotdabwa.api.auth.dto.GoogleLoginRequest;
 import com.nexters.sseotdabwa.api.auth.dto.AppleLoginRequest;
 import com.nexters.sseotdabwa.api.auth.dto.KakaoLoginRequest;
+import com.nexters.sseotdabwa.api.auth.dto.LogoutRequest;
 import com.nexters.sseotdabwa.api.auth.dto.TokenRefreshRequest;
 import com.nexters.sseotdabwa.api.auth.dto.TokenResponse;
 import com.nexters.sseotdabwa.api.auth.facade.AuthFacade;
 import com.nexters.sseotdabwa.common.response.ApiResponse;
+import com.nexters.sseotdabwa.common.security.CurrentUser;
+import com.nexters.sseotdabwa.domain.users.entity.User;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -55,5 +58,12 @@ public class AuthController implements AuthControllerSpec {
     public ApiResponse<TokenResponse> refreshToken(@Valid @RequestBody TokenRefreshRequest request) {
         TokenResponse response = authFacade.refreshToken(request);
         return ApiResponse.success(response, HttpStatus.OK);
+    }
+
+    @Override
+    @PostMapping("/logout")
+    public ApiResponse<Void> logout(@CurrentUser User user, @Valid @RequestBody LogoutRequest request) {
+        authFacade.logout(user, request);
+        return ApiResponse.success(HttpStatus.OK);
     }
 }

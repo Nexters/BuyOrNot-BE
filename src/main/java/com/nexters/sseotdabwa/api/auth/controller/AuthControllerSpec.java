@@ -1,6 +1,8 @@
 package com.nexters.sseotdabwa.api.auth.controller;
 
 import com.nexters.sseotdabwa.api.auth.dto.GoogleLoginRequest;
+import com.nexters.sseotdabwa.api.auth.dto.LogoutRequest;
+import com.nexters.sseotdabwa.domain.users.entity.User;
 import jakarta.validation.Valid;
 
 import org.springframework.web.bind.annotation.RequestBody;
@@ -10,11 +12,13 @@ import com.nexters.sseotdabwa.api.auth.dto.KakaoLoginRequest;
 import com.nexters.sseotdabwa.api.auth.dto.TokenRefreshRequest;
 import com.nexters.sseotdabwa.api.auth.dto.TokenResponse;
 import com.nexters.sseotdabwa.common.response.ApiResponse;
+import com.nexters.sseotdabwa.common.security.CurrentUser;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @Tag(name = "Auth", description = "인증 API")
@@ -132,4 +136,29 @@ public interface AuthControllerSpec {
             )
     })
     ApiResponse<TokenResponse> refreshToken(@Valid @RequestBody TokenRefreshRequest request);
+
+    @Operation(
+            summary = "로그아웃",
+            description = """
+                    로그아웃 API입니다.
+
+                    Refresh Token을 전달하면 서버에서 해당 토큰을 삭제합니다.
+                    로그아웃 후에는 해당 Refresh Token으로 Access Token 갱신이 불가합니다.
+
+                    - 인증(Access Token)이 필요합니다.
+                    - 본인의 Refresh Token만 삭제할 수 있습니다.
+                    """,
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "로그아웃 성공"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "유효하지 않은 리프레시 토큰 또는 인증 실패"
+            )
+    })
+    ApiResponse<Void> logout(@CurrentUser User user, @Valid @RequestBody LogoutRequest request);
 }
