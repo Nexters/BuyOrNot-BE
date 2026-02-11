@@ -1,5 +1,6 @@
 package com.nexters.sseotdabwa.api.auth.controller;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
@@ -20,6 +21,8 @@ import com.nexters.sseotdabwa.api.auth.dto.KakaoLoginRequest;
 import com.nexters.sseotdabwa.api.auth.dto.TokenRefreshRequest;
 import com.nexters.sseotdabwa.api.auth.exception.AuthErrorCode;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
+import com.nexters.sseotdabwa.domain.auth.entity.RefreshToken;
+import com.nexters.sseotdabwa.domain.auth.repository.RefreshTokenRepository;
 import com.nexters.sseotdabwa.domain.auth.service.AppleOAuthService;
 import com.nexters.sseotdabwa.domain.auth.service.GoogleOAuthService;
 import com.nexters.sseotdabwa.domain.auth.service.JwtTokenService;
@@ -31,6 +34,7 @@ import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
 import com.nexters.sseotdabwa.domain.users.repository.UserRepository;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
@@ -54,6 +58,9 @@ class AuthControllerTest {
 
     @Autowired
     private JwtTokenService jwtTokenService;
+
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
 
     @MockBean
     private KakaoOAuthService kakaoOAuthService;
@@ -164,6 +171,27 @@ class AuthControllerTest {
     }
 
     @Test
+    @DisplayName("카카오 로그인 시 Refresh Token이 DB에 저장됨")
+    void loginWithKakao_savesRefreshTokenToDb() throws Exception {
+        // given
+        long uniqueKakaoId = System.nanoTime();
+        KakaoUserInfo mockUserInfo = createMockKakaoUserInfo(uniqueKakaoId, "test@kakao.com", "테스트", null);
+
+        given(kakaoOAuthService.getUserInfo(anyString())).willReturn(mockUserInfo);
+
+        KakaoLoginRequest request = new KakaoLoginRequest("valid_kakao_token");
+
+        // when
+        mockMvc.perform(post("/api/v1/auth/kakao/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        // then
+        assertThat(refreshTokenRepository.count()).isGreaterThanOrEqualTo(1);
+    }
+
+    @Test
     @DisplayName("토큰 갱신 성공")
     void refreshToken_success() throws Exception {
         // given
@@ -177,6 +205,14 @@ class AuthControllerTest {
         User savedUser = userRepository.save(user);
 
         String validRefreshToken = jwtTokenService.createRefreshToken(savedUser.getId());
+
+        // DB에 Refresh Token 저장 (새 로직에서는 DB 존재 여부도 검증)
+        refreshTokenRepository.save(RefreshToken.builder()
+                .userId(savedUser.getId())
+                .token(validRefreshToken)
+                .expiresAt(LocalDateTime.now().plusDays(14))
+                .build());
+
         TokenRefreshRequest request = new TokenRefreshRequest(validRefreshToken);
 
         // when & then
@@ -193,6 +229,31 @@ class AuthControllerTest {
     void refreshToken_invalidToken_returns401() throws Exception {
         // given
         TokenRefreshRequest request = new TokenRefreshRequest("invalid_refresh_token");
+
+        // when & then
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("AUTH_001"));
+    }
+
+    @Test
+    @DisplayName("유효한 JWT이지만 DB에 없는 Refresh Token으로 갱신 시 401 에러")
+    void refreshToken_tokenNotInDb_returns401() throws Exception {
+        // given
+        String uniqueSocialId = UUID.randomUUID().toString();
+        String uniqueNickname = "테스트_" + UUID.randomUUID().toString().substring(0, 8);
+        User user = User.builder()
+                .socialId(uniqueSocialId)
+                .nickname(uniqueNickname)
+                .socialAccount(SocialAccount.KAKAO)
+                .build();
+        User savedUser = userRepository.save(user);
+
+        // 유효한 JWT이지만 DB에 저장하지 않음
+        String validRefreshToken = jwtTokenService.createRefreshToken(savedUser.getId());
+        TokenRefreshRequest request = new TokenRefreshRequest(validRefreshToken);
 
         // when & then
         mockMvc.perform(post("/api/v1/auth/refresh")

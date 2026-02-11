@@ -1,5 +1,7 @@
 package com.nexters.sseotdabwa.api.auth.facade;
 
+import java.time.LocalDateTime;
+
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +17,8 @@ import com.nexters.sseotdabwa.domain.auth.service.AppleOAuthService;
 import com.nexters.sseotdabwa.domain.auth.service.GoogleOAuthService;
 import com.nexters.sseotdabwa.domain.auth.service.JwtTokenService;
 import com.nexters.sseotdabwa.domain.auth.service.KakaoOAuthService;
+import com.nexters.sseotdabwa.domain.auth.service.RefreshTokenService;
+import com.nexters.sseotdabwa.domain.auth.service.command.RefreshTokenCreateCommand;
 import com.nexters.sseotdabwa.domain.auth.service.external.AppleUserInfo;
 import com.nexters.sseotdabwa.domain.auth.service.external.GoogleUserInfo;
 import com.nexters.sseotdabwa.domain.auth.service.external.KakaoUserInfo;
@@ -41,6 +45,7 @@ public class AuthFacade {
     private final GoogleOAuthService googleOAuthService;
     private final AppleOAuthService appleOAuthService;
     private final JwtTokenService jwtTokenService;
+    private final RefreshTokenService refreshTokenService;
     private final UserService userService;
 
     /**
@@ -73,11 +78,7 @@ public class AuthFacade {
                         )
                 ));
 
-        // JWT 토큰 발급
-        String accessToken = jwtTokenService.createAccessToken(user.getId());
-        String refreshToken = jwtTokenService.createRefreshToken(user.getId());
-
-        return new TokenResponse(accessToken, refreshToken, "Bearer", UserResponse.from(user));
+        return createTokenResponse(user);
     }
 
     /**
@@ -110,11 +111,7 @@ public class AuthFacade {
                         )
                 ));
 
-        // JWT 토큰 발급
-        String accessToken = jwtTokenService.createAccessToken(user.getId());
-        String refreshToken = jwtTokenService.createRefreshToken(user.getId());
-
-        return new TokenResponse(accessToken, refreshToken, "Bearer", UserResponse.from(user));
+        return createTokenResponse(user);
     }
 
     /**
@@ -147,20 +144,21 @@ public class AuthFacade {
                         )
                 ));
 
-        // JWT 토큰 발급
-        String accessToken = jwtTokenService.createAccessToken(user.getId());
-        String refreshToken = jwtTokenService.createRefreshToken(user.getId());
-
-        return new TokenResponse(accessToken, refreshToken, "Bearer", UserResponse.from(user));
+        return createTokenResponse(user);
     }
 
     /**
      * Access Token 갱신
      * - Refresh Token이 유효하고 타입이 refresh인 경우에만 새 Access Token 발급
+     * - DB에 Refresh Token이 존재하는지 추가 검증
      * - Refresh Token은 그대로 유지
      */
     public TokenResponse refreshToken(TokenRefreshRequest request) {
         if (!jwtTokenService.validateRefreshToken(request.refreshToken())) {
+            throw new GlobalException(AuthErrorCode.INVALID_REFRESH_TOKEN);
+        }
+
+        if (refreshTokenService.findByToken(request.refreshToken()).isEmpty()) {
             throw new GlobalException(AuthErrorCode.INVALID_REFRESH_TOKEN);
         }
 
@@ -170,5 +168,16 @@ public class AuthFacade {
         String accessToken = jwtTokenService.createAccessToken(user.getId());
 
         return new TokenResponse(accessToken, request.refreshToken(), "Bearer", UserResponse.from(user));
+    }
+
+    private TokenResponse createTokenResponse(User user) {
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+        String refreshToken = jwtTokenService.createRefreshToken(user.getId());
+
+        LocalDateTime expiresAt = LocalDateTime.now()
+                .plusNanos(jwtTokenService.getRefreshTokenExpirationMillis() * 1_000_000);
+        refreshTokenService.save(new RefreshTokenCreateCommand(user.getId(), refreshToken, expiresAt));
+
+        return new TokenResponse(accessToken, refreshToken, "Bearer", UserResponse.from(user));
     }
 }
