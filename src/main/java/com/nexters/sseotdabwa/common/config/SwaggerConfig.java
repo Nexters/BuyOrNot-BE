@@ -14,7 +14,7 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
         servers = {
                 @Server(url = "http://localhost:8080", description = "로컬 서버"),
                 @Server(url = "https://dev.buy-or-not.com", description = "개발 서버"),
-                @Server(url = "https://buy-or-not.com", description = "운영 서버")
+                @Server(url = "https://api.buy-or-not.com", description = "운영 서버")
         }
 )
 @Configuration
