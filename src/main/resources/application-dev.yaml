@@ -13,3 +13,26 @@ spring:
       hibernate:
         format_sql: true
     database-platform: org.hibernate.dialect.MySQLDialect
+
+oauth:
+  kakao:
+    user-info-url: https://kapi.kakao.com/v2/user/me
+  google:
+    keys-url: https://www.googleapis.com/oauth2/v3/certs
+    issuer: https://accounts.google.com
+    web-client-id: ${GOOGLE_WEB_CLIENT_ID}
+    ios-client-id: ${GOOGLE_IOS_CLIENT_ID}
+    android-client-id: ${GOOGLE_ANDROID_CLIENT_ID}
+  apple:
+    keys-url: https://appleid.apple.com/auth/keys
+    token-url: https://appleid.apple.com/auth/token
+    issuer: https://appleid.apple.com
+    team-id: ${APPLE_TEAM_ID}
+    key-id: ${APPLE_KEY_ID}
+    client-id: ${APPLE_CLIENT_ID}
+    private-key: ${APPLE_PRIVATE_KEY}
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-token-expiration: 3600000
+  refresh-token-expiration: 604800000

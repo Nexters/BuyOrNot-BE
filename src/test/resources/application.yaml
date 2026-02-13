@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: sseotdabwa
+  profiles:
+    active: test
+
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    database-platform: org.hibernate.dialect.H2Dialect
+
+  h2:
+    console:
+      enabled: true
+
+oauth:
+  kakao:
+    user-info-url: https://kapi.kakao.com/v2/user/me
+  apple:
+    keys-url: https://appleid.apple.com/auth/keys
+    token-url: https://appleid.apple.com/auth/token
+    issuer: https://appleid.apple.com
+    team-id: test-team-id
+    key-id: test-key-id
+    client-id: test-client-id
+    private-key: test-private-key
+  google:
+    keys-url: https://www.googleapis.com/oauth2/v3/certs
+    issuer: https://accounts.google.com
+    web-client-id: test-web-client-id
+    ios-client-id: test-ios-client-id
+    android-client-id: test-android-client-id
+
+jwt:
+  secret: test-jwt-secret-key-for-testing-purposes-only-minimum-256-bits-required
+  access-token-expiration: 3600000
+  refresh-token-expiration: 604800000
