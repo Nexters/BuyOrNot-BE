@@ -10,10 +10,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - buy-or-not.com
+        - api.buy-or-not.com
       secretName: buy-or-not-tls
   rules:
-    - host: buy-or-not.com
+    - host: api.buy-or-not.com
       http:
         paths:
           - path: /
