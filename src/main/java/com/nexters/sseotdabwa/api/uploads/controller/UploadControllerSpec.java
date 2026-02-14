@@ -60,45 +60,4 @@ public interface UploadControllerSpec {
     ApiResponse<PresignedPutResponse> createPresignedPut(
             @Valid @RequestBody CreatePresignedPutRequest request
     );
-
-    @Operation(
-            summary = "S3 객체 삭제",
-            description = """
-                    s3Key에 해당하는 S3 객체를 삭제합니다.
-
-                    - 운영 환경에서는 클라이언트에 직접 노출하기보다,
-                      '피드 삭제/수정' 같은 도메인 로직에서 내부적으로 호출하는 구성이 더 안전합니다.
-                    - 존재하지 않는 객체를 삭제하더라도(정책에 따라) 성공처럼 처리될 수 있습니다.
-
-                    **사용 예**
-                    - 업로드는 했지만 피드 등록을 취소한 경우
-                    - 도메인 데이터 삭제 시 이미지 정리
-                    """,
-            security = @SecurityRequirement(name = "Bearer Authentication")
-    )
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "삭제 성공"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "400",
-                    description = "요청 값 검증 실패 (s3Key 누락/형식 오류 등)"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "401",
-                    description = "인증 필요"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "404",
-                    description = "대상이 존재하지 않음 (정책에 따라 200으로 처리할 수도 있음)"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "500",
-                    description = "서버 내부 오류 (S3 삭제 실패 등)"
-            )
-    })
-    ApiResponse<Void> deleteObject(
-            @Valid @RequestBody DeleteObjectRequest request
-    );
 }

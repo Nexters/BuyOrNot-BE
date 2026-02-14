@@ -1,16 +1,15 @@
 package com.nexters.sseotdabwa.domain.storage.service;
 
-import com.nexters.sseotdabwa.api.uploads.exception.UploadErrorCode;
 import com.nexters.sseotdabwa.common.config.AwsProperties;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
+
+import com.nexters.sseotdabwa.domain.storage.exception.StorageErrorCode;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -92,34 +91,17 @@ public class S3StorageService {
 
     // contentType normalize + allowlist 검증
     private void validateContentType(String contentType) {
-        String normalized = normalizeContentType(contentType);
         if (!StringUtils.hasText(contentType)) {
-            throw new GlobalException(UploadErrorCode.CONTENT_TYPE_REQUIRED);
+            throw new GlobalException(StorageErrorCode.CONTENT_TYPE_REQUIRED);
         }
+        String normalized = normalizeContentType(contentType);
         if (!ALLOWED_CONTENT_TYPES.contains(normalized)) {
-            throw new GlobalException(UploadErrorCode.UNSUPPORTED_CONTENT_TYPE);
+            throw new GlobalException(StorageErrorCode.UNSUPPORTED_CONTENT_TYPE);
         }
     }
 
     private String normalizeContentType(String contentType) {
         return contentType == null ? null : contentType.trim().toLowerCase();
-    }
-
-    /**
-     * S3 객체 삭제
-     * - 피드 삭제 같은 도메인 로직에서 호출할 때 사용하기
-     */
-    public void deleteObject(String s3Key) {
-        try {
-            s3Client.deleteObject(DeleteObjectRequest.builder()
-                    .bucket(props.s3().bucket())
-                    .key(s3Key)
-                    .build());
-            log.info("Deleted S3 object. key={}", s3Key);
-        } catch (SdkException e) {
-            log.error("Failed to delete S3 object. key={}", s3Key, e);
-            throw e;
-        }
     }
 
     /**
@@ -169,7 +151,7 @@ public class S3StorageService {
 
     /**
      * CloudFront는 public이므로 단순 조합으로 조회 URL 생성
-     * - domain: https://dxxxx.cloudfront.net
+     * - domain: img.buy-or-not.com/
      * - s3Key: feeds/uuid_xxx.jpg
      */
     private String buildCloudFrontUrl(String domain, String s3Key) {

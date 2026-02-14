@@ -24,13 +24,4 @@ public class UploadFacade {
         var result = s3StorageService.createPresignedPut(request.fileName(), request.contentType());
         return new PresignedPutResponse(result.uploadUrl(), result.s3Key(), result.viewUrl());
     }
-
-    /**
-     * 객체 삭제
-     * - 보통은 피드 삭제 등 도메인 로직에서 호출
-     */
-    @Transactional
-    public void deleteObject(String s3ObjectKey) {
-        s3StorageService.deleteObject(s3ObjectKey);
-    }
 }

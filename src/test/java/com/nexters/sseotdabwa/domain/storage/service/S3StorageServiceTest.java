@@ -126,39 +126,6 @@ class S3StorageServiceTest {
         assertThat(captured.signatureDuration()).isEqualTo(Duration.ofMinutes(10));
     }
 
-    @Test
-    @DisplayName("S3 객체 삭제 성공 - deleteObject 호출")
-    void deleteObject_success() {
-        // given
-        given(props.s3()).willReturn(s3Props);
-        given(s3Props.bucket()).willReturn("my-bucket");
-
-        // when
-        s3StorageService.deleteObject("feeds/abc.jpg");
-
-        // then
-        ArgumentCaptor<DeleteObjectRequest> captor = ArgumentCaptor.forClass(DeleteObjectRequest.class);
-        verify(s3Client).deleteObject(captor.capture());
-
-        DeleteObjectRequest req = captor.getValue();
-        assertThat(req.bucket()).isEqualTo("my-bucket");
-        assertThat(req.key()).isEqualTo("feeds/abc.jpg");
-    }
-
-    @Test
-    @DisplayName("S3 객체 삭제 실패 - SdkException 발생 시 예외 전파")
-    void deleteObject_sdkException_throws() {
-        // given
-        given(props.s3()).willReturn(s3Props);
-        given(s3Props.bucket()).willReturn("my-bucket");
-
-        doThrow(SdkException.builder().message("boom").build())
-                .when(s3Client).deleteObject(any(DeleteObjectRequest.class));
-
-        // when & then
-        assertThatThrownBy(() -> s3StorageService.deleteObject("feeds/abc.jpg"))
-                .isInstanceOf(SdkException.class);
-    }
 
     @Test
     @DisplayName("exists - headObject 성공 시 true")

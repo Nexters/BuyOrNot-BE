@@ -30,12 +30,4 @@ public class UploadController implements UploadControllerSpec {
         PresignedPutResponse response = uploadFacade.createPresignedPut(request);
         return ApiResponse.success(response, HttpStatus.OK);
     }
-
-    @DeleteMapping("/object")
-    @Override
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public ApiResponse<Void> deleteObject(@Valid @RequestBody DeleteObjectRequest request) {
-        uploadFacade.deleteObject(request.s3ObjectKey());
-        return ApiResponse.success(null, HttpStatus.NO_CONTENT);
-    }
 }
