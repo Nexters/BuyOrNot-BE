@@ -3,11 +3,9 @@ package com.nexters.sseotdabwa.domain.feeds.service;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.nexters.sseotdabwa.api.feeds.exception.FeedErrorCode;
+import com.nexters.sseotdabwa.domain.feeds.exception.FeedErrorCode;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
-import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
-import com.nexters.sseotdabwa.domain.feeds.repository.FeedImageRepository;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
 import com.nexters.sseotdabwa.domain.feeds.service.command.FeedCreateCommand;
 
@@ -17,12 +15,10 @@ import java.util.List;
 
 /**
  * 피드 도메인 서비스
- * - 피드 생성 관련 핵심 비즈니스 로직 처리
+ * - Feed 생성/조회 등 "Feed" 자체의 핵심 로직만 담당
  *
  * 정책:
  * - content: 100자 이하
- * - image: presigned 업로드 후 s3ObjectKey 필수
- * - Feed : FeedImage = 1 : 1
  */
 @Service
 @RequiredArgsConstructor
@@ -32,13 +28,13 @@ public class FeedService {
     private static final int MAX_CONTENT_LENGTH = 100;
 
     private final FeedRepository feedRepository;
-    private final FeedImageRepository feedImageRepository;
 
     /**
-     * 피드 생성
+     * Feed 생성 (Feed 엔티티 저장만 담당)
+     * - 이미지 저장은 FeedFacade에서 FeedImageService로 위임/조합한다.
      */
     @Transactional
-    public Long createFeed(FeedCreateCommand command) {
+    public Feed createFeed(FeedCreateCommand command) {
         validate(command);
 
         Feed feed = Feed.builder()
@@ -50,16 +46,7 @@ public class FeedService {
                 .imageHeight(command.imageHeight())
                 .build();
 
-        Feed savedFeed = feedRepository.save(feed);
-
-        FeedImage feedImage = FeedImage.builder()
-                .feed(savedFeed)
-                .s3ObjectKey(command.s3ObjectKey().trim())
-                .build();
-
-        feedImageRepository.save(feedImage);
-
-        return savedFeed.getId();
+        return feedRepository.save(feed);
     }
 
     /**

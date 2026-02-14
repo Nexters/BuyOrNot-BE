@@ -6,6 +6,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
+import com.nexters.sseotdabwa.domain.feeds.exception.FeedErrorCode;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,12 +16,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.nexters.sseotdabwa.api.feeds.exception.FeedErrorCode;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
-import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
-import com.nexters.sseotdabwa.domain.feeds.repository.FeedImageRepository;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
 import com.nexters.sseotdabwa.domain.feeds.service.command.FeedCreateCommand;
 import com.nexters.sseotdabwa.domain.users.entity.User;
@@ -29,9 +28,6 @@ class FeedServiceUnitTest {
 
     @Mock
     private FeedRepository feedRepository;
-
-    @Mock
-    private FeedImageRepository feedImageRepository;
 
     @InjectMocks
     private FeedService feedService;
@@ -69,14 +65,12 @@ class FeedServiceUnitTest {
         given(savedFeedSpy.getId()).willReturn(1L);
 
         given(feedRepository.save(any(Feed.class))).willReturn(savedFeedSpy);
-        given(feedImageRepository.save(any(FeedImage.class)))
-                .willAnswer(invocation -> invocation.getArgument(0));
 
         // when
-        Long feedId = feedService.createFeed(command);
+        Feed result = feedService.createFeed(command);
 
         // then
-        assertThat(feedId).isEqualTo(1L);
+        assertThat(result.getId()).isEqualTo(1L);
 
         // Feed 저장 내용 검증
         ArgumentCaptor<Feed> feedCaptor = ArgumentCaptor.forClass(Feed.class);
@@ -90,15 +84,7 @@ class FeedServiceUnitTest {
         assertThat(capturedFeed.getImageWidth()).isEqualTo(1080);
         assertThat(capturedFeed.getImageHeight()).isEqualTo(720);
 
-        // FeedImage 저장 내용 검증
-        ArgumentCaptor<FeedImage> imageCaptor = ArgumentCaptor.forClass(FeedImage.class);
-        verify(feedImageRepository, times(1)).save(imageCaptor.capture());
-
-        FeedImage capturedImage = imageCaptor.getValue();
-        assertThat(capturedImage.getFeed()).isEqualTo(savedFeedSpy);
-        assertThat(capturedImage.getS3ObjectKey()).isEqualTo("feeds/abc.jpg"); // trim 반영
-
-        verifyNoMoreInteractions(feedRepository, feedImageRepository);
+        verifyNoMoreInteractions(feedRepository);
     }
 
     @Test
@@ -123,7 +109,7 @@ class FeedServiceUnitTest {
                 .isInstanceOf(GlobalException.class)
                 .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_CONTENT_TOO_LONG);
 
-        verifyNoInteractions(feedRepository, feedImageRepository);
+        verifyNoInteractions(feedRepository);
     }
 
     @Test
@@ -147,7 +133,7 @@ class FeedServiceUnitTest {
                 .isInstanceOf(GlobalException.class)
                 .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_IMAGE_REQUIRED);
 
-        verifyNoInteractions(feedRepository, feedImageRepository);
+        verifyNoInteractions(feedRepository);
     }
 
     @Test
@@ -171,7 +157,7 @@ class FeedServiceUnitTest {
                 .isInstanceOf(GlobalException.class)
                 .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_IMAGE_REQUIRED);
 
-        verifyNoInteractions(feedRepository, feedImageRepository);
+        verifyNoInteractions(feedRepository);
     }
 
     @Test
@@ -201,19 +187,17 @@ class FeedServiceUnitTest {
         given(savedFeed.getId()).willReturn(10L);
 
         given(feedRepository.save(any(Feed.class))).willReturn(savedFeed);
-        given(feedImageRepository.save(any(FeedImage.class)))
-                .willAnswer(invocation -> invocation.getArgument(0));
 
         // when
-        Long feedId = feedService.createFeed(command);
+        Feed result = feedService.createFeed(command);
 
         // then
-        assertThat(feedId).isEqualTo(10L);
+        assertThat(result.getId()).isEqualTo(10L);
 
         ArgumentCaptor<Feed> feedCaptor = ArgumentCaptor.forClass(Feed.class);
         verify(feedRepository).save(feedCaptor.capture());
         assertThat(feedCaptor.getValue().getContent()).isEqualTo("");
 
-        verify(feedImageRepository).save(any(FeedImage.class));
+        verifyNoMoreInteractions(feedRepository);
     }
 }
