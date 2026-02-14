@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.nexters.sseotdabwa.common.exception.GlobalException;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
@@ -17,6 +18,7 @@ import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
 import com.nexters.sseotdabwa.domain.users.repository.UserRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @Transactional
@@ -109,6 +111,46 @@ class FeedServiceTest {
 
         // then
         assertThat(result).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("피드 단건 조회 성공")
+    void findById_success() {
+        // given
+        User user = createUser();
+        Feed feed = createFeed(user);
+
+        // when
+        Feed result = feedService.findById(feed.getId());
+
+        // then
+        assertThat(result.getId()).isEqualTo(feed.getId());
+        assertThat(result.getContent()).isEqualTo(feed.getContent());
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 피드 조회 시 FEED_NOT_FOUND 예외")
+    void findById_notFound() {
+        // when & then
+        assertThatThrownBy(() -> feedService.findById(999L))
+                .isInstanceOf(GlobalException.class)
+                .hasMessage("피드를 찾을 수 없습니다.");
+    }
+
+    @Test
+    @DisplayName("피드 물리 삭제 확인")
+    void delete_success() {
+        // given
+        User user = createUser();
+        Feed feed = createFeed(user);
+        Long feedId = feed.getId();
+
+        // when
+        feedService.delete(feed);
+        feedRepository.flush();
+
+        // then
+        assertThat(feedRepository.findById(feedId)).isEmpty();
     }
 
     private User createUser() {

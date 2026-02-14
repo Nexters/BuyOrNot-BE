@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import java.util.List;
+import java.util.Optional;
 
 import com.nexters.sseotdabwa.domain.feeds.exception.FeedErrorCode;
 import com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus;
@@ -25,6 +26,7 @@ import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
 import com.nexters.sseotdabwa.domain.feeds.service.command.FeedCreateCommand;
 import com.nexters.sseotdabwa.domain.users.entity.User;
+import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
 
 @ExtendWith(MockitoExtension.class)
 class FeedServiceUnitTest {
@@ -237,5 +239,68 @@ class FeedServiceUnitTest {
 
         // then
         assertThat(result).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("피드 단건 조회 성공")
+    void findById_success() {
+        // given
+        User user = User.builder()
+                .socialId("test-social-id")
+                .nickname("테스트유저")
+                .socialAccount(SocialAccount.KAKAO)
+                .build();
+        Feed feed = Feed.builder()
+                .user(user)
+                .content("테스트 피드")
+                .price(10000L)
+                .category(FeedCategory.FASHION)
+                .imageWidth(300)
+                .imageHeight(400)
+                .build();
+        given(feedRepository.findById(1L)).willReturn(Optional.of(feed));
+
+        // when
+        Feed result = feedService.findById(1L);
+
+        // then
+        assertThat(result).isEqualTo(feed);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 피드 조회 시 FEED_NOT_FOUND 예외")
+    void findById_notFound() {
+        // given
+        given(feedRepository.findById(999L)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> feedService.findById(999L))
+                .isInstanceOf(GlobalException.class)
+                .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("피드 삭제 성공")
+    void delete_success() {
+        // given
+        User user = User.builder()
+                .socialId("test-social-id")
+                .nickname("테스트유저")
+                .socialAccount(SocialAccount.KAKAO)
+                .build();
+        Feed feed = Feed.builder()
+                .user(user)
+                .content("테스트 피드")
+                .price(10000L)
+                .category(FeedCategory.FASHION)
+                .imageWidth(300)
+                .imageHeight(400)
+                .build();
+
+        // when
+        feedService.delete(feed);
+
+        // then
+        verify(feedRepository).delete(feed);
     }
 }
