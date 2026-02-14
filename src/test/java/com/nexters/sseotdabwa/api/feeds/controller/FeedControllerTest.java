@@ -1,9 +1,5 @@
 package com.nexters.sseotdabwa.api.feeds.controller;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
@@ -18,10 +14,19 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequest;
 import com.nexters.sseotdabwa.domain.auth.service.JwtTokenService;
+import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
+import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
+import com.nexters.sseotdabwa.domain.feeds.repository.FeedImageRepository;
+import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
 import com.nexters.sseotdabwa.domain.users.repository.UserRepository;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -39,6 +44,14 @@ class FeedControllerTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private FeedRepository feedRepository;
+
+    @Autowired
+    private FeedImageRepository feedImageRepository;
+
+    // ===== 피드 등록 =====
 
     @Test
     @DisplayName("피드 등록 성공 - 201 Created 및 feedId 반환")
@@ -181,5 +194,67 @@ class FeedControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("COMMON_400"));
+    }
+
+    // ===== 피드 리스트 조회 =====
+
+    @Test
+    @DisplayName("피드 리스트 조회 성공 - 200 OK")
+    void getFeedList_success() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+        Feed feed = createFeedWithImage(user);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("200"))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data[0].feedId").value(feed.getId()))
+                .andExpect(jsonPath("$.data[0].author.userId").value(user.getId()));
+    }
+
+    @Test
+    @DisplayName("피드 리스트 조회 성공 - 비로그인 유저도 접근 가능")
+    void getFeedList_noAuth_success() throws Exception {
+        // given
+        User user = createUser();
+        createFeedWithImage(user);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("200"))
+                .andExpect(jsonPath("$.data").isArray());
+    }
+
+    // ===== Helper Methods =====
+
+    private User createUser() {
+        return userRepository.save(User.builder()
+                .socialId(UUID.randomUUID().toString())
+                .nickname("테스트_" + UUID.randomUUID().toString().substring(0, 8))
+                .socialAccount(SocialAccount.KAKAO)
+                .build());
+    }
+
+    private Feed createFeedWithImage(User user) {
+        Feed feed = feedRepository.save(Feed.builder()
+                .user(user)
+                .content("테스트 피드")
+                .price(10000L)
+                .category(FeedCategory.FASHION)
+                .imageWidth(300)
+                .imageHeight(400)
+                .build());
+
+        feedImageRepository.save(FeedImage.builder()
+                .feed(feed)
+                .s3ObjectKey("feeds/test_" + UUID.randomUUID() + ".jpg")
+                .build());
+
+        return feed;
     }
 }

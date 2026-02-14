@@ -6,7 +6,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
+import java.util.List;
+
 import com.nexters.sseotdabwa.domain.feeds.exception.FeedErrorCode;
+import com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -199,5 +202,40 @@ class FeedServiceUnitTest {
         assertThat(feedCaptor.getValue().getContent()).isEqualTo("");
 
         verifyNoMoreInteractions(feedRepository);
+    }
+
+    @Test
+    @DisplayName("삭제된 피드 제외 전체 조회 성공")
+    void findAllExceptDeleted_success() {
+        // given
+        User user = User.builder()
+                .socialId("test-social-id")
+                .nickname("테스트유저")
+                .socialAccount(SocialAccount.KAKAO)
+                .build();
+        Feed feed1 = Feed.builder()
+                .user(user)
+                .content("피드1")
+                .price(10000L)
+                .category(FeedCategory.FASHION)
+                .imageWidth(300)
+                .imageHeight(400)
+                .build();
+        Feed feed2 = Feed.builder()
+                .user(user)
+                .content("피드2")
+                .price(20000L)
+                .category(FeedCategory.FOOD)
+                .imageWidth(300)
+                .imageHeight(400)
+                .build();
+        given(feedRepository.findByReportStatusNotOrderByCreatedAtDesc(ReportStatus.DELETED))
+                .willReturn(List.of(feed1, feed2));
+
+        // when
+        List<Feed> result = feedService.findAllExceptDeleted();
+
+        // then
+        assertThat(result).hasSize(2);
     }
 }

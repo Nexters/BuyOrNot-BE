@@ -77,6 +77,25 @@ class FeedServiceTest {
         assertThat(feeds).isEmpty();
     }
 
+    @Test
+    @DisplayName("삭제된 피드 제외 전체 조회")
+    void findAllExceptDeleted_excludesDeletedFeeds() {
+        // given
+        User user = createUser();
+        Feed normalFeed = createFeed(user);
+        Feed deletedFeed = createFeed(user);
+        deletedFeed.deleteByReport();
+        feedRepository.save(deletedFeed);
+
+        // when
+        List<Feed> result = feedService.findAllExceptDeleted();
+
+        // then
+        assertThat(result).extracting(Feed::getId)
+                .contains(normalFeed.getId())
+                .doesNotContain(deletedFeed.getId());
+    }
+
     private User createUser() {
         return userRepository.save(User.builder()
                 .socialId(UUID.randomUUID().toString())
