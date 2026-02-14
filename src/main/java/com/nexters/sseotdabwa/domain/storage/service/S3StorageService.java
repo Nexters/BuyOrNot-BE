@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -120,6 +121,19 @@ public class S3StorageService {
             log.warn("headObject failed: {}", e.getMessage(), e);
             throw e;
         }
+    }
+
+    /**
+     * S3 오브젝트 삭제
+     */
+    public void deleteObject(String s3Key) {
+        DeleteObjectRequest deleteReq = DeleteObjectRequest.builder()
+                .bucket(props.s3().bucket())
+                .key(s3Key)
+                .build();
+
+        s3Client.deleteObject(deleteReq);
+        log.info("Deleted S3 object. key={}", s3Key);
     }
 
     /**

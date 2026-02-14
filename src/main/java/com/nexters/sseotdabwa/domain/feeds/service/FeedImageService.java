@@ -1,6 +1,7 @@
 package com.nexters.sseotdabwa.domain.feeds.service;
 
 import java.util.List;
+import java.util.Optional;
 
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
@@ -34,6 +35,10 @@ public class FeedImageService {
     @Transactional
     public void deleteByFeeds(List<Feed> feeds) {
         feedImageRepository.deleteByFeedIn(feeds);
+    }
+
+    public Optional<FeedImage> findByFeed(Feed feed) {
+        return feedImageRepository.findByFeed(feed);
     }
 
     public List<FeedImage> findByFeeds(List<Feed> feeds) {
