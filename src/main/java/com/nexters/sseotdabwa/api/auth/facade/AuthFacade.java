@@ -9,11 +9,13 @@ import org.springframework.transaction.annotation.Transactional;
 import com.nexters.sseotdabwa.api.auth.dto.AppleLoginRequest;
 import com.nexters.sseotdabwa.api.auth.dto.GoogleLoginRequest;
 import com.nexters.sseotdabwa.api.auth.dto.KakaoLoginRequest;
+import com.nexters.sseotdabwa.api.auth.dto.LogoutRequest;
 import com.nexters.sseotdabwa.api.auth.dto.TokenRefreshRequest;
 import com.nexters.sseotdabwa.api.auth.dto.TokenResponse;
 import com.nexters.sseotdabwa.api.auth.exception.AuthErrorCode;
 import com.nexters.sseotdabwa.api.users.dto.UserResponse;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
+import com.nexters.sseotdabwa.domain.auth.entity.RefreshToken;
 import com.nexters.sseotdabwa.domain.auth.service.AppleOAuthService;
 import com.nexters.sseotdabwa.domain.auth.service.GoogleOAuthService;
 import com.nexters.sseotdabwa.domain.auth.service.JwtTokenService;
@@ -206,5 +208,24 @@ public class AuthFacade {
         }
 
         return domain + "/" + DefaultProfileImage.randomFileName();
+    }
+
+    /**
+     * 로그아웃
+     * - Refresh Token이 유효하고 DB에 존재하며, 요청한 사용자의 토큰인지 검증 후 삭제
+     */
+    public void logout(User user, LogoutRequest request) {
+        if (!jwtTokenService.validateRefreshToken(request.refreshToken())) {
+            throw new GlobalException(AuthErrorCode.INVALID_REFRESH_TOKEN);
+        }
+
+        RefreshToken storedToken = refreshTokenService.findByToken(request.refreshToken())
+                .orElseThrow(() -> new GlobalException(AuthErrorCode.INVALID_REFRESH_TOKEN));
+
+        if (!storedToken.getUserId().equals(user.getId())) {
+            throw new GlobalException(AuthErrorCode.INVALID_REFRESH_TOKEN);
+        }
+
+        refreshTokenService.deleteByToken(request.refreshToken());
     }
 }
