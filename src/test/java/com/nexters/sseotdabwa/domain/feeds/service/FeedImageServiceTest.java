@@ -37,6 +37,39 @@ class FeedImageServiceTest {
     private UserRepository userRepository;
 
     @Test
+    @DisplayName("피드 이미지 저장 성공 - FeedImage 1건 저장")
+    void save_success() {
+        // given
+        User user = createUser();
+        Feed feed = createFeed(user);
+
+        // when
+        feedImageService.save(feed, "feeds/abc.jpg");
+
+        // then
+        assertThat(feedImageRepository.count()).isEqualTo(1);
+
+        FeedImage saved = feedImageRepository.findAll().get(0);
+        assertThat(saved.getFeed().getId()).isEqualTo(feed.getId());
+        assertThat(saved.getS3ObjectKey()).isEqualTo("feeds/abc.jpg");
+    }
+
+    @Test
+    @DisplayName("피드 이미지 저장 성공 - s3ObjectKey trim 적용")
+    void save_trimApplied() {
+        // given
+        User user = createUser();
+        Feed feed = createFeed(user);
+
+        // when
+        feedImageService.save(feed, "  feeds/trim.jpg  ");
+
+        // then
+        FeedImage saved = feedImageRepository.findAll().get(0);
+        assertThat(saved.getS3ObjectKey()).isEqualTo("feeds/trim.jpg");
+    }
+
+    @Test
     @DisplayName("피드 목록에 해당하는 이미지 삭제 성공")
     void deleteByFeeds_success() {
         // given

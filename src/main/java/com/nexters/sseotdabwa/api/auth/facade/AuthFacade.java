@@ -1,5 +1,6 @@
 package com.nexters.sseotdabwa.api.auth.facade;
 
+import org.springframework.beans.factory.annotation.Value;
 import java.time.LocalDateTime;
 
 import org.springframework.stereotype.Component;
@@ -51,6 +52,12 @@ public class AuthFacade {
     private final UserService userService;
 
     /**
+     * CloudFront 도메인
+     */
+    @Value("${aws.cloudfront.domain}")
+    private String cloudfrontDomain;
+
+    /**
      * 카카오 소셜 로그인
      * 1. 카카오 Access Token으로 사용자 정보 조회 (socialId만 사용)
      * 2. 기존 회원이면 로그인, 신규 회원이면 랜덤 닉네임/프로필로 가입 처리
@@ -75,7 +82,7 @@ public class AuthFacade {
                                 socialId,
                                 userService.generateUniqueNickname(),
                                 SocialAccount.KAKAO,
-                                DefaultProfileImage.randomUrl(),
+                                randomDefaultProfileImageUrl(),
                                 email
                         )
                 ));
@@ -108,7 +115,7 @@ public class AuthFacade {
                                 socialId,
                                 userService.generateUniqueNickname(),
                                 SocialAccount.APPLE,
-                                DefaultProfileImage.randomUrl(),
+                                randomDefaultProfileImageUrl(),
                                 email
                         )
                 ));
@@ -141,7 +148,7 @@ public class AuthFacade {
                                 socialId,
                                 userService.generateUniqueNickname(),
                                 SocialAccount.GOOGLE,
-                                DefaultProfileImage.randomUrl(),
+                                randomDefaultProfileImageUrl(),
                                 email
                         )
                 ));
@@ -181,6 +188,26 @@ public class AuthFacade {
         refreshTokenService.save(new RefreshTokenCreateCommand(user.getId(), refreshToken, expiresAt));
 
         return new TokenResponse(accessToken, refreshToken, "Bearer", UserResponse.from(user));
+    }
+
+    /**
+     * 기본 프로필 이미지 URL 생성
+     * - CloudFront 도메인 + "/" + 파일명
+     */
+    private String randomDefaultProfileImageUrl() {
+        // CloudFront 도메인이 설정되지 않은 경우 예외 처리
+        if (cloudfrontDomain == null || cloudfrontDomain.isBlank()) {
+            throw new GlobalException(AuthErrorCode.CLOUDFRONT_DOMAIN_NOT_CONFIGURED);
+        }
+
+        String domain = cloudfrontDomain.trim();
+
+        // 끝에 "/"가 있으면 제거
+        if (domain.endsWith("/")) {
+            domain = domain.substring(0, domain.length() - 1);
+        }
+
+        return domain + "/" + DefaultProfileImage.randomFileName();
     }
 
     /**

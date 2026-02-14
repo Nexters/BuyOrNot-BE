@@ -20,7 +20,6 @@ public class FeedReview extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "review_id")
     private Long id;
 
     @OneToOne(fetch = FetchType.LAZY, optional = false)
