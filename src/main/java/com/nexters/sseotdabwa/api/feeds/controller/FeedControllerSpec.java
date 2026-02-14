@@ -1,7 +1,10 @@
 package com.nexters.sseotdabwa.api.feeds.controller;
 
+import java.util.List;
+
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequest;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateResponse;
+import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
 import com.nexters.sseotdabwa.common.response.ApiResponse;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.common.security.CurrentUser;
@@ -48,4 +51,16 @@ public interface FeedControllerSpec {
             @Parameter(hidden = true) User user,
             @Valid @RequestBody FeedCreateRequest request
     );
+
+    @Operation(
+            summary = "피드 리스트 조회",
+            description = "전체 피드 리스트를 조회합니다. 비로그인 유저도 접근 가능합니다."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "피드 리스트 조회 성공"
+            )
+    })
+    ApiResponse<List<FeedResponse>> getFeedList();
 }

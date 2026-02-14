@@ -1,8 +1,14 @@
 package com.nexters.sseotdabwa.api.feeds.facade;
 
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequest;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateResponse;
+import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
+import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedImageService;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedService;
 import com.nexters.sseotdabwa.domain.feeds.service.command.FeedCreateCommand;
@@ -45,5 +51,19 @@ public class FeedFacade {
         feedImageService.save(savedFeed, command.s3ObjectKey());
 
         return new FeedCreateResponse(savedFeed.getId());
+    }
+
+    /**
+     * 피드 리스트 조회 (비로그인 가능)
+     */
+    @Transactional(readOnly = true)
+    public List<FeedResponse> getFeedList() {
+        List<Feed> feeds = feedService.findAllExceptDeleted();
+        List<FeedImage> feedImages = feedImageService.findByFeeds(feeds);
+        Map<Long, FeedImage> imageMap = feedImages.stream()
+                .collect(Collectors.toMap(fi -> fi.getFeed().getId(), fi -> fi));
+        return feeds.stream()
+                .map(feed -> FeedResponse.of(feed, imageMap.get(feed.getId())))
+                .toList();
     }
 }
