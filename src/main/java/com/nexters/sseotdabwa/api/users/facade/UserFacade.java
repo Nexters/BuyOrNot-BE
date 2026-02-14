@@ -1,13 +1,17 @@
 package com.nexters.sseotdabwa.api.users.facade;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
 import com.nexters.sseotdabwa.api.users.dto.UserResponse;
 import com.nexters.sseotdabwa.api.users.dto.UserWithdrawResponse;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
+import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedImageService;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedReviewService;
 import com.nexters.sseotdabwa.domain.auth.service.RefreshTokenService;
@@ -65,5 +69,19 @@ public class UserFacade {
         userService.delete(user);
 
         return response;
+    }
+
+    /**
+     * 내 피드 조회
+     */
+    @Transactional(readOnly = true)
+    public List<FeedResponse> getMyFeeds(User user) {
+        List<Feed> feeds = feedService.findByUserIdOrderByCreatedAtDesc(user.getId());
+        List<FeedImage> feedImages = feedImageService.findByFeeds(feeds);
+        Map<Long, FeedImage> imageMap = feedImages.stream()
+                .collect(Collectors.toMap(fi -> fi.getFeed().getId(), fi -> fi));
+        return feeds.stream()
+                .map(feed -> FeedResponse.of(feed, imageMap.get(feed.getId())))
+                .toList();
     }
 }
