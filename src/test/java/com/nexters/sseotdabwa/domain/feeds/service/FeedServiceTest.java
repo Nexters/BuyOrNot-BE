@@ -96,6 +96,21 @@ class FeedServiceTest {
                 .doesNotContain(deletedFeed.getId());
     }
 
+    @Test
+    @DisplayName("내 피드 최신순 조회")
+    void findByUserIdOrderByCreatedAtDesc_success() {
+        // given
+        User user = createUser();
+        Feed feed1 = createFeed(user);
+        Feed feed2 = createFeed(user);
+
+        // when
+        List<Feed> result = feedService.findByUserIdOrderByCreatedAtDesc(user.getId());
+
+        // then
+        assertThat(result).hasSize(2);
+    }
+
     private User createUser() {
         return userRepository.save(User.builder()
                 .socialId(UUID.randomUUID().toString())
