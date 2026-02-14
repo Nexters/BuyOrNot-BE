@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 
 @Tag(name = "Feeds", description = "피드 API")
@@ -63,4 +64,32 @@ public interface FeedControllerSpec {
             )
     })
     ApiResponse<List<FeedResponse>> getFeedList();
+
+    @Operation(
+            summary = "피드 삭제",
+            description = "본인이 작성한 피드를 삭제합니다.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "피드 삭제 성공"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "인증 필요"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "본인의 피드만 삭제 가능"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "피드를 찾을 수 없음"
+            )
+    })
+    ApiResponse<Void> deleteFeed(
+            @Parameter(hidden = true) User user,
+            @PathVariable Long feedId
+    );
 }

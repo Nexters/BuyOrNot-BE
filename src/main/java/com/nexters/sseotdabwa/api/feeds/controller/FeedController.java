@@ -39,4 +39,11 @@ public class FeedController implements FeedControllerSpec {
         List<FeedResponse> response = feedFacade.getFeedList();
         return ApiResponse.success(response, HttpStatus.OK);
     }
+
+    @Override
+    @DeleteMapping("/{feedId}")
+    public ApiResponse<Void> deleteFeed(@CurrentUser User user, @PathVariable Long feedId) {
+        feedFacade.deleteFeed(user, feedId);
+        return ApiResponse.success(HttpStatus.OK);
+    }
 }

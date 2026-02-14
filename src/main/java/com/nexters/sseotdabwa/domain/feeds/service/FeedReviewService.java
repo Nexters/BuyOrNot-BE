@@ -21,4 +21,9 @@ public class FeedReviewService {
     public void deleteByFeeds(List<Feed> feeds) {
         feedReviewRepository.deleteByFeedIn(feeds);
     }
+
+    @Transactional
+    public void deleteByFeed(Feed feed) {
+        feedReviewRepository.deleteByFeed(feed);
+    }
 }

@@ -26,4 +26,9 @@ public class VoteLogService {
     public void deleteByFeeds(List<Feed> feeds) {
         voteLogRepository.deleteByFeedIn(feeds);
     }
+
+    @Transactional
+    public void deleteByFeed(Feed feed) {
+        voteLogRepository.deleteByFeed(feed);
+    }
 }

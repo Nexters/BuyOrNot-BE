@@ -39,4 +39,9 @@ public class FeedImageService {
     public List<FeedImage> findByFeeds(List<Feed> feeds) {
         return feedImageRepository.findByFeedIn(feeds);
     }
+
+    @Transactional
+    public void deleteByFeed(Feed feed) {
+        feedImageRepository.deleteByFeed(feed);
+    }
 }
