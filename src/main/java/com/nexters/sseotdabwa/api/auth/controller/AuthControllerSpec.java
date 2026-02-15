@@ -15,8 +15,6 @@ import com.nexters.sseotdabwa.common.response.ApiResponse;
 import com.nexters.sseotdabwa.common.security.CurrentUser;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -39,8 +37,7 @@ public interface AuthControllerSpec {
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "200",
-                    description = "로그인 성공 (JWT 토큰 + 사용자 정보 반환)",
-                    content = @Content(schema = @Schema(implementation = TokenResponse.class))
+                    description = "로그인 성공 (JWT 토큰 + 사용자 정보 반환)"
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "401",
@@ -72,8 +69,7 @@ public interface AuthControllerSpec {
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "200",
-                    description = "로그인 성공 (JWT 토큰 + 사용자 정보 반환)",
-                    content = @Content(schema = @Schema(implementation = TokenResponse.class))
+                    description = "로그인 성공 (JWT 토큰 + 사용자 정보 반환)"
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "401",
@@ -101,8 +97,7 @@ public interface AuthControllerSpec {
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "200",
-                    description = "로그인 성공 (JWT 토큰 + 사용자 정보 반환)",
-                    content = @Content(schema = @Schema(implementation = TokenResponse.class))
+                    description = "로그인 성공 (JWT 토큰 + 사용자 정보 반환)"
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "401",
@@ -127,8 +122,7 @@ public interface AuthControllerSpec {
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "200",
-                    description = "토큰 갱신 성공",
-                    content = @Content(schema = @Schema(implementation = TokenResponse.class))
+                    description = "토큰 갱신 성공"
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "401",

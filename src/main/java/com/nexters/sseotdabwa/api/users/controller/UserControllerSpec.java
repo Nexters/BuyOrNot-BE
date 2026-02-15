@@ -9,8 +9,6 @@ import com.nexters.sseotdabwa.common.response.ApiResponse;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,8 +24,7 @@ public interface UserControllerSpec {
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "200",
-                    description = "조회 성공",
-                    content = @Content(schema = @Schema(implementation = UserResponse.class))
+                    description = "조회 성공"
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "401",
@@ -44,8 +41,7 @@ public interface UserControllerSpec {
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "200",
-                    description = "탈퇴 성공",
-                    content = @Content(schema = @Schema(implementation = UserWithdrawResponse.class))
+                    description = "탈퇴 성공"
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "401",
