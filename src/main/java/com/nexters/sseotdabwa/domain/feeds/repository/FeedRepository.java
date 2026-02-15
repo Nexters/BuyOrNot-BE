@@ -14,4 +14,6 @@ public interface FeedRepository extends JpaRepository<Feed, Long> {
     void deleteByUserId(Long userId);
 
     List<Feed> findByReportStatusNotOrderByCreatedAtDesc(ReportStatus reportStatus);
+
+    List<Feed> findByUserIdOrderByCreatedAtDesc(Long userId);
 }

@@ -1,5 +1,8 @@
 package com.nexters.sseotdabwa.api.users.controller;
 
+import java.util.List;
+
+import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
 import com.nexters.sseotdabwa.api.users.dto.UserResponse;
 import com.nexters.sseotdabwa.api.users.dto.UserWithdrawResponse;
 import com.nexters.sseotdabwa.api.users.facade.UserFacade;
@@ -31,6 +34,13 @@ public class UserController implements UserControllerSpec {
     @DeleteMapping("/me")
     public ApiResponse<UserWithdrawResponse> withdraw(@CurrentUser User user) {
         UserWithdrawResponse response = userFacade.withdraw(user);
+        return ApiResponse.success(response, HttpStatus.OK);
+    }
+
+    @Override
+    @GetMapping("/me/feeds")
+    public ApiResponse<List<FeedResponse>> getMyFeeds(@CurrentUser User user) {
+        List<FeedResponse> response = userFacade.getMyFeeds(user);
         return ApiResponse.success(response, HttpStatus.OK);
     }
 }

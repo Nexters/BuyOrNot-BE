@@ -30,6 +30,7 @@ import com.nexters.sseotdabwa.domain.votes.repository.VoteLogRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -169,6 +170,36 @@ class UserControllerTest {
     void withdraw_unauthorized_returns401() throws Exception {
         // when & then
         mockMvc.perform(delete("/api/v1/users/me"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("내가 작성한 피드 조회 성공 - 200 OK")
+    void getMyFeeds_success() throws Exception {
+        // given
+        User user = createUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+        Feed feed = createFeed(user);
+        feedImageRepository.save(FeedImage.builder()
+                .feed(feed)
+                .s3ObjectKey("feeds/test_image.jpg")
+                .build());
+
+        // when & then
+        mockMvc.perform(get("/api/v1/users/me/feeds")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("200"))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data[0].feedId").value(feed.getId()))
+                .andExpect(jsonPath("$.data[0].author.userId").value(user.getId()));
+    }
+
+    @Test
+    @DisplayName("내가 작성한 피드 조회 실패 - 비로그인 401")
+    void getMyFeeds_unauthorized_returns401() throws Exception {
+        // when & then
+        mockMvc.perform(get("/api/v1/users/me/feeds"))
                 .andExpect(status().isUnauthorized());
     }
 

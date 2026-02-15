@@ -87,4 +87,8 @@ public class FeedService {
     public List<Feed> findAllExceptDeleted() {
         return feedRepository.findByReportStatusNotOrderByCreatedAtDesc(ReportStatus.DELETED);
     }
+
+    public List<Feed> findByUserIdOrderByCreatedAtDesc(Long userId) {
+        return feedRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    }
 }
