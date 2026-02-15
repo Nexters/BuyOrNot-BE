@@ -24,6 +24,7 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
@@ -163,5 +164,39 @@ class S3StorageServiceTest {
 
         // then
         assertThat(exists).isFalse();
+    }
+
+    @Test
+    @DisplayName("S3 오브젝트 삭제 성공 - deleteObject 호출")
+    void deleteObject_success() {
+        // given
+        given(props.s3()).willReturn(s3Props);
+        given(s3Props.bucket()).willReturn("my-bucket");
+
+        // when
+        s3StorageService.deleteObject("feeds/test_image.jpg");
+
+        // then
+        ArgumentCaptor<DeleteObjectRequest> captor = ArgumentCaptor.forClass(DeleteObjectRequest.class);
+        verify(s3Client).deleteObject(captor.capture());
+
+        DeleteObjectRequest req = captor.getValue();
+        assertThat(req.bucket()).isEqualTo("my-bucket");
+        assertThat(req.key()).isEqualTo("feeds/test_image.jpg");
+    }
+
+    @Test
+    @DisplayName("S3 오브젝트 삭제 실패 - S3Exception 발생 시 전파")
+    void deleteObject_s3Exception_throws() {
+        // given
+        given(props.s3()).willReturn(s3Props);
+        given(s3Props.bucket()).willReturn("my-bucket");
+
+        doThrow(S3Exception.builder().message("delete failed").build())
+                .when(s3Client).deleteObject(any(DeleteObjectRequest.class));
+
+        // when & then
+        assertThatThrownBy(() -> s3StorageService.deleteObject("feeds/test_image.jpg"))
+                .isInstanceOf(S3Exception.class);
     }
 }

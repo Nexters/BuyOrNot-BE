@@ -1,12 +1,5 @@
 package com.nexters.sseotdabwa.api.uploads.controller;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.given;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
@@ -26,6 +19,12 @@ import com.nexters.sseotdabwa.domain.auth.service.JwtTokenService;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
 import com.nexters.sseotdabwa.domain.users.repository.UserRepository;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -98,29 +97,5 @@ class UploadControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    @DisplayName("S3 객체 삭제 성공 - 인증 사용자만 가능")
-    void deleteObject_success() throws Exception {
-        // given
-        User user = userRepository.save(User.builder()
-                .socialId(UUID.randomUUID().toString())
-                .nickname("테스트_" + UUID.randomUUID().toString().substring(0, 8))
-                .socialAccount(SocialAccount.KAKAO)
-                .build());
-        String token = jwtTokenService.createAccessToken(user.getId());
-
-        String body = """
-                {"s3ObjectKey":"feeds/uuid_test.jpg"}
-                """;
-
-        // when & then
-        mockMvc.perform(delete("/api/v1/uploads/object")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("204"));
     }
 }
