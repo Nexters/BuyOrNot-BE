@@ -35,4 +35,8 @@ public class FeedImageService {
     public void deleteByFeeds(List<Feed> feeds) {
         feedImageRepository.deleteByFeedIn(feeds);
     }
+
+    public List<FeedImage> findByFeeds(List<Feed> feeds) {
+        return feedImageRepository.findByFeedIn(feeds);
+    }
 }

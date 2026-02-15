@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.nexters.sseotdabwa.domain.feeds.exception.FeedErrorCode;
+import com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
@@ -81,5 +82,9 @@ public class FeedService {
     @Transactional
     public void deleteByUserId(Long userId) {
         feedRepository.deleteByUserId(userId);
+    }
+
+    public List<Feed> findAllExceptDeleted() {
+        return feedRepository.findByReportStatusNotOrderByCreatedAtDesc(ReportStatus.DELETED);
     }
 }

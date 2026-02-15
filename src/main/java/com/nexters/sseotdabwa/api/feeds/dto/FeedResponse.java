@@ -1,0 +1,51 @@
+package com.nexters.sseotdabwa.api.feeds.dto;
+
+import java.time.LocalDateTime;
+
+import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
+import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
+import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
+import com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus;
+
+public record FeedResponse(
+        Long feedId,
+        String content,
+        Long price,
+        FeedCategory category,
+        Long yesCount,
+        Long noCount,
+        FeedStatus feedStatus,
+        String s3ObjectKey,
+        Integer imageWidth,
+        Integer imageHeight,
+        FeedAuthorResponse author,
+        LocalDateTime createdAt
+) {
+
+    public record FeedAuthorResponse(
+            Long userId,
+            String nickname,
+            String profileImage
+    ) {}
+
+    public static FeedResponse of(Feed feed, FeedImage feedImage) {
+        return new FeedResponse(
+                feed.getId(),
+                feed.getContent(),
+                feed.getPrice(),
+                feed.getCategory(),
+                feed.getYesCount(),
+                feed.getNoCount(),
+                feed.getFeedStatus(),
+                feedImage != null ? feedImage.getS3ObjectKey() : null,
+                feed.getImageWidth(),
+                feed.getImageHeight(),
+                new FeedAuthorResponse(
+                        feed.getUser().getId(),
+                        feed.getUser().getNickname(),
+                        feed.getUser().getProfileImage()
+                ),
+                feed.getCreatedAt()
+        );
+    }
+}
