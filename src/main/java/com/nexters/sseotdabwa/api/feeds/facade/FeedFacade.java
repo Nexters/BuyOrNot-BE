@@ -107,5 +107,18 @@ public class FeedFacade {
         }
     }
 
+    /**
+     * 피드 신고
+     */
+    @Transactional
+    public void reportFeed(User user, Long feedId) {
+        Feed feed = feedService.findById(feedId);
+        if (feed.isOwner(user)) {
+            throw new GlobalException(FeedErrorCode.FEED_SELF_REPORT);
+        }
+        if (feed.isReported()) {
+            throw new GlobalException(FeedErrorCode.FEED_ALREADY_REPORTED);
+        }
+        feedService.report(feed);
     }
 }

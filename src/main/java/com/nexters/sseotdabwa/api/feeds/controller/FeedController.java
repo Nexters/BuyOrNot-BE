@@ -46,4 +46,11 @@ public class FeedController implements FeedControllerSpec {
         feedFacade.deleteFeed(user, feedId);
         return ApiResponse.success(HttpStatus.OK);
     }
+
+    @Override
+    @PostMapping("/{feedId}/report")
+    public ApiResponse<Void> reportFeed(@CurrentUser User user, @PathVariable Long feedId) {
+        feedFacade.reportFeed(user, feedId);
+        return ApiResponse.success(HttpStatus.OK);
+    }
 }

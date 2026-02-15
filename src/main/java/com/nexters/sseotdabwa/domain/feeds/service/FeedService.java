@@ -101,4 +101,9 @@ public class FeedService {
     public void delete(Feed feed) {
         feedRepository.delete(feed);
     }
+
+    @Transactional
+    public void report(Feed feed) {
+        feed.report();
+    }
 }
