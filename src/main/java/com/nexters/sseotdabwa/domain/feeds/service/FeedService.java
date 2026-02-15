@@ -84,11 +84,21 @@ public class FeedService {
         feedRepository.deleteByUserId(userId);
     }
 
+    public Feed findById(Long feedId) {
+        return feedRepository.findById(feedId)
+                .orElseThrow(() -> new GlobalException(FeedErrorCode.FEED_NOT_FOUND));
+    }
+
     public List<Feed> findAllExceptDeleted() {
         return feedRepository.findByReportStatusNotOrderByCreatedAtDesc(ReportStatus.DELETED);
     }
 
     public List<Feed> findByUserIdOrderByCreatedAtDesc(Long userId) {
         return feedRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    }
+
+    @Transactional
+    public void delete(Feed feed) {
+        feedRepository.delete(feed);
     }
 }

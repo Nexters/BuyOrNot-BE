@@ -95,4 +95,8 @@ public class Feed extends BaseEntity {
     public boolean isVoteOpen() {
         return this.feedStatus == FeedStatus.OPEN;
     }
+
+    public boolean isOwner(User user) {
+        return this.user.getId().equals(user.getId());
+    }
 }

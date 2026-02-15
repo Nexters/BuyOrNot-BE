@@ -6,8 +6,6 @@ import com.nexters.sseotdabwa.api.uploads.dto.PresignedPutResponse;
 import com.nexters.sseotdabwa.common.response.ApiResponse;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -41,8 +39,7 @@ public interface UploadControllerSpec {
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "200",
-                    description = "Presigned URL 발급 성공",
-                    content = @Content(schema = @Schema(implementation = PresignedPutResponse.class))
+                    description = "Presigned URL 발급 성공"
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "400",

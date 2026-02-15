@@ -23,8 +23,8 @@ import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
 import com.nexters.sseotdabwa.domain.users.repository.UserRepository;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -228,6 +228,61 @@ class FeedControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("200"))
                 .andExpect(jsonPath("$.data").isArray());
+    }
+
+    // ===== 피드 삭제 =====
+
+    @Test
+    @DisplayName("피드 삭제 성공 - 본인 피드 200 OK")
+    void deleteFeed_success() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+        Feed feed = createFeedWithImage(user);
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/feeds/" + feed.getId())
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("200"));
+    }
+
+    @Test
+    @DisplayName("피드 삭제 실패 - 존재하지 않는 피드 404")
+    void deleteFeed_notFound_404() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/feeds/999")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("FEED_003"));
+    }
+
+    @Test
+    @DisplayName("피드 삭제 실패 - 타인 피드 403")
+    void deleteFeed_forbidden_403() throws Exception {
+        // given
+        User owner = createUser();
+        User otherUser = createUser();
+        String otherToken = jwtTokenService.createAccessToken(otherUser.getId());
+        Feed feed = createFeedWithImage(owner);
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/feeds/" + feed.getId())
+                        .header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("FEED_004"));
+    }
+
+    @Test
+    @DisplayName("피드 삭제 실패 - 비로그인 401")
+    void deleteFeed_unauthorized_401() throws Exception {
+        // when & then
+        mockMvc.perform(delete("/api/v1/feeds/1"))
+                .andExpect(status().isUnauthorized());
     }
 
     // ===== Helper Methods =====
