@@ -89,4 +89,32 @@ public interface FeedControllerSpec {
             @Parameter(hidden = true) User user,
             @PathVariable Long feedId
     );
+
+    @Operation(
+            summary = "피드 신고",
+            description = "피드를 신고합니다. 본인의 피드는 신고할 수 없습니다.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "피드 신고 성공"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "본인 피드 신고 불가 또는 이미 신고된 피드"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "인증 필요"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "피드를 찾을 수 없음"
+            )
+    })
+    ApiResponse<Void> reportFeed(
+            @Parameter(hidden = true) User user,
+            @PathVariable Long feedId
+    );
 }

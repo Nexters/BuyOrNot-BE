@@ -1,5 +1,9 @@
 package com.nexters.sseotdabwa.api.feeds.controller;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
@@ -17,16 +21,12 @@ import com.nexters.sseotdabwa.domain.auth.service.JwtTokenService;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
+import com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedImageRepository;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
 import com.nexters.sseotdabwa.domain.users.repository.UserRepository;
-
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -282,6 +282,65 @@ class FeedControllerTest {
     void deleteFeed_unauthorized_401() throws Exception {
         // when & then
         mockMvc.perform(delete("/api/v1/feeds/1"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    // ===== 피드 신고 =====
+
+    @Test
+    @DisplayName("피드 신고 성공 - 200 OK")
+    void reportFeed_success() throws Exception {
+        // given
+        User owner = createUser();
+        User reporter = createUser();
+        String reporterToken = jwtTokenService.createAccessToken(reporter.getId());
+        Feed feed = createFeedWithImage(owner);
+
+        // when & then
+        mockMvc.perform(post("/api/v1/feeds/" + feed.getId() + "/report")
+                        .header("Authorization", "Bearer " + reporterToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("200"));
+    }
+
+    @Test
+    @DisplayName("피드 신고 실패 - 본인 피드 신고 시 400")
+    void reportFeed_selfReport_400() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+        Feed feed = createFeedWithImage(user);
+
+        // when & then
+        mockMvc.perform(post("/api/v1/feeds/" + feed.getId() + "/report")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("FEED_006"));
+    }
+
+    @Test
+    @DisplayName("피드 신고 실패 - 이미 신고된 피드 재신고 시 400")
+    void reportFeed_alreadyReported_400() throws Exception {
+        // given
+        User owner = createUser();
+        User reporter = createUser();
+        String reporterToken = jwtTokenService.createAccessToken(reporter.getId());
+        Feed feed = createFeedWithImage(owner);
+        feed.report();
+        feedRepository.save(feed);
+
+        // when & then
+        mockMvc.perform(post("/api/v1/feeds/" + feed.getId() + "/report")
+                        .header("Authorization", "Bearer " + reporterToken))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("FEED_005"));
+    }
+
+    @Test
+    @DisplayName("피드 신고 실패 - 비로그인 401")
+    void reportFeed_unauthorized_401() throws Exception {
+        // when & then
+        mockMvc.perform(post("/api/v1/feeds/1/report"))
                 .andExpect(status().isUnauthorized());
     }
 

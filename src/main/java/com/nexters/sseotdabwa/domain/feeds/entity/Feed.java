@@ -96,6 +96,14 @@ public class Feed extends BaseEntity {
         return this.feedStatus == FeedStatus.OPEN;
     }
 
+    public void report() {
+        this.reportStatus = ReportStatus.REPORTED;
+    }
+
+    public boolean isReported() {
+        return this.reportStatus == ReportStatus.REPORTED || this.reportStatus == ReportStatus.DELETED;
+    }
+
     public boolean isOwner(User user) {
         return this.user.getId().equals(user.getId());
     }
