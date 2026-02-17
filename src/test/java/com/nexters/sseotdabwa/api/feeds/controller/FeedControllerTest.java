@@ -27,6 +27,10 @@ import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
 import com.nexters.sseotdabwa.domain.users.repository.UserRepository;
+import com.nexters.sseotdabwa.domain.votes.entity.VoteLog;
+import com.nexters.sseotdabwa.domain.votes.enums.VoteChoice;
+import com.nexters.sseotdabwa.domain.votes.enums.VoteType;
+import com.nexters.sseotdabwa.domain.votes.repository.VoteLogRepository;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -50,6 +54,9 @@ class FeedControllerTest {
 
     @Autowired
     private FeedImageRepository feedImageRepository;
+
+    @Autowired
+    private VoteLogRepository voteLogRepository;
 
     // ===== 피드 등록 =====
 
@@ -342,6 +349,57 @@ class FeedControllerTest {
         // when & then
         mockMvc.perform(post("/api/v1/feeds/1/report"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    // ===== 피드 리스트 투표 상태 =====
+
+    @Test
+    @DisplayName("로그인 회원 피드 리스트 조회 - 투표한 피드에 hasVoted=true, myVoteChoice 포함")
+    void getFeedList_withVote_hasVotedTrue() throws Exception {
+        // given
+        User owner = createUser();
+        User voter = createUser();
+        String voterToken = jwtTokenService.createAccessToken(voter.getId());
+        Feed feed = createFeedWithImage(owner);
+        voteLogRepository.save(VoteLog.builder().user(voter).feed(feed).choice(VoteChoice.YES).voteType(VoteType.USER).build());
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds")
+                        .header("Authorization", "Bearer " + voterToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].hasVoted").value(true))
+                .andExpect(jsonPath("$.data[0].myVoteChoice").value("YES"));
+    }
+
+    @Test
+    @DisplayName("비로그인 게스트 피드 리스트 조회 - hasVoted, myVoteChoice null")
+    void getFeedList_guest_noVoteStatus() throws Exception {
+        // given
+        User owner = createUser();
+        createFeedWithImage(owner);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].hasVoted").doesNotExist())
+                .andExpect(jsonPath("$.data[0].myVoteChoice").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("로그인 회원 피드 리스트 조회 - 투표 안 한 피드에 hasVoted=false")
+    void getFeedList_noVote_hasVotedFalse() throws Exception {
+        // given
+        User owner = createUser();
+        User viewer = createUser();
+        String viewerToken = jwtTokenService.createAccessToken(viewer.getId());
+        createFeedWithImage(owner);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds")
+                        .header("Authorization", "Bearer " + viewerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].hasVoted").value(false))
+                .andExpect(jsonPath("$.data[0].myVoteChoice").doesNotExist());
     }
 
     // ===== Helper Methods =====
