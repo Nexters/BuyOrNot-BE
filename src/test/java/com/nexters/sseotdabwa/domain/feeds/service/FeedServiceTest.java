@@ -137,6 +137,32 @@ class FeedServiceTest {
                 .hasMessage("피드를 찾을 수 없습니다.");
     }
 
+    // ===== findByIdWithLock =====
+
+    @Test
+    @DisplayName("비관적 락으로 피드 조회 성공")
+    void findByIdWithLock_success() {
+        // given
+        User user = createUser();
+        Feed feed = createFeed(user);
+
+        // when
+        Feed result = feedService.findByIdWithLock(feed.getId());
+
+        // then
+        assertThat(result.getId()).isEqualTo(feed.getId());
+        assertThat(result.getContent()).isEqualTo(feed.getContent());
+    }
+
+    @Test
+    @DisplayName("비관적 락 조회 시 존재하지 않는 피드면 FEED_NOT_FOUND 예외")
+    void findByIdWithLock_notFound() {
+        // when & then
+        assertThatThrownBy(() -> feedService.findByIdWithLock(999L))
+                .isInstanceOf(GlobalException.class)
+                .hasMessage("피드를 찾을 수 없습니다.");
+    }
+
     @Test
     @DisplayName("피드 물리 삭제 확인")
     void delete_success() {

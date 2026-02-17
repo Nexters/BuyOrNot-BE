@@ -26,6 +26,7 @@ import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
 import com.nexters.sseotdabwa.domain.users.repository.UserRepository;
 import com.nexters.sseotdabwa.domain.votes.entity.VoteLog;
 import com.nexters.sseotdabwa.domain.votes.enums.VoteChoice;
+import com.nexters.sseotdabwa.domain.votes.enums.VoteType;
 import com.nexters.sseotdabwa.domain.votes.repository.VoteLogRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -87,10 +88,10 @@ class UserControllerTest {
         Feed feed = createFeed(user);
         feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("key1").build());
         feedReviewRepository.save(FeedReview.builder().feed(feed).content("리뷰").build());
-        voteLogRepository.save(VoteLog.builder().user(otherUser).feed(feed).choice(VoteChoice.YES).build());
+        voteLogRepository.save(VoteLog.builder().user(otherUser).feed(feed).choice(VoteChoice.YES).voteType(VoteType.USER).build());
 
         Feed otherFeed = createFeed(otherUser);
-        voteLogRepository.save(VoteLog.builder().user(user).feed(otherFeed).choice(VoteChoice.NO).build());
+        voteLogRepository.save(VoteLog.builder().user(user).feed(otherFeed).choice(VoteChoice.NO).voteType(VoteType.USER).build());
 
         String accessToken = jwtTokenService.createAccessToken(user.getId());
 
