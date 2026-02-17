@@ -1,5 +1,6 @@
 package com.nexters.sseotdabwa.domain.feeds.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -12,10 +13,13 @@ import org.springframework.transaction.annotation.Transactional;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
+import com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
 import com.nexters.sseotdabwa.domain.users.repository.UserRepository;
+
+import jakarta.persistence.EntityManager;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -32,6 +36,9 @@ class FeedServiceTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private EntityManager entityManager;
 
     @Test
     @DisplayName("유저 ID로 피드 목록 조회 성공")
@@ -177,6 +184,69 @@ class FeedServiceTest {
 
         // then
         assertThat(feedRepository.findById(feedId)).isEmpty();
+    }
+
+    // ===== closeExpiredFeeds =====
+
+    @Test
+    @DisplayName("48시간 초과 OPEN 피드 → CLOSED 전환")
+    void closeExpiredFeeds_closesExpiredOpenFeeds() {
+        // given
+        User user = createUser();
+        Feed feed = createFeed(user);
+        setCreatedAt(feed.getId(), LocalDateTime.now().minusHours(49));
+
+        // when
+        int closedCount = feedService.closeExpiredFeeds();
+        entityManager.clear();
+
+        // then
+        assertThat(closedCount).isEqualTo(1);
+        Feed updated = feedRepository.findById(feed.getId()).orElseThrow();
+        assertThat(updated.getFeedStatus()).isEqualTo(FeedStatus.CLOSED);
+    }
+
+    @Test
+    @DisplayName("48시간 이내 OPEN 피드 → OPEN 유지")
+    void closeExpiredFeeds_keepsRecentOpenFeeds() {
+        // given
+        User user = createUser();
+        Feed feed = createFeed(user);
+        setCreatedAt(feed.getId(), LocalDateTime.now().minusHours(47));
+
+        // when
+        int closedCount = feedService.closeExpiredFeeds();
+        entityManager.clear();
+
+        // then
+        assertThat(closedCount).isEqualTo(0);
+        Feed updated = feedRepository.findById(feed.getId()).orElseThrow();
+        assertThat(updated.getFeedStatus()).isEqualTo(FeedStatus.OPEN);
+    }
+
+    @Test
+    @DisplayName("이미 CLOSED 피드 → 영향 없음")
+    void closeExpiredFeeds_ignoresAlreadyClosedFeeds() {
+        // given
+        User user = createUser();
+        Feed feed = createFeed(user);
+        feed.closeVote();
+        feedRepository.save(feed);
+        setCreatedAt(feed.getId(), LocalDateTime.now().minusHours(49));
+
+        // when
+        int closedCount = feedService.closeExpiredFeeds();
+
+        // then
+        assertThat(closedCount).isEqualTo(0);
+    }
+
+    private void setCreatedAt(Long feedId, LocalDateTime createdAt) {
+        entityManager.createNativeQuery("UPDATE feeds SET created_at = :createdAt WHERE id = :feedId")
+                .setParameter("createdAt", createdAt)
+                .setParameter("feedId", feedId)
+                .executeUpdate();
+        entityManager.flush();
     }
 
     private User createUser() {

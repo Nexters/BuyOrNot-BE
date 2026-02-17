@@ -1,5 +1,6 @@
 package com.nexters.sseotdabwa.api.votes.facade;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
@@ -19,6 +20,8 @@ import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
 import com.nexters.sseotdabwa.domain.users.repository.UserRepository;
 import com.nexters.sseotdabwa.domain.votes.enums.VoteChoice;
 
+import jakarta.persistence.EntityManager;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -34,6 +37,9 @@ class VoteFacadeTest {
 
     @Autowired
     private FeedRepository feedRepository;
+
+    @Autowired
+    private EntityManager entityManager;
 
     // ===== 회원 투표 =====
 
@@ -174,6 +180,39 @@ class VoteFacadeTest {
                 .hasMessage("마감된 피드에는 투표할 수 없습니다.");
     }
 
+    // ===== 48시간 만료 검증 =====
+
+    @Test
+    @DisplayName("48시간 초과 피드에 회원 투표 시 VOTE_002 에러")
+    void vote_expiredFeed_throwsVote002() {
+        // given
+        User owner = createUser();
+        User voter = createUser();
+        Feed feed = createFeed(owner);
+        setCreatedAt(feed.getId(), LocalDateTime.now().minusHours(49));
+        VoteRequest request = new VoteRequest(VoteChoice.YES);
+
+        // when & then
+        assertThatThrownBy(() -> voteFacade.vote(voter, feed.getId(), request))
+                .isInstanceOf(GlobalException.class)
+                .hasMessage("마감된 피드에는 투표할 수 없습니다.");
+    }
+
+    @Test
+    @DisplayName("48시간 초과 피드에 게스트 투표 시 VOTE_002 에러")
+    void guestVote_expiredFeed_throwsVote002() {
+        // given
+        User owner = createUser();
+        Feed feed = createFeed(owner);
+        setCreatedAt(feed.getId(), LocalDateTime.now().minusHours(49));
+        VoteRequest request = new VoteRequest(VoteChoice.YES);
+
+        // when & then
+        assertThatThrownBy(() -> voteFacade.guestVote(feed.getId(), request))
+                .isInstanceOf(GlobalException.class)
+                .hasMessage("마감된 피드에는 투표할 수 없습니다.");
+    }
+
     // ===== Helper Methods =====
 
     private User createUser() {
@@ -193,5 +232,14 @@ class VoteFacadeTest {
                 .imageWidth(300)
                 .imageHeight(400)
                 .build());
+    }
+
+    private void setCreatedAt(Long feedId, LocalDateTime createdAt) {
+        entityManager.createNativeQuery("UPDATE feeds SET created_at = :createdAt WHERE id = :feedId")
+                .setParameter("createdAt", createdAt)
+                .setParameter("feedId", feedId)
+                .executeUpdate();
+        entityManager.flush();
+        entityManager.clear();
     }
 }
