@@ -61,7 +61,7 @@ public interface FeedControllerSpec {
             )
     })
     ApiResponse<List<FeedResponse>> getFeedList(
-            @Parameter(hidden = true) String authorization
+            @Parameter(hidden = true) User user
     );
 
     @Operation(
