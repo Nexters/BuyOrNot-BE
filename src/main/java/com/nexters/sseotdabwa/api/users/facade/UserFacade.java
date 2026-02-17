@@ -18,6 +18,7 @@ import com.nexters.sseotdabwa.domain.auth.service.RefreshTokenService;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedService;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.service.UserService;
+import com.nexters.sseotdabwa.domain.votes.enums.VoteChoice;
 import com.nexters.sseotdabwa.domain.votes.service.VoteLogService;
 
 import lombok.RequiredArgsConstructor;
@@ -80,8 +81,18 @@ public class UserFacade {
         List<FeedImage> feedImages = feedImageService.findByFeeds(feeds);
         Map<Long, FeedImage> imageMap = feedImages.stream()
                 .collect(Collectors.toMap(fi -> fi.getFeed().getId(), fi -> fi));
+
+        List<Long> feedIds = feeds.stream().map(Feed::getId).toList();
+        Map<Long, VoteChoice> voteMap = voteLogService.findByUserIdAndFeedIds(user.getId(), feedIds)
+                .stream()
+                .collect(Collectors.toMap(vl -> vl.getFeed().getId(), vl -> vl.getChoice()));
+
         return feeds.stream()
-                .map(feed -> FeedResponse.of(feed, imageMap.get(feed.getId())))
+                .map(feed -> {
+                    VoteChoice myChoice = voteMap.get(feed.getId());
+                    boolean hasVoted = myChoice != null;
+                    return FeedResponse.of(feed, imageMap.get(feed.getId()), hasVoted, myChoice);
+                })
                 .toList();
     }
 }
