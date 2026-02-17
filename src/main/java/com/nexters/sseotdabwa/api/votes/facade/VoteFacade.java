@@ -27,7 +27,7 @@ public class VoteFacade {
     public VoteResponse vote(User user, Long feedId, VoteRequest request) {
         Feed feed = feedService.findByIdWithLock(feedId);
 
-        if (!feed.isVoteOpen()) {
+        if (feed.isExpired() || !feed.isVoteOpen()) {
             throw new GlobalException(VoteErrorCode.VOTE_FEED_CLOSED);
         }
         if (feed.isOwner(user)) {
@@ -54,7 +54,7 @@ public class VoteFacade {
     public VoteResponse guestVote(Long feedId, VoteRequest request) {
         Feed feed = feedService.findByIdWithLock(feedId);
 
-        if (!feed.isVoteOpen()) {
+        if (feed.isExpired() || !feed.isVoteOpen()) {
             throw new GlobalException(VoteErrorCode.VOTE_FEED_CLOSED);
         }
 
