@@ -128,4 +128,15 @@ public class UserService {
         }
         throw new GlobalException(UserErrorCode.NICKNAME_GENERATION_FAILED);
     }
+
+    /**
+     * FCM 토큰 저장/갱신
+     * - 로그인 이후: 유저와 토큰을 매핑하기 위해 호출
+     * - 토큰 갱신 시점: Firebase가 토큰을 재발급하면 다시 호출
+     */
+    @Transactional
+    public void updateFcmToken(Long userId, String fcmToken) {
+        User user = findById(userId);
+        user.updateFcmToken(fcmToken);
+    }
 }
