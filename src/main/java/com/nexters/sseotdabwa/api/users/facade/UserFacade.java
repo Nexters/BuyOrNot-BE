@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.nexters.sseotdabwa.api.users.dto.FcmTokenRequest;
+
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -83,5 +85,13 @@ public class UserFacade {
         return feeds.stream()
                 .map(feed -> FeedResponse.of(feed, imageMap.get(feed.getId())))
                 .toList();
+    }
+
+    /**
+     * FCM 토큰 등록/갱신
+     */
+    @Transactional
+    public void updateFcmToken(User user, FcmTokenRequest request) {
+        userService.updateFcmToken(user.getId(), request.fcmToken());
     }
 }

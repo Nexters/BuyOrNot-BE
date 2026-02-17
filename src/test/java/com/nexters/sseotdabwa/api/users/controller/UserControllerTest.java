@@ -3,6 +3,10 @@ package com.nexters.sseotdabwa.api.users.controller;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.nexters.sseotdabwa.api.users.dto.FcmTokenRequest;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +36,7 @@ import com.nexters.sseotdabwa.domain.votes.repository.VoteLogRepository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -42,6 +47,9 @@ class UserControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Autowired
     private UserRepository userRepository;
@@ -222,4 +230,59 @@ class UserControllerTest {
                 .imageHeight(400)
                 .build());
     }
+
+    @Test
+    @DisplayName("FCM 토큰 등록/갱신 성공 - DB에 fcmToken 저장")
+    void updateFcmToken_success_updatesDb() throws Exception {
+        // given
+        User user = createUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+
+        String newToken = "fcm_" + UUID.randomUUID();
+
+        FcmTokenRequest request = new FcmTokenRequest(newToken);
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/users/fcm")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("200"));
+
+        // then (DB 확인)
+        User updated = userRepository.findById(user.getId()).orElseThrow();
+        assertThat(updated.getFcmToken()).isEqualTo(newToken);
+    }
+
+    @Test
+    @DisplayName("FCM 토큰 등록/갱신 실패 - 토큰이 공백이면 400")
+    void updateFcmToken_blank_returns400() throws Exception {
+        // given
+        User user = createUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+
+        FcmTokenRequest request = new FcmTokenRequest("  "); // @NotBlank 위반
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/users/fcm")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("FCM 토큰 등록/갱신 실패 - 미인증 401")
+    void updateFcmToken_unauthorized_returns401() throws Exception {
+        // given
+        FcmTokenRequest request = new FcmTokenRequest("fcm_" + UUID.randomUUID());
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/users/fcm")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
 }

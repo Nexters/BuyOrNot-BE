@@ -3,6 +3,7 @@ package com.nexters.sseotdabwa.api.users.controller;
 import java.util.List;
 
 import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
+import com.nexters.sseotdabwa.api.users.dto.FcmTokenRequest;
 import com.nexters.sseotdabwa.api.users.dto.UserResponse;
 import com.nexters.sseotdabwa.api.users.dto.UserWithdrawResponse;
 import com.nexters.sseotdabwa.common.response.ApiResponse;
@@ -12,6 +13,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+
+import org.springframework.web.bind.annotation.RequestBody;
 
 @Tag(name = "Users", description = "사용자 API")
 public interface UserControllerSpec {
@@ -66,4 +69,18 @@ public interface UserControllerSpec {
             )
     })
     ApiResponse<List<FeedResponse>> getMyFeeds(@Parameter(hidden = true) User user);
+
+    @Operation(
+            summary = "FCM 토큰 등록/갱신",
+            description = "현재 로그인한 사용자의 FCM 토큰을 저장(업데이트)합니다.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "저장 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
+    })
+    ApiResponse<Void> updateFcmToken(
+            @Parameter(hidden = true) User user,
+            @RequestBody FcmTokenRequest request
+    );
 }
