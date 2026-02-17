@@ -1,10 +1,12 @@
 package com.nexters.sseotdabwa.domain.feeds.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -26,4 +28,8 @@ public interface FeedRepository extends JpaRepository<Feed, Long> {
     List<Feed> findByReportStatusNotOrderByCreatedAtDesc(ReportStatus reportStatus);
 
     List<Feed> findByUserIdOrderByCreatedAtDesc(Long userId);
+
+    @Modifying
+    @Query("UPDATE Feed f SET f.feedStatus = 'CLOSED', f.updatedAt = :now WHERE f.feedStatus = 'OPEN' AND f.createdAt < :cutoff")
+    int closeExpiredFeeds(@Param("cutoff") LocalDateTime cutoff, @Param("now") LocalDateTime now);
 }

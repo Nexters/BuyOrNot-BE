@@ -12,6 +12,7 @@ import com.nexters.sseotdabwa.domain.feeds.service.command.FeedCreateCommand;
 
 import lombok.RequiredArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -111,5 +112,12 @@ public class FeedService {
     public Feed findByIdWithLock(Long feedId) {
         return feedRepository.findByIdWithPessimisticLock(feedId)
                 .orElseThrow(() -> new GlobalException(FeedErrorCode.FEED_NOT_FOUND));
+    }
+
+    @Transactional
+    public int closeExpiredFeeds() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime cutoff = now.minusHours(48);
+        return feedRepository.closeExpiredFeeds(cutoff, now);
     }
 }
