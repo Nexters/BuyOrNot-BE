@@ -106,4 +106,10 @@ public class FeedService {
     public void report(Feed feed) {
         feed.report();
     }
+
+    @Transactional
+    public Feed findByIdWithLock(Long feedId) {
+        return feedRepository.findByIdWithPessimisticLock(feedId)
+                .orElseThrow(() -> new GlobalException(FeedErrorCode.FEED_NOT_FOUND));
+    }
 }

@@ -17,7 +17,9 @@ import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
 import com.nexters.sseotdabwa.domain.users.repository.UserRepository;
 import com.nexters.sseotdabwa.domain.votes.entity.VoteLog;
 import com.nexters.sseotdabwa.domain.votes.enums.VoteChoice;
+import com.nexters.sseotdabwa.domain.votes.enums.VoteType;
 import com.nexters.sseotdabwa.domain.votes.repository.VoteLogRepository;
+import com.nexters.sseotdabwa.domain.votes.service.command.VoteCreateCommand;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -44,7 +46,7 @@ class VoteLogServiceTest {
         User feedOwner = createUser();
         User voter = createUser();
         Feed feed = createFeed(feedOwner);
-        voteLogRepository.save(VoteLog.builder().user(voter).feed(feed).choice(VoteChoice.YES).build());
+        voteLogRepository.save(VoteLog.builder().user(voter).feed(feed).choice(VoteChoice.YES).voteType(VoteType.USER).build());
 
         // when
         voteLogService.deleteByUserId(voter.getId());
@@ -61,8 +63,8 @@ class VoteLogServiceTest {
         User voter = createUser();
         Feed feed1 = createFeed(feedOwner);
         Feed feed2 = createFeed(feedOwner);
-        voteLogRepository.save(VoteLog.builder().user(voter).feed(feed1).choice(VoteChoice.YES).build());
-        voteLogRepository.save(VoteLog.builder().user(voter).feed(feed2).choice(VoteChoice.NO).build());
+        voteLogRepository.save(VoteLog.builder().user(voter).feed(feed1).choice(VoteChoice.YES).voteType(VoteType.USER).build());
+        voteLogRepository.save(VoteLog.builder().user(voter).feed(feed2).choice(VoteChoice.NO).voteType(VoteType.USER).build());
 
         // when
         voteLogService.deleteByFeeds(List.of(feed1, feed2));
@@ -76,6 +78,119 @@ class VoteLogServiceTest {
     void deleteByFeeds_emptyList_noError() {
         // when & then
         voteLogService.deleteByFeeds(List.of());
+    }
+
+    // ===== createVoteLog =====
+
+    @Test
+    @DisplayName("회원 투표 로그 생성 성공")
+    void createVoteLog_user_success() {
+        // given
+        User feedOwner = createUser();
+        User voter = createUser();
+        Feed feed = createFeed(feedOwner);
+        VoteCreateCommand command = new VoteCreateCommand(voter, feed, VoteChoice.YES, VoteType.USER);
+
+        // when
+        VoteLog voteLog = voteLogService.createVoteLog(command);
+
+        // then
+        assertThat(voteLog.getId()).isNotNull();
+        assertThat(voteLog.getUser().getId()).isEqualTo(voter.getId());
+        assertThat(voteLog.getFeed().getId()).isEqualTo(feed.getId());
+        assertThat(voteLog.getChoice()).isEqualTo(VoteChoice.YES);
+        assertThat(voteLog.getVoteType()).isEqualTo(VoteType.USER);
+    }
+
+    @Test
+    @DisplayName("게스트 투표 로그 생성 성공 - user null")
+    void createVoteLog_guest_success() {
+        // given
+        User feedOwner = createUser();
+        Feed feed = createFeed(feedOwner);
+        VoteCreateCommand command = new VoteCreateCommand(null, feed, VoteChoice.NO, VoteType.SYSTEM);
+
+        // when
+        VoteLog voteLog = voteLogService.createVoteLog(command);
+
+        // then
+        assertThat(voteLog.getId()).isNotNull();
+        assertThat(voteLog.getUser()).isNull();
+        assertThat(voteLog.getFeed().getId()).isEqualTo(feed.getId());
+        assertThat(voteLog.getChoice()).isEqualTo(VoteChoice.NO);
+        assertThat(voteLog.getVoteType()).isEqualTo(VoteType.SYSTEM);
+    }
+
+    // ===== existsByUserAndFeed =====
+
+    @Test
+    @DisplayName("유저가 해당 피드에 투표했으면 true 반환")
+    void existsByUserAndFeed_true() {
+        // given
+        User feedOwner = createUser();
+        User voter = createUser();
+        Feed feed = createFeed(feedOwner);
+        voteLogRepository.save(VoteLog.builder().user(voter).feed(feed).choice(VoteChoice.YES).voteType(VoteType.USER).build());
+
+        // when
+        boolean result = voteLogService.existsByUserAndFeed(voter.getId(), feed.getId());
+
+        // then
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    @DisplayName("유저가 해당 피드에 투표하지 않았으면 false 반환")
+    void existsByUserAndFeed_false() {
+        // given
+        User feedOwner = createUser();
+        User voter = createUser();
+        Feed feed = createFeed(feedOwner);
+
+        // when
+        boolean result = voteLogService.existsByUserAndFeed(voter.getId(), feed.getId());
+
+        // then
+        assertThat(result).isFalse();
+    }
+
+    // ===== findByUserIdAndFeedIds =====
+
+    @Test
+    @DisplayName("유저의 투표 로그를 피드 ID 목록으로 조회 성공")
+    void findByUserIdAndFeedIds_success() {
+        // given
+        User feedOwner = createUser();
+        User voter = createUser();
+        Feed feed1 = createFeed(feedOwner);
+        Feed feed2 = createFeed(feedOwner);
+        Feed feed3 = createFeed(feedOwner);
+        voteLogRepository.save(VoteLog.builder().user(voter).feed(feed1).choice(VoteChoice.YES).voteType(VoteType.USER).build());
+        voteLogRepository.save(VoteLog.builder().user(voter).feed(feed2).choice(VoteChoice.NO).voteType(VoteType.USER).build());
+
+        // when
+        List<VoteLog> result = voteLogService.findByUserIdAndFeedIds(
+                voter.getId(), List.of(feed1.getId(), feed2.getId(), feed3.getId()));
+
+        // then
+        assertThat(result).hasSize(2);
+        assertThat(result).extracting(vl -> vl.getFeed().getId())
+                .containsExactlyInAnyOrder(feed1.getId(), feed2.getId());
+    }
+
+    @Test
+    @DisplayName("투표하지 않은 피드 목록으로 조회 시 빈 리스트 반환")
+    void findByUserIdAndFeedIds_noVotes_returnsEmpty() {
+        // given
+        User feedOwner = createUser();
+        User voter = createUser();
+        Feed feed = createFeed(feedOwner);
+
+        // when
+        List<VoteLog> result = voteLogService.findByUserIdAndFeedIds(voter.getId(), List.of(feed.getId()));
+
+        // then
+        assertThat(result).isEmpty();
     }
 
     private User createUser() {
