@@ -55,6 +55,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/refresh"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/feeds", "/api/v1/feeds/").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/feeds/*/votes/guest").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         // 그 외 모든 요청은 인증 필요
                         .anyRequest().authenticated()
