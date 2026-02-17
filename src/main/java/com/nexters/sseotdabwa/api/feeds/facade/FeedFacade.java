@@ -15,8 +15,11 @@ import com.nexters.sseotdabwa.domain.feeds.service.FeedImageService;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedReviewService;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedService;
 import com.nexters.sseotdabwa.domain.feeds.service.command.FeedCreateCommand;
+import com.nexters.sseotdabwa.domain.auth.service.JwtTokenService;
 import com.nexters.sseotdabwa.domain.storage.service.S3StorageService;
 import com.nexters.sseotdabwa.domain.users.entity.User;
+import com.nexters.sseotdabwa.domain.users.service.UserService;
+import com.nexters.sseotdabwa.domain.votes.enums.VoteChoice;
 import com.nexters.sseotdabwa.domain.votes.service.VoteLogService;
 
 import lombok.RequiredArgsConstructor;
@@ -38,6 +41,8 @@ public class FeedFacade {
     private final FeedReviewService feedReviewService;
     private final VoteLogService voteLogService;
     private final S3StorageService s3StorageService;
+    private final JwtTokenService jwtTokenService;
+    private final UserService userService;
 
     /**
      * 피드 생성 + 피드 이미지 저장
@@ -65,15 +70,34 @@ public class FeedFacade {
 
     /**
      * 피드 리스트 조회 (비로그인 가능)
+     * - 인증된 경우: 투표 상태(hasVoted, myVoteChoice) 포함
+     * - 비인증인 경우: 투표 상태 없음
      */
     @Transactional(readOnly = true)
-    public List<FeedResponse> getFeedList() {
+    public List<FeedResponse> getFeedList(String authorization) {
+        User user = resolveOptionalUser(authorization);
         List<Feed> feeds = feedService.findAllExceptDeleted();
         List<FeedImage> feedImages = feedImageService.findByFeeds(feeds);
         Map<Long, FeedImage> imageMap = feedImages.stream()
                 .collect(Collectors.toMap(fi -> fi.getFeed().getId(), fi -> fi));
+
+        if (user == null) {
+            return feeds.stream()
+                    .map(feed -> FeedResponse.of(feed, imageMap.get(feed.getId())))
+                    .toList();
+        }
+
+        List<Long> feedIds = feeds.stream().map(Feed::getId).toList();
+        Map<Long, VoteChoice> voteMap = voteLogService.findByUserIdAndFeedIds(user.getId(), feedIds)
+                .stream()
+                .collect(Collectors.toMap(vl -> vl.getFeed().getId(), vl -> vl.getChoice()));
+
         return feeds.stream()
-                .map(feed -> FeedResponse.of(feed, imageMap.get(feed.getId())))
+                .map(feed -> {
+                    VoteChoice myChoice = voteMap.get(feed.getId());
+                    boolean hasVoted = myChoice != null;
+                    return FeedResponse.of(feed, imageMap.get(feed.getId()), hasVoted, myChoice);
+                })
                 .toList();
     }
 
@@ -120,5 +144,21 @@ public class FeedFacade {
             throw new GlobalException(FeedErrorCode.FEED_ALREADY_REPORTED);
         }
         feedService.report(feed);
+    }
+
+    private User resolveOptionalUser(String authorization) {
+        if (authorization == null || !authorization.startsWith("Bearer ")) {
+            return null;
+        }
+        try {
+            String token = authorization.substring(7);
+            if (!jwtTokenService.validateToken(token)) {
+                return null;
+            }
+            Long userId = jwtTokenService.getUserIdFromToken(token);
+            return userService.findById(userId);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }
