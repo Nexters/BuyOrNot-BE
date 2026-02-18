@@ -60,6 +60,7 @@ class VoteFacadeTest {
         assertThat(response.choice()).isEqualTo(VoteChoice.YES);
         assertThat(response.yesCount()).isEqualTo(1L);
         assertThat(response.noCount()).isEqualTo(0L);
+        assertThat(response.totalCount()).isEqualTo(1L);
     }
 
     @Test
@@ -79,6 +80,7 @@ class VoteFacadeTest {
         assertThat(response.choice()).isEqualTo(VoteChoice.NO);
         assertThat(response.yesCount()).isEqualTo(0L);
         assertThat(response.noCount()).isEqualTo(1L);
+        assertThat(response.totalCount()).isEqualTo(1L);
     }
 
     @Test
@@ -146,6 +148,7 @@ class VoteFacadeTest {
         assertThat(response.choice()).isEqualTo(VoteChoice.YES);
         assertThat(response.yesCount()).isEqualTo(1L);
         assertThat(response.noCount()).isEqualTo(0L);
+        assertThat(response.totalCount()).isEqualTo(1L);
     }
 
     @Test
@@ -162,6 +165,7 @@ class VoteFacadeTest {
 
         // then
         assertThat(response.yesCount()).isEqualTo(2L);
+        assertThat(response.totalCount()).isEqualTo(2L);
     }
 
     @Test
