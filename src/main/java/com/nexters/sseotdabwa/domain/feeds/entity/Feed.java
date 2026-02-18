@@ -13,11 +13,15 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "feeds")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Feed extends BaseEntity {
+
+    private static final long VOTE_DEADLINE_HOURS = 48;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -94,6 +98,11 @@ public class Feed extends BaseEntity {
 
     public boolean isVoteOpen() {
         return this.feedStatus == FeedStatus.OPEN;
+    }
+
+    public boolean isExpired() {
+        return this.getCreatedAt() != null
+                && LocalDateTime.now().isAfter(this.getCreatedAt().plusHours(VOTE_DEADLINE_HOURS));
     }
 
     public void report() {
