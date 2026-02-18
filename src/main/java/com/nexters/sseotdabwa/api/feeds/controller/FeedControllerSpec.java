@@ -7,7 +7,6 @@ import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateResponse;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
 import com.nexters.sseotdabwa.common.response.ApiResponse;
 import com.nexters.sseotdabwa.domain.users.entity.User;
-import com.nexters.sseotdabwa.common.security.CurrentUser;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -52,7 +51,8 @@ public interface FeedControllerSpec {
 
     @Operation(
             summary = "피드 리스트 조회",
-            description = "전체 피드 리스트를 조회합니다. 비로그인 유저도 접근 가능합니다."
+            description = "전체 피드 리스트를 조회합니다. 비로그인 유저도 접근 가능하며, 로그인 시 투표 상태가 포함됩니다.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
@@ -60,7 +60,9 @@ public interface FeedControllerSpec {
                     description = "피드 리스트 조회 성공"
             )
     })
-    ApiResponse<List<FeedResponse>> getFeedList();
+    ApiResponse<List<FeedResponse>> getFeedList(
+            @Parameter(hidden = true) User user
+    );
 
     @Operation(
             summary = "피드 삭제",

@@ -35,8 +35,10 @@ public class FeedController implements FeedControllerSpec {
 
     @Override
     @GetMapping
-    public ApiResponse<List<FeedResponse>> getFeedList() {
-        List<FeedResponse> response = feedFacade.getFeedList();
+    public ApiResponse<List<FeedResponse>> getFeedList(
+            @CurrentUser User user
+    ) {
+        List<FeedResponse> response = feedFacade.getFeedList(user);
         return ApiResponse.success(response, HttpStatus.OK);
     }
 
