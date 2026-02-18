@@ -1,19 +1,26 @@
 package com.nexters.sseotdabwa.api.users.facade;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import com.nexters.sseotdabwa.api.users.dto.FcmTokenRequest;
 
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
 import com.nexters.sseotdabwa.api.users.dto.UserResponse;
 import com.nexters.sseotdabwa.api.users.dto.UserWithdrawResponse;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
+import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedImageService;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedReviewService;
 import com.nexters.sseotdabwa.domain.auth.service.RefreshTokenService;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedService;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.service.UserService;
+import com.nexters.sseotdabwa.domain.votes.enums.VoteChoice;
 import com.nexters.sseotdabwa.domain.votes.service.VoteLogService;
 
 import lombok.RequiredArgsConstructor;
@@ -65,5 +72,37 @@ public class UserFacade {
         userService.delete(user);
 
         return response;
+    }
+
+    /**
+     * 내 피드 조회
+     */
+    @Transactional(readOnly = true)
+    public List<FeedResponse> getMyFeeds(User user) {
+        List<Feed> feeds = feedService.findByUserIdOrderByCreatedAtDesc(user.getId());
+        List<FeedImage> feedImages = feedImageService.findByFeeds(feeds);
+        Map<Long, FeedImage> imageMap = feedImages.stream()
+                .collect(Collectors.toMap(fi -> fi.getFeed().getId(), fi -> fi));
+
+        List<Long> feedIds = feeds.stream().map(Feed::getId).toList();
+        Map<Long, VoteChoice> voteMap = voteLogService.findByUserIdAndFeedIds(user.getId(), feedIds)
+                .stream()
+                .collect(Collectors.toMap(vl -> vl.getFeed().getId(), vl -> vl.getChoice()));
+
+        return feeds.stream()
+                .map(feed -> {
+                    VoteChoice myChoice = voteMap.get(feed.getId());
+                    boolean hasVoted = myChoice != null;
+                    return FeedResponse.of(feed, imageMap.get(feed.getId()), hasVoted, myChoice);
+                })
+                .toList();
+    }
+
+    /**
+     * FCM 토큰 등록/갱신
+     */
+    @Transactional
+    public void updateFcmToken(User user, FcmTokenRequest request) {
+        userService.updateFcmToken(user.getId(), request.fcmToken());
     }
 }

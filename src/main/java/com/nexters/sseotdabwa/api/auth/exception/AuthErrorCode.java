@@ -17,6 +17,9 @@ public enum AuthErrorCode implements ErrorCode {
     AUTHENTICATION_REQUIRED(HttpStatus.UNAUTHORIZED, "AUTH_000", "인증이 필요합니다."),
     INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_001", "유효하지 않은 리프레시 토큰입니다."),
 
+    // CloudFront 도메인 설정 에러
+    CLOUDFRONT_DOMAIN_NOT_CONFIGURED(HttpStatus.INTERNAL_SERVER_ERROR, "AUTH_090", "CloudFront 도메인이 설정되지 않았습니다."),
+
     // Kakao OAuth 에러 (AUTH_101 ~ AUTH_104)
     KAKAO_API_ERROR(HttpStatus.BAD_GATEWAY, "AUTH_101", "카카오 API 호출에 실패했습니다."),
     KAKAO_INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_102", "유효하지 않은 카카오 액세스 토큰입니다."),

@@ -3,6 +3,10 @@ package com.nexters.sseotdabwa.api.users.controller;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.nexters.sseotdabwa.api.users.dto.FcmTokenRequest;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,10 +30,13 @@ import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
 import com.nexters.sseotdabwa.domain.users.repository.UserRepository;
 import com.nexters.sseotdabwa.domain.votes.entity.VoteLog;
 import com.nexters.sseotdabwa.domain.votes.enums.VoteChoice;
+import com.nexters.sseotdabwa.domain.votes.enums.VoteType;
 import com.nexters.sseotdabwa.domain.votes.repository.VoteLogRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -40,6 +47,9 @@ class UserControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Autowired
     private UserRepository userRepository;
@@ -86,10 +96,10 @@ class UserControllerTest {
         Feed feed = createFeed(user);
         feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("key1").build());
         feedReviewRepository.save(FeedReview.builder().feed(feed).content("리뷰").build());
-        voteLogRepository.save(VoteLog.builder().user(otherUser).feed(feed).choice(VoteChoice.YES).build());
+        voteLogRepository.save(VoteLog.builder().user(otherUser).feed(feed).choice(VoteChoice.YES).voteType(VoteType.USER).build());
 
         Feed otherFeed = createFeed(otherUser);
-        voteLogRepository.save(VoteLog.builder().user(user).feed(otherFeed).choice(VoteChoice.NO).build());
+        voteLogRepository.save(VoteLog.builder().user(user).feed(otherFeed).choice(VoteChoice.NO).voteType(VoteType.USER).build());
 
         String accessToken = jwtTokenService.createAccessToken(user.getId());
 
@@ -172,6 +182,36 @@ class UserControllerTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    @DisplayName("내가 작성한 피드 조회 성공 - 200 OK")
+    void getMyFeeds_success() throws Exception {
+        // given
+        User user = createUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+        Feed feed = createFeed(user);
+        feedImageRepository.save(FeedImage.builder()
+                .feed(feed)
+                .s3ObjectKey("feeds/test_image.jpg")
+                .build());
+
+        // when & then
+        mockMvc.perform(get("/api/v1/users/me/feeds")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("200"))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data[0].feedId").value(feed.getId()))
+                .andExpect(jsonPath("$.data[0].author.userId").value(user.getId()));
+    }
+
+    @Test
+    @DisplayName("내가 작성한 피드 조회 실패 - 비로그인 401")
+    void getMyFeeds_unauthorized_returns401() throws Exception {
+        // when & then
+        mockMvc.perform(get("/api/v1/users/me/feeds"))
+                .andExpect(status().isUnauthorized());
+    }
+
     private User createUser() {
         return userRepository.save(User.builder()
                 .socialId(UUID.randomUUID().toString())
@@ -190,4 +230,59 @@ class UserControllerTest {
                 .imageHeight(400)
                 .build());
     }
+
+    @Test
+    @DisplayName("FCM 토큰 등록/갱신 성공 - DB에 fcmToken 저장")
+    void updateFcmToken_success_updatesDb() throws Exception {
+        // given
+        User user = createUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+
+        String newToken = "fcm_" + UUID.randomUUID();
+
+        FcmTokenRequest request = new FcmTokenRequest(newToken);
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/users/fcm")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("200"));
+
+        // then (DB 확인)
+        User updated = userRepository.findById(user.getId()).orElseThrow();
+        assertThat(updated.getFcmToken()).isEqualTo(newToken);
+    }
+
+    @Test
+    @DisplayName("FCM 토큰 등록/갱신 실패 - 토큰이 공백이면 400")
+    void updateFcmToken_blank_returns400() throws Exception {
+        // given
+        User user = createUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+
+        FcmTokenRequest request = new FcmTokenRequest("  "); // @NotBlank 위반
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/users/fcm")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("FCM 토큰 등록/갱신 실패 - 미인증 401")
+    void updateFcmToken_unauthorized_returns401() throws Exception {
+        // given
+        FcmTokenRequest request = new FcmTokenRequest("fcm_" + UUID.randomUUID());
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/users/fcm")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
 }

@@ -47,6 +47,9 @@ public class User extends BaseEntity {
     @Column
     private String email;
 
+    @Column(length = 255)
+    private String fcmToken;
+
     @Builder
     public User(String socialId, String nickname, SocialAccount socialAccount,
             String profileImage, String email) {
@@ -68,5 +71,9 @@ public class User extends BaseEntity {
 
     public void updateProfileImage(String profileImage) {
         this.profileImage = profileImage;
+    }
+
+    public void updateFcmToken(String fcmToken) {
+        this.fcmToken = (fcmToken == null) ? null : fcmToken.trim();
     }
 }

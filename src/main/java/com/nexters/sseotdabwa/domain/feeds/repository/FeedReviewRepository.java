@@ -9,4 +9,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface FeedReviewRepository extends JpaRepository<FeedReview, Long> {
 
     void deleteByFeedIn(List<Feed> feeds);
+
+    void deleteByFeed(Feed feed);
 }

@@ -11,4 +11,10 @@ public interface VoteLogRepository extends JpaRepository<VoteLog, Long> {
     void deleteByUserId(Long userId);
 
     void deleteByFeedIn(List<Feed> feeds);
+
+    void deleteByFeed(Feed feed);
+
+    boolean existsByUserIdAndFeedId(Long userId, Long feedId);
+
+    List<VoteLog> findByUserIdAndFeedIdIn(Long userId, List<Long> feedIds);
 }

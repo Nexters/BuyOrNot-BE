@@ -236,4 +236,26 @@ class UserServiceTest {
         // then
         assertThat(nickname2).isNotEqualTo(nickname1);
     }
+
+    @Test
+    @DisplayName("FCM 토큰 저장/갱신 성공 - fcmToken 업데이트")
+    void updateFcmToken_success() {
+        // given
+        User user = userRepository.saveAndFlush(User.builder()
+                .socialId(UUID.randomUUID().toString())
+                .nickname("테스트_" + UUID.randomUUID().toString().substring(0, 8))
+                .socialAccount(SocialAccount.KAKAO)
+                .build());
+
+        String token = "fcm_" + UUID.randomUUID();
+
+        // when
+        userService.updateFcmToken(user.getId(), token);
+
+        // then
+        User updated = userRepository.findById(user.getId()).orElseThrow();
+        assertThat(updated.getFcmToken()).isEqualTo(token);
+    }
+
+
 }
