@@ -7,14 +7,16 @@ public record VoteResponse(
         Long feedId,
         VoteChoice choice,
         Long yesCount,
-        Long noCount
+        Long noCount,
+        Long totalCount
 ) {
     public static VoteResponse of(Feed feed, VoteChoice choice) {
         return new VoteResponse(
                 feed.getId(),
                 choice,
                 feed.getYesCount(),
-                feed.getNoCount()
+                feed.getNoCount(),
+                feed.getYesCount() + feed.getNoCount()
         );
     }
 }
