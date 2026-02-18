@@ -206,7 +206,7 @@ class FeedControllerTest {
     // ===== 피드 리스트 조회 =====
 
     @Test
-    @DisplayName("피드 리스트 조회 성공 - 200 OK")
+    @DisplayName("피드 리스트 조회 성공 - 200 OK, viewUrl에 CloudFront 전체 URL 반환")
     void getFeedList_success() throws Exception {
         // given
         User user = createUser();
@@ -220,7 +220,9 @@ class FeedControllerTest {
                 .andExpect(jsonPath("$.status").value("200"))
                 .andExpect(jsonPath("$.data").isArray())
                 .andExpect(jsonPath("$.data[0].feedId").value(feed.getId()))
-                .andExpect(jsonPath("$.data[0].author.userId").value(user.getId()));
+                .andExpect(jsonPath("$.data[0].author.userId").value(user.getId()))
+                .andExpect(jsonPath("$.data[0].s3ObjectKey").value(org.hamcrest.Matchers.startsWith("feeds/")))
+                .andExpect(jsonPath("$.data[0].viewUrl").value(org.hamcrest.Matchers.startsWith("https://")));
     }
 
     @Test
