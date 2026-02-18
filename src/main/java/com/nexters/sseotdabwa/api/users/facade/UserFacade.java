@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
 import com.nexters.sseotdabwa.api.users.dto.UserResponse;
 import com.nexters.sseotdabwa.api.users.dto.UserWithdrawResponse;
+import com.nexters.sseotdabwa.common.config.AwsProperties;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedImageService;
@@ -38,6 +39,7 @@ public class UserFacade {
     private final VoteLogService voteLogService;
     private final RefreshTokenService refreshTokenService;
     private final UserService userService;
+    private final AwsProperties awsProperties;
 
     /**
      * 현재 로그인한 사용자 정보 조회
@@ -91,11 +93,23 @@ public class UserFacade {
 
         return feeds.stream()
                 .map(feed -> {
+                    FeedImage img = imageMap.get(feed.getId());
                     VoteChoice myChoice = voteMap.get(feed.getId());
                     boolean hasVoted = myChoice != null;
-                    return FeedResponse.of(feed, imageMap.get(feed.getId()), hasVoted, myChoice);
+                    return FeedResponse.of(feed, img, buildViewUrl(img), hasVoted, myChoice);
                 })
                 .toList();
+    }
+
+    private String buildViewUrl(FeedImage feedImage) {
+        if (feedImage == null) {
+            return null;
+        }
+        String domain = awsProperties.cloudfront().domain();
+        if (domain.endsWith("/")) {
+            domain = domain.substring(0, domain.length() - 1);
+        }
+        return domain + "/" + feedImage.getS3ObjectKey();
     }
 
     /**
