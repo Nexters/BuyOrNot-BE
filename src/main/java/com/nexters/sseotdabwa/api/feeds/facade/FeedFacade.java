@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequest;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateResponse;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
+import com.nexters.sseotdabwa.common.config.AwsProperties;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
@@ -39,6 +40,7 @@ public class FeedFacade {
     private final FeedReviewService feedReviewService;
     private final VoteLogService voteLogService;
     private final S3StorageService s3StorageService;
+    private final AwsProperties awsProperties;
 
     /**
      * 피드 생성 + 피드 이미지 저장
@@ -78,7 +80,10 @@ public class FeedFacade {
 
         if (user == null || feeds.isEmpty()) {
             return feeds.stream()
-                    .map(feed -> FeedResponse.of(feed, imageMap.get(feed.getId())))
+                    .map(feed -> {
+                        FeedImage img = imageMap.get(feed.getId());
+                        return FeedResponse.of(feed, img, buildViewUrl(img));
+                    })
                     .toList();
         }
 
@@ -89,11 +94,23 @@ public class FeedFacade {
 
         return feeds.stream()
                 .map(feed -> {
+                    FeedImage img = imageMap.get(feed.getId());
                     VoteChoice myChoice = voteMap.get(feed.getId());
                     boolean hasVoted = myChoice != null;
-                    return FeedResponse.of(feed, imageMap.get(feed.getId()), hasVoted, myChoice);
+                    return FeedResponse.of(feed, img, buildViewUrl(img), hasVoted, myChoice);
                 })
                 .toList();
+    }
+
+    private String buildViewUrl(FeedImage feedImage) {
+        if (feedImage == null) {
+            return null;
+        }
+        String domain = awsProperties.cloudfront().domain();
+        if (domain.endsWith("/")) {
+            domain = domain.substring(0, domain.length() - 1);
+        }
+        return domain + "/" + feedImage.getS3ObjectKey();
     }
 
     /**

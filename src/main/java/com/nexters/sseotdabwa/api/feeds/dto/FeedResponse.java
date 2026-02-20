@@ -15,8 +15,10 @@ public record FeedResponse(
         FeedCategory category,
         Long yesCount,
         Long noCount,
+        Long totalCount,
         FeedStatus feedStatus,
         String s3ObjectKey,
+        String viewUrl,
         Integer imageWidth,
         Integer imageHeight,
         FeedAuthorResponse author,
@@ -31,7 +33,7 @@ public record FeedResponse(
             String profileImage
     ) {}
 
-    public static FeedResponse of(Feed feed, FeedImage feedImage) {
+    public static FeedResponse of(Feed feed, FeedImage feedImage, String viewUrl) {
         return new FeedResponse(
                 feed.getId(),
                 feed.getContent(),
@@ -39,8 +41,10 @@ public record FeedResponse(
                 feed.getCategory(),
                 feed.getYesCount(),
                 feed.getNoCount(),
+                feed.getYesCount() + feed.getNoCount(),
                 feed.getFeedStatus(),
                 feedImage != null ? feedImage.getS3ObjectKey() : null,
+                viewUrl,
                 feed.getImageWidth(),
                 feed.getImageHeight(),
                 new FeedAuthorResponse(
@@ -54,7 +58,7 @@ public record FeedResponse(
         );
     }
 
-    public static FeedResponse of(Feed feed, FeedImage feedImage, Boolean hasVoted, VoteChoice myVoteChoice) {
+    public static FeedResponse of(Feed feed, FeedImage feedImage, String viewUrl, Boolean hasVoted, VoteChoice myVoteChoice) {
         return new FeedResponse(
                 feed.getId(),
                 feed.getContent(),
@@ -62,8 +66,10 @@ public record FeedResponse(
                 feed.getCategory(),
                 feed.getYesCount(),
                 feed.getNoCount(),
+                feed.getYesCount() + feed.getNoCount(),
                 feed.getFeedStatus(),
                 feedImage != null ? feedImage.getS3ObjectKey() : null,
+                viewUrl,
                 feed.getImageWidth(),
                 feed.getImageHeight(),
                 new FeedAuthorResponse(

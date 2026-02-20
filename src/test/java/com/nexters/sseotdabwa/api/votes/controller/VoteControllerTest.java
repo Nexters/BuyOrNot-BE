@@ -74,7 +74,8 @@ class VoteControllerTest {
                 .andExpect(jsonPath("$.data.feedId").value(feed.getId()))
                 .andExpect(jsonPath("$.data.choice").value("YES"))
                 .andExpect(jsonPath("$.data.yesCount").value(1))
-                .andExpect(jsonPath("$.data.noCount").value(0));
+                .andExpect(jsonPath("$.data.noCount").value(0))
+                .andExpect(jsonPath("$.data.totalCount").value(1));
     }
 
     @Test
@@ -149,7 +150,8 @@ class VoteControllerTest {
                 .andExpect(jsonPath("$.data.feedId").value(feed.getId()))
                 .andExpect(jsonPath("$.data.choice").value("NO"))
                 .andExpect(jsonPath("$.data.yesCount").value(0))
-                .andExpect(jsonPath("$.data.noCount").value(1));
+                .andExpect(jsonPath("$.data.noCount").value(1))
+                .andExpect(jsonPath("$.data.totalCount").value(1));
     }
 
     @Test
