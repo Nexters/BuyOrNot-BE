@@ -18,6 +18,7 @@ import com.nexters.sseotdabwa.domain.feeds.service.FeedImageService;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedReviewService;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedService;
 import com.nexters.sseotdabwa.domain.feeds.service.command.FeedCreateCommand;
+import com.nexters.sseotdabwa.domain.notifications.service.NotificationService;
 import com.nexters.sseotdabwa.domain.storage.service.S3StorageService;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.votes.entity.VoteLog;
@@ -46,6 +47,7 @@ public class FeedFacade {
     private final FeedReviewService feedReviewService;
     private final VoteLogService voteLogService;
     private final S3StorageService s3StorageService;
+    private final NotificationService notificationService;
     private final AwsProperties awsProperties;
 
     /**
@@ -165,6 +167,7 @@ public class FeedFacade {
                 .map(FeedImage::getS3ObjectKey)
                 .orElse(null);
 
+        notificationService.deleteByFeed(feed);
         voteLogService.deleteByFeed(feed);
         feedImageService.deleteByFeed(feed);
         feedReviewService.deleteByFeed(feed);
