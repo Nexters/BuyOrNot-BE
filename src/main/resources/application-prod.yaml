@@ -48,6 +48,6 @@ aws:
     domain: ${CLOUDFRONT_DOMAIN}
 
 firebase:
-  enabled: true
+  enabled: false
   project-id: ${FIREBASE_PROJECT_ID:}
   service-account-key-path: ${FIREBASE_SERVICE_ACCOUNT_KEY_PATH:}
