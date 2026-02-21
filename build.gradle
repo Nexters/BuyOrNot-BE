@@ -48,7 +48,7 @@ dependencies {
     implementation 'software.amazon.awssdk:s3'
 
     // Firebase Admin (FCM)
-    implementation 'com.google.firebase:firebase-admin:9.4.3'
+    implementation 'com.google.firebase:firebase-admin:9.7.1'
 
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'com.mysql:mysql-connector-j'
