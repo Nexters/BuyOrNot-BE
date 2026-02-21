@@ -189,44 +189,44 @@ class FeedServiceTest {
     // ===== closeExpiredFeeds =====
 
     @Test
-    @DisplayName("48시간 초과 OPEN 피드 → CLOSED 전환")
-    void closeExpiredFeeds_closesExpiredOpenFeeds() {
+    @DisplayName("48시간 초과 OPEN 피드 → CLOSED 전환 + 마감된 feedId 반환")
+    void closeExpiredFeedsAndReturnIds_closesExpiredOpenFeedsAndReturnsIds() {
         // given
         User user = createUser();
         Feed feed = createFeed(user);
         setCreatedAt(feed.getId(), LocalDateTime.now().minusHours(49));
 
         // when
-        int closedCount = feedService.closeExpiredFeeds();
+        List<Long> closedIds = feedService.closeExpiredFeedsAndReturnIds();
         entityManager.clear();
 
         // then
-        assertThat(closedCount).isEqualTo(1);
+        assertThat(closedIds).contains(feed.getId());
         Feed updated = feedRepository.findById(feed.getId()).orElseThrow();
         assertThat(updated.getFeedStatus()).isEqualTo(FeedStatus.CLOSED);
     }
 
     @Test
-    @DisplayName("48시간 이내 OPEN 피드 → OPEN 유지")
-    void closeExpiredFeeds_keepsRecentOpenFeeds() {
+    @DisplayName("48시간 이내 OPEN 피드 → OPEN 유지 + 반환 리스트 비어있음")
+    void closeExpiredFeedsAndReturnIds_keepsRecentOpenFeeds() {
         // given
         User user = createUser();
         Feed feed = createFeed(user);
         setCreatedAt(feed.getId(), LocalDateTime.now().minusHours(47));
 
         // when
-        int closedCount = feedService.closeExpiredFeeds();
+        List<Long> closedIds = feedService.closeExpiredFeedsAndReturnIds();
         entityManager.clear();
 
         // then
-        assertThat(closedCount).isEqualTo(0);
+        assertThat(closedIds).isEmpty();
         Feed updated = feedRepository.findById(feed.getId()).orElseThrow();
         assertThat(updated.getFeedStatus()).isEqualTo(FeedStatus.OPEN);
     }
 
     @Test
-    @DisplayName("이미 CLOSED 피드 → 영향 없음")
-    void closeExpiredFeeds_ignoresAlreadyClosedFeeds() {
+    @DisplayName("이미 CLOSED 피드 → 영향 없음 + 반환 리스트 비어있음")
+    void closeExpiredFeedsAndReturnIds_ignoresAlreadyClosedFeeds() {
         // given
         User user = createUser();
         Feed feed = createFeed(user);
@@ -235,18 +235,19 @@ class FeedServiceTest {
         setCreatedAt(feed.getId(), LocalDateTime.now().minusHours(49));
 
         // when
-        int closedCount = feedService.closeExpiredFeeds();
+        List<Long> closedIds = feedService.closeExpiredFeedsAndReturnIds();
 
         // then
-        assertThat(closedCount).isEqualTo(0);
+        assertThat(closedIds).isEmpty();
     }
 
     private void setCreatedAt(Long feedId, LocalDateTime createdAt) {
-        entityManager.createNativeQuery("UPDATE feeds SET created_at = :createdAt WHERE id = :feedId")
-                .setParameter("createdAt", createdAt)
-                .setParameter("feedId", feedId)
+        entityManager.createNativeQuery("UPDATE feeds SET created_at = ?1 WHERE id = ?2")
+                .setParameter(1, createdAt)
+                .setParameter(2, feedId)
                 .executeUpdate();
         entityManager.flush();
+        entityManager.clear(); // 아래 2번 이슈에도 도움됨
     }
 
     private User createUser() {
@@ -255,6 +256,302 @@ class FeedServiceTest {
                 .nickname("테스트_" + UUID.randomUUID().toString().substring(0, 8))
                 .socialAccount(SocialAccount.KAKAO)
                 .build());
+    }
+
+    // ===== findAllExceptDeletedWithCursor =====
+
+    @Test
+    @DisplayName("커서 페이지네이션 - 첫 페이지 조회 (cursor=null)")
+    void findAllExceptDeletedWithCursor_firstPage() {
+        // given
+        User user = createUser();
+        Feed feed1 = createFeed(user);
+        Feed feed2 = createFeed(user);
+        Feed feed3 = createFeed(user);
+
+        // when
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 2, null);
+
+        // then
+        assertThat(result).hasSize(3); // size+1 = 3건 조회
+        assertThat(result.get(0).getId()).isGreaterThan(result.get(1).getId()); // ID 내림차순
+    }
+
+    @Test
+    @DisplayName("커서 페이지네이션 - 다음 페이지 조회 (cursor 지정)")
+    void findAllExceptDeletedWithCursor_nextPage() {
+        // given
+        User user = createUser();
+        Feed feed1 = createFeed(user);
+        Feed feed2 = createFeed(user);
+        Feed feed3 = createFeed(user);
+
+        // when - feed3의 ID를 커서로 지정하면 feed3보다 작은 ID만
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(feed3.getId(), 2, null);
+
+        // then
+        assertThat(result).hasSize(2);
+        assertThat(result).allSatisfy(feed ->
+                assertThat(feed.getId()).isLessThan(feed3.getId()));
+    }
+
+    @Test
+    @DisplayName("커서 페이지네이션 - 마지막 페이지는 남은 건수만 반환")
+    void findAllExceptDeletedWithCursor_lastPage() {
+        // given
+        User user = createUser();
+        Feed feed1 = createFeed(user);
+
+        // when - size=5 요청했지만 1건만 존재
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 5, null);
+
+        // then
+        assertThat(result).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("커서 페이지네이션 - DELETED 상태 피드 제외")
+    void findAllExceptDeletedWithCursor_excludesDeleted() {
+        // given
+        User user = createUser();
+        Feed normalFeed = createFeed(user);
+        Feed deletedFeed = createFeed(user);
+        deletedFeed.deleteByReport();
+        feedRepository.save(deletedFeed);
+
+        // when
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, null);
+
+        // then
+        assertThat(result).extracting(Feed::getId)
+                .contains(normalFeed.getId())
+                .doesNotContain(deletedFeed.getId());
+    }
+
+    @Test
+    @DisplayName("커서 페이지네이션 - 피드 없을 때 빈 리스트")
+    void findAllExceptDeletedWithCursor_emptyResult() {
+        // when
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, null);
+
+        // then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("커서 페이지네이션 - feedStatus=OPEN 필터")
+    void findAllExceptDeletedWithCursor_filterOpen() {
+        // given
+        User user = createUser();
+        Feed openFeed = createFeed(user);
+        Feed closedFeed = createFeed(user);
+        closedFeed.closeVote();
+        feedRepository.save(closedFeed);
+
+        // when
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, FeedStatus.OPEN);
+
+        // then
+        assertThat(result).extracting(Feed::getId)
+                .contains(openFeed.getId())
+                .doesNotContain(closedFeed.getId());
+    }
+
+    @Test
+    @DisplayName("커서 페이지네이션 - feedStatus=CLOSED 필터")
+    void findAllExceptDeletedWithCursor_filterClosed() {
+        // given
+        User user = createUser();
+        Feed openFeed = createFeed(user);
+        Feed closedFeed = createFeed(user);
+        closedFeed.closeVote();
+        feedRepository.save(closedFeed);
+
+        // when
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, FeedStatus.CLOSED);
+
+        // then
+        assertThat(result).extracting(Feed::getId)
+                .contains(closedFeed.getId())
+                .doesNotContain(openFeed.getId());
+    }
+
+    @Test
+    @DisplayName("커서 페이지네이션 - feedStatus=null이면 전체 조회")
+    void findAllExceptDeletedWithCursor_noStatusFilter() {
+        // given
+        User user = createUser();
+        Feed openFeed = createFeed(user);
+        Feed closedFeed = createFeed(user);
+        closedFeed.closeVote();
+        feedRepository.save(closedFeed);
+
+        // when
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, null);
+
+        // then
+        assertThat(result).extracting(Feed::getId)
+                .containsExactlyInAnyOrder(openFeed.getId(), closedFeed.getId());
+    }
+
+    @Test
+    @DisplayName("커서 페이지네이션 - feedStatus 필터 + cursor 조합")
+    void findAllExceptDeletedWithCursor_statusFilterWithCursor() {
+        // given
+        User user = createUser();
+        Feed open1 = createFeed(user);
+        Feed open2 = createFeed(user);
+        Feed open3 = createFeed(user);
+
+        // when - open3의 ID를 커서로, OPEN 필터
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(open3.getId(), 10, FeedStatus.OPEN);
+
+        // then
+        assertThat(result).hasSize(2);
+        assertThat(result).allSatisfy(feed -> {
+            assertThat(feed.getId()).isLessThan(open3.getId());
+            assertThat(feed.getFeedStatus()).isEqualTo(FeedStatus.OPEN);
+        });
+    }
+
+    // ===== findByUserIdWithCursor =====
+
+    @Test
+    @DisplayName("내 피드 커서 페이지네이션 - 첫 페이지 조회 (cursor=null)")
+    void findByUserIdWithCursor_firstPage() {
+        // given
+        User user = createUser();
+        Feed feed1 = createFeed(user);
+        Feed feed2 = createFeed(user);
+        Feed feed3 = createFeed(user);
+
+        // when
+        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), null, 2, null);
+
+        // then
+        assertThat(result).hasSize(3); // size+1 = 3건 조회
+        assertThat(result.get(0).getId()).isGreaterThan(result.get(1).getId()); // ID 내림차순
+    }
+
+    @Test
+    @DisplayName("내 피드 커서 페이지네이션 - 다음 페이지 조회 (cursor 지정)")
+    void findByUserIdWithCursor_nextPage() {
+        // given
+        User user = createUser();
+        Feed feed1 = createFeed(user);
+        Feed feed2 = createFeed(user);
+        Feed feed3 = createFeed(user);
+
+        // when - feed3의 ID를 커서로 지정하면 feed3보다 작은 ID만
+        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), feed3.getId(), 2, null);
+
+        // then
+        assertThat(result).hasSize(2);
+        assertThat(result).allSatisfy(feed ->
+                assertThat(feed.getId()).isLessThan(feed3.getId()));
+    }
+
+    @Test
+    @DisplayName("내 피드 커서 페이지네이션 - 마지막 페이지는 남은 건수만 반환")
+    void findByUserIdWithCursor_lastPage() {
+        // given
+        User user = createUser();
+        Feed feed1 = createFeed(user);
+
+        // when - size=5 요청했지만 1건만 존재
+        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), null, 5, null);
+
+        // then
+        assertThat(result).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("내 피드 커서 페이지네이션 - 다른 유저의 피드 제외")
+    void findByUserIdWithCursor_excludesOtherUser() {
+        // given
+        User user = createUser();
+        User otherUser = createUser();
+        Feed myFeed = createFeed(user);
+        Feed otherFeed = createFeed(otherUser);
+
+        // when
+        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), null, 10, null);
+
+        // then
+        assertThat(result).extracting(Feed::getId)
+                .contains(myFeed.getId())
+                .doesNotContain(otherFeed.getId());
+    }
+
+    @Test
+    @DisplayName("내 피드 커서 페이지네이션 - 피드 없을 때 빈 리스트")
+    void findByUserIdWithCursor_emptyResult() {
+        // given
+        User user = createUser();
+
+        // when
+        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), null, 10, null);
+
+        // then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("내 피드 커서 페이지네이션 - feedStatus=OPEN 필터")
+    void findByUserIdWithCursor_filterOpen() {
+        // given
+        User user = createUser();
+        Feed openFeed = createFeed(user);
+        Feed closedFeed = createFeed(user);
+        closedFeed.closeVote();
+        feedRepository.save(closedFeed);
+
+        // when
+        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), null, 10, FeedStatus.OPEN);
+
+        // then
+        assertThat(result).extracting(Feed::getId)
+                .contains(openFeed.getId())
+                .doesNotContain(closedFeed.getId());
+    }
+
+    @Test
+    @DisplayName("내 피드 커서 페이지네이션 - feedStatus=CLOSED 필터")
+    void findByUserIdWithCursor_filterClosed() {
+        // given
+        User user = createUser();
+        Feed openFeed = createFeed(user);
+        Feed closedFeed = createFeed(user);
+        closedFeed.closeVote();
+        feedRepository.save(closedFeed);
+
+        // when
+        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), null, 10, FeedStatus.CLOSED);
+
+        // then
+        assertThat(result).extracting(Feed::getId)
+                .contains(closedFeed.getId())
+                .doesNotContain(openFeed.getId());
+    }
+
+    @Test
+    @DisplayName("내 피드 커서 페이지네이션 - feedStatus 필터 + cursor 조합")
+    void findByUserIdWithCursor_statusFilterWithCursor() {
+        // given
+        User user = createUser();
+        Feed open1 = createFeed(user);
+        Feed open2 = createFeed(user);
+        Feed open3 = createFeed(user);
+
+        // when - open3의 ID를 커서로, OPEN 필터
+        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), open3.getId(), 10, FeedStatus.OPEN);
+
+        // then
+        assertThat(result).hasSize(2);
+        assertThat(result).allSatisfy(feed -> {
+            assertThat(feed.getId()).isLessThan(open3.getId());
+            assertThat(feed.getFeedStatus()).isEqualTo(FeedStatus.OPEN);
+        });
     }
 
     private Feed createFeed(User user) {

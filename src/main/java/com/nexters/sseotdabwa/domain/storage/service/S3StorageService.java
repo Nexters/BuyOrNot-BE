@@ -165,7 +165,7 @@ public class S3StorageService {
 
     /**
      * CloudFront는 public이므로 단순 조합으로 조회 URL 생성
-     * - domain: img.buy-or-not.com/
+     * - domain: xxx.buy-or-not.com/
      * - s3Key: feeds/uuid_xxx.jpg
      */
     private String buildCloudFrontUrl(String domain, String s3Key) {

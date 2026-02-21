@@ -6,6 +6,8 @@ import java.util.Optional;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface FeedImageRepository extends JpaRepository<FeedImage, Long> {
 
@@ -16,4 +18,12 @@ public interface FeedImageRepository extends JpaRepository<FeedImage, Long> {
     Optional<FeedImage> findByFeed(Feed feed);
 
     void deleteByFeed(Feed feed);
+
+    @Query("""
+        select fi
+        from FeedImage fi
+        join fetch fi.feed f
+        where f.id in :feedIds
+    """)
+    List<FeedImage> findByFeedIds(@Param("feedIds") List<Long> feedIds);
 }

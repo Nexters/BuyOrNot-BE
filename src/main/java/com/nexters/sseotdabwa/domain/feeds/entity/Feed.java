@@ -116,4 +116,11 @@ public class Feed extends BaseEntity {
     public boolean isOwner(User user) {
         return this.user.getId().equals(user.getId());
     }
+
+    public LocalDateTime getVoteClosedAt() {
+        if (this.getCreatedAt() == null) {
+            return null;
+        }
+        return this.getCreatedAt().plusHours(VOTE_DEADLINE_HOURS);
+    }
 }

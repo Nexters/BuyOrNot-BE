@@ -1,9 +1,12 @@
 package com.nexters.sseotdabwa.domain.feeds.service;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.nexters.sseotdabwa.domain.feeds.exception.FeedErrorCode;
+import com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus;
 import com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
@@ -13,6 +16,8 @@ import com.nexters.sseotdabwa.domain.feeds.service.command.FeedCreateCommand;
 import lombok.RequiredArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -94,8 +99,36 @@ public class FeedService {
         return feedRepository.findByReportStatusNotOrderByCreatedAtDesc(ReportStatus.DELETED);
     }
 
+    public List<Feed> findAllExceptDeletedWithCursor(Long cursor, int size, FeedStatus feedStatus) {
+        Pageable pageable = PageRequest.ofSize(size + 1);
+        if (feedStatus != null) {
+            if (cursor == null) {
+                return feedRepository.findByFeedStatusAndReportStatusNotOrderByIdDesc(feedStatus, ReportStatus.DELETED, pageable);
+            }
+            return feedRepository.findByIdLessThanAndFeedStatusAndReportStatusNotOrderByIdDesc(cursor, feedStatus, ReportStatus.DELETED, pageable);
+        }
+        if (cursor == null) {
+            return feedRepository.findByReportStatusNotOrderByIdDesc(ReportStatus.DELETED, pageable);
+        }
+        return feedRepository.findByIdLessThanAndReportStatusNotOrderByIdDesc(cursor, ReportStatus.DELETED, pageable);
+    }
+
     public List<Feed> findByUserIdOrderByCreatedAtDesc(Long userId) {
         return feedRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    }
+
+    public List<Feed> findByUserIdWithCursor(Long userId, Long cursor, int size, FeedStatus feedStatus) {
+        Pageable pageable = PageRequest.ofSize(size + 1);
+        if (feedStatus != null) {
+            if (cursor == null) {
+                return feedRepository.findByUserIdAndFeedStatusOrderByIdDesc(userId, feedStatus, pageable);
+            }
+            return feedRepository.findByUserIdAndIdLessThanAndFeedStatusOrderByIdDesc(userId, cursor, feedStatus, pageable);
+        }
+        if (cursor == null) {
+            return feedRepository.findByUserIdOrderByIdDesc(userId, pageable);
+        }
+        return feedRepository.findByUserIdAndIdLessThanOrderByIdDesc(userId, cursor, pageable);
     }
 
     @Transactional
@@ -114,10 +147,31 @@ public class FeedService {
                 .orElseThrow(() -> new GlobalException(FeedErrorCode.FEED_NOT_FOUND));
     }
 
+    /**
+     * 만료된 OPEN 피드들을 CLOSED로 전환하고, 마감된 feedId 리스트를 반환한다.
+     * - count가 아닌 대상 id가 필요 (알림 생성).
+     */
     @Transactional
-    public int closeExpiredFeeds() {
+    public List<Long> closeExpiredFeedsAndReturnIds() {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime cutoff = now.minusHours(48);
-        return feedRepository.closeExpiredFeeds(cutoff, now);
+
+        List<ReportStatus> excluded = Arrays.asList(ReportStatus.DELETED, ReportStatus.REPORTED);
+
+        List<Long> feedIds = feedRepository.findExpiredOpenFeedIds(cutoff, excluded);
+        if (feedIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        feedRepository.closeFeedsByIds(feedIds, now);
+        return feedIds;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Feed> findByIds(List<Long> feedIds) {
+        if (feedIds == null || feedIds.isEmpty()) {
+            return List.of();
+        }
+        return feedRepository.findAllById(feedIds);
     }
 }

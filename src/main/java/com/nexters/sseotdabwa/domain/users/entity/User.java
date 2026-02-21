@@ -50,6 +50,9 @@ public class User extends BaseEntity {
     @Column(length = 255)
     private String fcmToken;
 
+    @Column(nullable = false)
+    private boolean pushEnabled;
+
     @Builder
     public User(String socialId, String nickname, SocialAccount socialAccount,
             String profileImage, String email) {
@@ -58,6 +61,7 @@ public class User extends BaseEntity {
         this.socialAccount = socialAccount;
         this.profileImage = profileImage;
         this.email = email;
+        this.pushEnabled = true;
     }
 
     public void updateEmail(String email) {
@@ -75,5 +79,9 @@ public class User extends BaseEntity {
 
     public void updateFcmToken(String fcmToken) {
         this.fcmToken = (fcmToken == null) ? null : fcmToken.trim();
+    }
+
+    public boolean canReceivePush() {
+        return this.pushEnabled && this.fcmToken != null && !this.fcmToken.isBlank();
     }
 }

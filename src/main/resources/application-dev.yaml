@@ -34,7 +34,7 @@ oauth:
 
 jwt:
   secret: ${JWT_SECRET}
-  access-token-expiration: 60000
+  access-token-expiration: 1800000
   refresh-token-expiration: 604800000
 
 aws:
@@ -46,3 +46,8 @@ aws:
     max-bytes: 20971520
   cloudfront:
     domain: ${CLOUDFRONT_DOMAIN}
+
+firebase:
+  enabled: false
+  project-id: ${FIREBASE_PROJECT_ID:}
+  service-account-key-path: ${FIREBASE_SERVICE_ACCOUNT_KEY_PATH:}

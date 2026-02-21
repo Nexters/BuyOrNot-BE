@@ -13,8 +13,10 @@ import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
 import com.nexters.sseotdabwa.api.users.dto.UserResponse;
 import com.nexters.sseotdabwa.api.users.dto.UserWithdrawResponse;
 import com.nexters.sseotdabwa.common.config.AwsProperties;
+import com.nexters.sseotdabwa.common.response.CursorPageResponse;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
+import com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedImageService;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedReviewService;
 import com.nexters.sseotdabwa.domain.auth.service.RefreshTokenService;
@@ -32,6 +34,9 @@ import lombok.RequiredArgsConstructor;
 @Component
 @RequiredArgsConstructor
 public class UserFacade {
+
+    private static final int DEFAULT_PAGE_SIZE = 20;
+    private static final int MAX_PAGE_SIZE = 50;
 
     private final FeedService feedService;
     private final FeedImageService feedImageService;
@@ -77,21 +82,27 @@ public class UserFacade {
     }
 
     /**
-     * 내 피드 조회
+     * 내 피드 조회 (커서 기반 페이지네이션)
      */
     @Transactional(readOnly = true)
-    public List<FeedResponse> getMyFeeds(User user) {
-        List<Feed> feeds = feedService.findByUserIdOrderByCreatedAtDesc(user.getId());
-        List<FeedImage> feedImages = feedImageService.findByFeeds(feeds);
+    public CursorPageResponse<FeedResponse> getMyFeeds(User user, Long cursor, Integer size, FeedStatus feedStatus) {
+        int pageSize = (size == null) ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
+
+        List<Feed> feeds = feedService.findByUserIdWithCursor(user.getId(), cursor, pageSize, feedStatus);
+
+        boolean hasNext = feeds.size() > pageSize;
+        List<Feed> slicedFeeds = hasNext ? feeds.subList(0, pageSize) : feeds;
+
+        List<FeedImage> feedImages = feedImageService.findByFeeds(slicedFeeds);
         Map<Long, FeedImage> imageMap = feedImages.stream()
                 .collect(Collectors.toMap(fi -> fi.getFeed().getId(), fi -> fi));
 
-        List<Long> feedIds = feeds.stream().map(Feed::getId).toList();
+        List<Long> feedIds = slicedFeeds.stream().map(Feed::getId).toList();
         Map<Long, VoteChoice> voteMap = voteLogService.findByUserIdAndFeedIds(user.getId(), feedIds)
                 .stream()
                 .collect(Collectors.toMap(vl -> vl.getFeed().getId(), vl -> vl.getChoice()));
 
-        return feeds.stream()
+        List<FeedResponse> content = slicedFeeds.stream()
                 .map(feed -> {
                     FeedImage img = imageMap.get(feed.getId());
                     VoteChoice myChoice = voteMap.get(feed.getId());
@@ -99,6 +110,9 @@ public class UserFacade {
                     return FeedResponse.of(feed, img, buildViewUrl(img), hasVoted, myChoice);
                 })
                 .toList();
+
+        Long nextCursor = hasNext ? slicedFeeds.get(slicedFeeds.size() - 1).getId() : null;
+        return CursorPageResponse.of(content, nextCursor, hasNext);
     }
 
     private String buildViewUrl(FeedImage feedImage) {
