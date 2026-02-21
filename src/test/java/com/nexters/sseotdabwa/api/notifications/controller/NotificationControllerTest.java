@@ -39,7 +39,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class NotificationControllerTest {
 
     @Autowired private MockMvc mockMvc;
-    @Autowired private ObjectMapper objectMapper;
 
     @Autowired private JwtTokenService jwtTokenService;
     @Autowired private UserRepository userRepository;
