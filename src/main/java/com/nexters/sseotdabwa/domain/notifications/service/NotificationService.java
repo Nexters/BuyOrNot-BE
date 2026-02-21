@@ -6,6 +6,7 @@ import java.util.List;
 import com.nexters.sseotdabwa.api.notifications.exception.NotificationErrorCode;
 
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,11 +45,21 @@ public class NotificationService {
      */
     public List<Notification> getRecentNotifications(Long userId, NotificationType type) {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(RECENT_DAYS);
-        return notificationRepository.findRecentByUser(
+        Pageable pageable = PageRequest.of(0, DEFAULT_PAGE_SIZE);
+
+        if (type == null) {
+            return notificationRepository.findRecentByUser(
+                    userId,
+                    cutoff,
+                    pageable
+            );
+        }
+
+        return notificationRepository.findRecentByUserAndType(
                 userId,
                 cutoff,
                 type,
-                PageRequest.of(0, DEFAULT_PAGE_SIZE)
+                pageable
         );
     }
 

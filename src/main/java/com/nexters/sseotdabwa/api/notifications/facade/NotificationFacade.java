@@ -139,7 +139,11 @@ public class NotificationFacade {
         List<Feed> feeds = feedService.findByIds(closedFeedIds);
 
         for (Feed feed : feeds) {
-            notifyFeedClosed(feed);
+            try {
+                notifyFeedClosed(feed);
+            } catch (Exception e) {
+                log.error("피드 알림 생성 실패 feedId={}", feed.getId(), e);
+            }
         }
     }
 

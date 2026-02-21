@@ -17,13 +17,24 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     Optional<Notification> findByIdAndUserId(Long id, Long userId);
 
+    // type 없는 케이스
     @Query("""
         select n
         from Notification n
         where n.user.id = :userId
           and n.createdAt >= :cutoff
-          and (:type is null or n.type = :type)
         order by n.createdAt desc
     """)
-    List<Notification> findRecentByUser(Long userId, LocalDateTime cutoff, NotificationType type, Pageable pageable);
+    List<Notification> findRecentByUser(Long userId, LocalDateTime cutoff, Pageable pageable);
+
+    // type 있는 케이스
+    @Query("""
+        select n
+        from Notification n
+        where n.user.id = :userId
+          and n.createdAt >= :cutoff
+          and n.type = :type
+        order by n.createdAt desc
+    """)
+    List<Notification> findRecentByUserAndType(Long userId, LocalDateTime cutoff, NotificationType type, Pageable pageable);
 }
