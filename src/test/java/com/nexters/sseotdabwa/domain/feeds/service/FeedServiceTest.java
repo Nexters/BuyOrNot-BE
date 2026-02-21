@@ -257,6 +257,86 @@ class FeedServiceTest {
                 .build());
     }
 
+    // ===== findAllExceptDeletedWithCursor =====
+
+    @Test
+    @DisplayName("커서 페이지네이션 - 첫 페이지 조회 (cursor=null)")
+    void findAllExceptDeletedWithCursor_firstPage() {
+        // given
+        User user = createUser();
+        Feed feed1 = createFeed(user);
+        Feed feed2 = createFeed(user);
+        Feed feed3 = createFeed(user);
+
+        // when
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 2);
+
+        // then
+        assertThat(result).hasSize(3); // size+1 = 3건 조회
+        assertThat(result.get(0).getId()).isGreaterThan(result.get(1).getId()); // ID 내림차순
+    }
+
+    @Test
+    @DisplayName("커서 페이지네이션 - 다음 페이지 조회 (cursor 지정)")
+    void findAllExceptDeletedWithCursor_nextPage() {
+        // given
+        User user = createUser();
+        Feed feed1 = createFeed(user);
+        Feed feed2 = createFeed(user);
+        Feed feed3 = createFeed(user);
+
+        // when - feed3의 ID를 커서로 지정하면 feed3보다 작은 ID만
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(feed3.getId(), 2);
+
+        // then
+        assertThat(result).hasSize(2);
+        assertThat(result).allSatisfy(feed ->
+                assertThat(feed.getId()).isLessThan(feed3.getId()));
+    }
+
+    @Test
+    @DisplayName("커서 페이지네이션 - 마지막 페이지는 남은 건수만 반환")
+    void findAllExceptDeletedWithCursor_lastPage() {
+        // given
+        User user = createUser();
+        Feed feed1 = createFeed(user);
+
+        // when - size=5 요청했지만 1건만 존재
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 5);
+
+        // then
+        assertThat(result).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("커서 페이지네이션 - DELETED 상태 피드 제외")
+    void findAllExceptDeletedWithCursor_excludesDeleted() {
+        // given
+        User user = createUser();
+        Feed normalFeed = createFeed(user);
+        Feed deletedFeed = createFeed(user);
+        deletedFeed.deleteByReport();
+        feedRepository.save(deletedFeed);
+
+        // when
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10);
+
+        // then
+        assertThat(result).extracting(Feed::getId)
+                .contains(normalFeed.getId())
+                .doesNotContain(deletedFeed.getId());
+    }
+
+    @Test
+    @DisplayName("커서 페이지네이션 - 피드 없을 때 빈 리스트")
+    void findAllExceptDeletedWithCursor_emptyResult() {
+        // when
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10);
+
+        // then
+        assertThat(result).isEmpty();
+    }
+
     private Feed createFeed(User user) {
         return feedRepository.save(Feed.builder()
                 .user(user)
