@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.nexters.sseotdabwa.domain.feeds.exception.FeedErrorCode;
+import com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus;
 import com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
@@ -96,8 +97,14 @@ public class FeedService {
         return feedRepository.findByReportStatusNotOrderByCreatedAtDesc(ReportStatus.DELETED);
     }
 
-    public List<Feed> findAllExceptDeletedWithCursor(Long cursor, int size) {
+    public List<Feed> findAllExceptDeletedWithCursor(Long cursor, int size, FeedStatus feedStatus) {
         Pageable pageable = PageRequest.ofSize(size + 1);
+        if (feedStatus != null) {
+            if (cursor == null) {
+                return feedRepository.findByFeedStatusAndReportStatusNotOrderByIdDesc(feedStatus, ReportStatus.DELETED, pageable);
+            }
+            return feedRepository.findByIdLessThanAndFeedStatusAndReportStatusNotOrderByIdDesc(cursor, feedStatus, ReportStatus.DELETED, pageable);
+        }
         if (cursor == null) {
             return feedRepository.findByReportStatusNotOrderByIdDesc(ReportStatus.DELETED, pageable);
         }

@@ -12,6 +12,7 @@ import com.nexters.sseotdabwa.common.exception.GlobalException;
 import com.nexters.sseotdabwa.common.response.CursorPageResponse;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
+import com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus;
 import com.nexters.sseotdabwa.domain.feeds.exception.FeedErrorCode;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedImageService;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedReviewService;
@@ -76,10 +77,10 @@ public class FeedFacade {
      * - 비인증인 경우: 투표 상태 없음
      */
     @Transactional(readOnly = true)
-    public CursorPageResponse<FeedResponse> getFeedList(User user, Long cursor, Integer size) {
+    public CursorPageResponse<FeedResponse> getFeedList(User user, Long cursor, Integer size, FeedStatus feedStatus) {
         int pageSize = (size == null) ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
 
-        List<Feed> feeds = feedService.findAllExceptDeletedWithCursor(cursor, pageSize);
+        List<Feed> feeds = feedService.findAllExceptDeletedWithCursor(cursor, pageSize, feedStatus);
 
         boolean hasNext = feeds.size() > pageSize;
         List<Feed> slicedFeeds = hasNext ? feeds.subList(0, pageSize) : feeds;

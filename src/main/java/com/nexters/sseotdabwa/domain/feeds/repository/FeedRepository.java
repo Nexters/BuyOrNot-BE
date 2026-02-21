@@ -12,6 +12,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
+import com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus;
 import com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus;
 
 import jakarta.persistence.LockModeType;
@@ -33,6 +34,10 @@ public interface FeedRepository extends JpaRepository<Feed, Long> {
     List<Feed> findByReportStatusNotOrderByIdDesc(ReportStatus reportStatus, Pageable pageable);
 
     List<Feed> findByIdLessThanAndReportStatusNotOrderByIdDesc(Long id, ReportStatus reportStatus, Pageable pageable);
+
+    List<Feed> findByFeedStatusAndReportStatusNotOrderByIdDesc(FeedStatus feedStatus, ReportStatus reportStatus, Pageable pageable);
+
+    List<Feed> findByIdLessThanAndFeedStatusAndReportStatusNotOrderByIdDesc(Long id, FeedStatus feedStatus, ReportStatus reportStatus, Pageable pageable);
 
     @Modifying
     @Query("UPDATE Feed f SET f.feedStatus = 'CLOSED', f.updatedAt = :now WHERE f.feedStatus = 'OPEN' AND f.createdAt < :cutoff")
