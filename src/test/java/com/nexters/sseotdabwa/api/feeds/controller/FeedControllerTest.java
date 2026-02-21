@@ -21,6 +21,7 @@ import com.nexters.sseotdabwa.domain.auth.service.JwtTokenService;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
+import com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus;
 import com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedImageRepository;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
@@ -480,6 +481,66 @@ class FeedControllerTest {
                 .andExpect(jsonPath("$.data.content.length()").value(2))
                 .andExpect(jsonPath("$.data.hasNext").value(true))
                 .andExpect(jsonPath("$.data.nextCursor").exists());
+    }
+
+    // ===== 피드 리스트 feedStatus 필터 =====
+
+    @Test
+    @DisplayName("피드 리스트 조회 - feedStatus=OPEN 필터 적용")
+    void getFeedList_filterByOpenStatus() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+        Feed openFeed = createFeedWithImage(user);
+        Feed closedFeed = createFeedWithImage(user);
+        closedFeed.closeVote();
+        feedRepository.save(closedFeed);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds")
+                        .param("feedStatus", "OPEN")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].feedId").value(openFeed.getId()));
+    }
+
+    @Test
+    @DisplayName("피드 리스트 조회 - feedStatus=CLOSED 필터 적용")
+    void getFeedList_filterByClosedStatus() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+        createFeedWithImage(user);
+        Feed closedFeed = createFeedWithImage(user);
+        closedFeed.closeVote();
+        feedRepository.save(closedFeed);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds")
+                        .param("feedStatus", "CLOSED")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].feedId").value(closedFeed.getId()));
+    }
+
+    @Test
+    @DisplayName("피드 리스트 조회 - feedStatus 미지정 시 전체 반환")
+    void getFeedList_noStatusFilter_returnsAll() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+        createFeedWithImage(user);
+        Feed closedFeed = createFeedWithImage(user);
+        closedFeed.closeVote();
+        feedRepository.save(closedFeed);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(2));
     }
 
     // ===== Helper Methods =====
