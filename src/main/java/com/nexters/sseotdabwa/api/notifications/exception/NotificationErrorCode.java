@@ -14,7 +14,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum NotificationErrorCode implements ErrorCode {
 
-    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTI_001", "알림을 찾을 수 없습니다.");
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTI_001", "알림을 찾을 수 없습니다."),
+    NOTIFICATION_FEED_NOT_FOUND(HttpStatus.INTERNAL_SERVER_ERROR, "NOTI_002", "알림과 연결된 피드를 찾을 수 없습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
