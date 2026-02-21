@@ -75,7 +75,7 @@ public class NotificationFacade {
         // 3) FeedImage 벌크 조회 (N+1 방지)
         List<FeedImage> feedImages = feedImageService.findByFeedIds(feedIds);
         Map<Long, FeedImage> feedImageMap = feedImages.stream()
-                .collect(Collectors.toMap(fi -> fi.getFeed().getId(), fi -> fi));
+                .collect(Collectors.toMap(fi -> fi.getFeed().getId(), fi -> fi, (first, second) -> first));
 
         // 4) 알림 -> 응답 매핑
         return notifications.stream()
