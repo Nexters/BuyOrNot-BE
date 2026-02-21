@@ -189,44 +189,44 @@ class FeedServiceTest {
     // ===== closeExpiredFeeds =====
 
     @Test
-    @DisplayName("48시간 초과 OPEN 피드 → CLOSED 전환")
-    void closeExpiredFeeds_closesExpiredOpenFeeds() {
+    @DisplayName("48시간 초과 OPEN 피드 → CLOSED 전환 + 마감된 feedId 반환")
+    void closeExpiredFeedsAndReturnIds_closesExpiredOpenFeedsAndReturnsIds() {
         // given
         User user = createUser();
         Feed feed = createFeed(user);
         setCreatedAt(feed.getId(), LocalDateTime.now().minusHours(49));
 
         // when
-        int closedCount = feedService.closeExpiredFeeds();
+        List<Long> closedIds = feedService.closeExpiredFeedsAndReturnIds();
         entityManager.clear();
 
         // then
-        assertThat(closedCount).isEqualTo(1);
+        assertThat(closedIds).contains(feed.getId());
         Feed updated = feedRepository.findById(feed.getId()).orElseThrow();
         assertThat(updated.getFeedStatus()).isEqualTo(FeedStatus.CLOSED);
     }
 
     @Test
-    @DisplayName("48시간 이내 OPEN 피드 → OPEN 유지")
-    void closeExpiredFeeds_keepsRecentOpenFeeds() {
+    @DisplayName("48시간 이내 OPEN 피드 → OPEN 유지 + 반환 리스트 비어있음")
+    void closeExpiredFeedsAndReturnIds_keepsRecentOpenFeeds() {
         // given
         User user = createUser();
         Feed feed = createFeed(user);
         setCreatedAt(feed.getId(), LocalDateTime.now().minusHours(47));
 
         // when
-        int closedCount = feedService.closeExpiredFeeds();
+        List<Long> closedIds = feedService.closeExpiredFeedsAndReturnIds();
         entityManager.clear();
 
         // then
-        assertThat(closedCount).isEqualTo(0);
+        assertThat(closedIds).isEmpty();
         Feed updated = feedRepository.findById(feed.getId()).orElseThrow();
         assertThat(updated.getFeedStatus()).isEqualTo(FeedStatus.OPEN);
     }
 
     @Test
-    @DisplayName("이미 CLOSED 피드 → 영향 없음")
-    void closeExpiredFeeds_ignoresAlreadyClosedFeeds() {
+    @DisplayName("이미 CLOSED 피드 → 영향 없음 + 반환 리스트 비어있음")
+    void closeExpiredFeedsAndReturnIds_ignoresAlreadyClosedFeeds() {
         // given
         User user = createUser();
         Feed feed = createFeed(user);
@@ -235,18 +235,19 @@ class FeedServiceTest {
         setCreatedAt(feed.getId(), LocalDateTime.now().minusHours(49));
 
         // when
-        int closedCount = feedService.closeExpiredFeeds();
+        List<Long> closedIds = feedService.closeExpiredFeedsAndReturnIds();
 
         // then
-        assertThat(closedCount).isEqualTo(0);
+        assertThat(closedIds).isEmpty();
     }
 
     private void setCreatedAt(Long feedId, LocalDateTime createdAt) {
-        entityManager.createNativeQuery("UPDATE feeds SET created_at = :createdAt WHERE id = :feedId")
-                .setParameter("createdAt", createdAt)
-                .setParameter("feedId", feedId)
+        entityManager.createNativeQuery("UPDATE feeds SET created_at = ?1 WHERE id = ?2")
+                .setParameter(1, createdAt)
+                .setParameter(2, feedId)
                 .executeUpdate();
         entityManager.flush();
+        entityManager.clear(); // 아래 2번 이슈에도 도움됨
     }
 
     private User createUser() {

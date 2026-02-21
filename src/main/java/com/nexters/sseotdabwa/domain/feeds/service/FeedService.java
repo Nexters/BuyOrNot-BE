@@ -16,6 +16,8 @@ import com.nexters.sseotdabwa.domain.feeds.service.command.FeedCreateCommand;
 import lombok.RequiredArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -131,10 +133,31 @@ public class FeedService {
                 .orElseThrow(() -> new GlobalException(FeedErrorCode.FEED_NOT_FOUND));
     }
 
+    /**
+     * 만료된 OPEN 피드들을 CLOSED로 전환하고, 마감된 feedId 리스트를 반환한다.
+     * - count가 아닌 대상 id가 필요 (알림 생성).
+     */
     @Transactional
-    public int closeExpiredFeeds() {
+    public List<Long> closeExpiredFeedsAndReturnIds() {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime cutoff = now.minusHours(48);
-        return feedRepository.closeExpiredFeeds(cutoff, now);
+
+        List<ReportStatus> excluded = Arrays.asList(ReportStatus.DELETED, ReportStatus.REPORTED);
+
+        List<Long> feedIds = feedRepository.findExpiredOpenFeedIds(cutoff, excluded);
+        if (feedIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        feedRepository.closeFeedsByIds(feedIds, now);
+        return feedIds;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Feed> findByIds(List<Long> feedIds) {
+        if (feedIds == null || feedIds.isEmpty()) {
+            return List.of();
+        }
+        return feedRepository.findAllById(feedIds);
     }
 }

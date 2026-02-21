@@ -52,4 +52,8 @@ public class VoteLogService {
     public List<VoteLog> findByUserIdAndFeedIds(Long userId, List<Long> feedIds) {
         return voteLogRepository.findByUserIdAndFeedIdIn(userId, feedIds);
     }
+
+    public List<Long> findDistinctUserIdsVotedByFeedId(Long feedId) {
+        return voteLogRepository.findDistinctUserIdsVotedByFeedId(feedId);
+    }
 }
