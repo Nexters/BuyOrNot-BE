@@ -27,7 +27,7 @@ public record NotificationResponse(
     ) {
         return new NotificationResponse(
                 n.getId(),
-                n.getFeed().getId(),
+                n.getFeed() != null ? n.getFeed().getId() : null,
                 n.getType(),
                 n.getTitle(),
                 n.getBody(),
