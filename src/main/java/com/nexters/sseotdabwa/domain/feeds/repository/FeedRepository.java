@@ -32,4 +32,35 @@ public interface FeedRepository extends JpaRepository<Feed, Long> {
     @Modifying
     @Query("UPDATE Feed f SET f.feedStatus = 'CLOSED', f.updatedAt = :now WHERE f.feedStatus = 'OPEN' AND f.createdAt < :cutoff")
     int closeExpiredFeeds(@Param("cutoff") LocalDateTime cutoff, @Param("now") LocalDateTime now);
+
+    /**
+     * 마감 대상 feedId 조회
+     * - OPEN
+     * - createdAt <= cutoff
+     * - reportStatus NOT IN (DELETED, REPORTED)
+     */
+    @Query("""
+        select f.id
+        from Feed f
+        where f.feedStatus = com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus.OPEN
+          and f.createdAt <= :cutoff
+          and f.reportStatus not in :excludedReportStatuses
+    """)
+    List<Long> findExpiredOpenFeedIds(
+            @Param("cutoff") LocalDateTime cutoff,
+            @Param("excludedReportStatuses") List<ReportStatus> excludedReportStatuses
+    );
+
+    /**
+     * feedId 대상만 bulk CLOSED 처리
+     */
+    @Modifying
+    @Query("""
+        update Feed f
+        set f.feedStatus = com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus.CLOSED,
+            f.updatedAt = :now
+        where f.id in :feedIds
+          and f.feedStatus = com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus.OPEN
+    """)
+    int closeFeedsByIds(@Param("feedIds") List<Long> feedIds, @Param("now") LocalDateTime now);
 }

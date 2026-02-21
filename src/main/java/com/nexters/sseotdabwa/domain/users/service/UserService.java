@@ -1,5 +1,6 @@
 package com.nexters.sseotdabwa.domain.users.service;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.hibernate.exception.ConstraintViolationException;
@@ -138,5 +139,12 @@ public class UserService {
     public void updateFcmToken(Long userId, String fcmToken) {
         User user = findById(userId);
         user.updateFcmToken(fcmToken);
+    }
+
+    public List<User> findByIds(List<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return List.of();
+        }
+        return userRepository.findByIdIn(userIds);
     }
 }
