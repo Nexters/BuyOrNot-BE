@@ -68,6 +68,26 @@ public interface FeedControllerSpec {
     );
 
     @Operation(
+            summary = "피드 단건 조회",
+            description = "피드 ID로 단건 조회합니다. 비로그인 유저도 접근 가능하며, 로그인 시 투표 상태가 포함됩니다.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "피드 단건 조회 성공"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "피드를 찾을 수 없음"
+            )
+    })
+    ApiResponse<FeedResponse> getFeedDetail(
+            @Parameter(hidden = true) User user,
+            @PathVariable Long feedId
+    );
+
+    @Operation(
             summary = "피드 삭제",
             description = "본인이 작성한 피드를 삭제합니다.",
             security = @SecurityRequirement(name = "Bearer Authentication")

@@ -483,6 +483,76 @@ class FeedControllerTest {
                 .andExpect(jsonPath("$.data.nextCursor").exists());
     }
 
+    // ===== 피드 단건 조회 =====
+
+    @Test
+    @DisplayName("피드 단건 조회 성공 - 로그인 유저 200 OK")
+    void getFeedDetail_success() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+        Feed feed = createFeedWithImage(user);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds/" + feed.getId())
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("200"))
+                .andExpect(jsonPath("$.data.feedId").value(feed.getId()))
+                .andExpect(jsonPath("$.data.content").value("테스트 피드"))
+                .andExpect(jsonPath("$.data.author.userId").value(user.getId()))
+                .andExpect(jsonPath("$.data.s3ObjectKey").value(org.hamcrest.Matchers.startsWith("feeds/")))
+                .andExpect(jsonPath("$.data.viewUrl").value(org.hamcrest.Matchers.startsWith("https://")));
+    }
+
+    @Test
+    @DisplayName("피드 단건 조회 성공 - 비로그인 유저도 접근 가능, hasVoted/myVoteChoice null")
+    void getFeedDetail_noAuth_success() throws Exception {
+        // given
+        User user = createUser();
+        Feed feed = createFeedWithImage(user);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds/" + feed.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("200"))
+                .andExpect(jsonPath("$.data.feedId").value(feed.getId()))
+                .andExpect(jsonPath("$.data.hasVoted").doesNotExist())
+                .andExpect(jsonPath("$.data.myVoteChoice").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("피드 단건 조회 실패 - 존재하지 않는 피드 404")
+    void getFeedDetail_notFound_404() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds/999")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("FEED_003"));
+    }
+
+    @Test
+    @DisplayName("피드 단건 조회 - 투표한 유저 hasVoted=true, myVoteChoice 포함")
+    void getFeedDetail_withVote_hasVotedTrue() throws Exception {
+        // given
+        User owner = createUser();
+        User voter = createUser();
+        String voterToken = jwtTokenService.createAccessToken(voter.getId());
+        Feed feed = createFeedWithImage(owner);
+        voteLogRepository.save(VoteLog.builder().user(voter).feed(feed).choice(VoteChoice.YES).voteType(VoteType.USER).build());
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds/" + feed.getId())
+                        .header("Authorization", "Bearer " + voterToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.hasVoted").value(true))
+                .andExpect(jsonPath("$.data.myVoteChoice").value("YES"));
+    }
+
     // ===== 피드 리스트 feedStatus 필터 =====
 
     @Test
