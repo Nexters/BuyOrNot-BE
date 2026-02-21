@@ -21,6 +21,7 @@ import com.nexters.sseotdabwa.domain.auth.service.JwtTokenService;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
+import com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus;
 import com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedImageRepository;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
@@ -218,11 +219,11 @@ class FeedControllerTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("200"))
-                .andExpect(jsonPath("$.data").isArray())
-                .andExpect(jsonPath("$.data[0].feedId").value(feed.getId()))
-                .andExpect(jsonPath("$.data[0].author.userId").value(user.getId()))
-                .andExpect(jsonPath("$.data[0].s3ObjectKey").value(org.hamcrest.Matchers.startsWith("feeds/")))
-                .andExpect(jsonPath("$.data[0].viewUrl").value(org.hamcrest.Matchers.startsWith("https://")));
+                .andExpect(jsonPath("$.data.content").isArray())
+                .andExpect(jsonPath("$.data.content[0].feedId").value(feed.getId()))
+                .andExpect(jsonPath("$.data.content[0].author.userId").value(user.getId()))
+                .andExpect(jsonPath("$.data.content[0].s3ObjectKey").value(org.hamcrest.Matchers.startsWith("feeds/")))
+                .andExpect(jsonPath("$.data.content[0].viewUrl").value(org.hamcrest.Matchers.startsWith("https://")));
     }
 
     @Test
@@ -236,7 +237,7 @@ class FeedControllerTest {
         mockMvc.perform(get("/api/v1/feeds"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("200"))
-                .andExpect(jsonPath("$.data").isArray());
+                .andExpect(jsonPath("$.data.content").isArray());
     }
 
     // ===== 피드 삭제 =====
@@ -369,8 +370,8 @@ class FeedControllerTest {
         mockMvc.perform(get("/api/v1/feeds")
                         .header("Authorization", "Bearer " + voterToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].hasVoted").value(true))
-                .andExpect(jsonPath("$.data[0].myVoteChoice").value("YES"));
+                .andExpect(jsonPath("$.data.content[0].hasVoted").value(true))
+                .andExpect(jsonPath("$.data.content[0].myVoteChoice").value("YES"));
     }
 
     @Test
@@ -383,8 +384,8 @@ class FeedControllerTest {
         // when & then
         mockMvc.perform(get("/api/v1/feeds"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].hasVoted").doesNotExist())
-                .andExpect(jsonPath("$.data[0].myVoteChoice").doesNotExist());
+                .andExpect(jsonPath("$.data.content[0].hasVoted").doesNotExist())
+                .andExpect(jsonPath("$.data.content[0].myVoteChoice").doesNotExist());
     }
 
     @Test
@@ -400,8 +401,146 @@ class FeedControllerTest {
         mockMvc.perform(get("/api/v1/feeds")
                         .header("Authorization", "Bearer " + viewerToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].hasVoted").value(false))
-                .andExpect(jsonPath("$.data[0].myVoteChoice").doesNotExist());
+                .andExpect(jsonPath("$.data.content[0].hasVoted").value(false))
+                .andExpect(jsonPath("$.data.content[0].myVoteChoice").doesNotExist());
+    }
+
+    // ===== 피드 리스트 커서 페이지네이션 =====
+
+    @Test
+    @DisplayName("피드 리스트 첫 페이지 조회 - size 지정, hasNext=true")
+    void getFeedList_firstPage_hasNextTrue() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+        createFeedWithImage(user);
+        createFeedWithImage(user);
+        createFeedWithImage(user);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds")
+                        .param("size", "2")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content").isArray())
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.hasNext").value(true))
+                .andExpect(jsonPath("$.data.nextCursor").exists());
+    }
+
+    @Test
+    @DisplayName("피드 리스트 두 번째 페이지 조회 - cursor+size 지정")
+    void getFeedList_secondPage_withCursor() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+        Feed feed1 = createFeedWithImage(user);
+        Feed feed2 = createFeedWithImage(user);
+        Feed feed3 = createFeedWithImage(user);
+
+        // when & then - feed3.id를 커서로, feed2와 feed1만 반환
+        mockMvc.perform(get("/api/v1/feeds")
+                        .param("cursor", String.valueOf(feed3.getId()))
+                        .param("size", "10")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.hasNext").value(false))
+                .andExpect(jsonPath("$.data.nextCursor").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("피드 리스트 조회 - 파라미터 없이 요청 시 기본값 적용")
+    void getFeedList_defaultParams() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+        createFeedWithImage(user);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content").isArray())
+                .andExpect(jsonPath("$.data.hasNext").value(false));
+    }
+
+    @Test
+    @DisplayName("비로그인 유저 페이지네이션 조회")
+    void getFeedList_noAuth_pagination() throws Exception {
+        // given
+        User user = createUser();
+        createFeedWithImage(user);
+        createFeedWithImage(user);
+        createFeedWithImage(user);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.hasNext").value(true))
+                .andExpect(jsonPath("$.data.nextCursor").exists());
+    }
+
+    // ===== 피드 리스트 feedStatus 필터 =====
+
+    @Test
+    @DisplayName("피드 리스트 조회 - feedStatus=OPEN 필터 적용")
+    void getFeedList_filterByOpenStatus() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+        Feed openFeed = createFeedWithImage(user);
+        Feed closedFeed = createFeedWithImage(user);
+        closedFeed.closeVote();
+        feedRepository.save(closedFeed);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds")
+                        .param("feedStatus", "OPEN")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].feedId").value(openFeed.getId()));
+    }
+
+    @Test
+    @DisplayName("피드 리스트 조회 - feedStatus=CLOSED 필터 적용")
+    void getFeedList_filterByClosedStatus() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+        createFeedWithImage(user);
+        Feed closedFeed = createFeedWithImage(user);
+        closedFeed.closeVote();
+        feedRepository.save(closedFeed);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds")
+                        .param("feedStatus", "CLOSED")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].feedId").value(closedFeed.getId()));
+    }
+
+    @Test
+    @DisplayName("피드 리스트 조회 - feedStatus 미지정 시 전체 반환")
+    void getFeedList_noStatusFilter_returnsAll() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+        createFeedWithImage(user);
+        Feed closedFeed = createFeedWithImage(user);
+        closedFeed.closeVote();
+        feedRepository.save(closedFeed);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(2));
     }
 
     // ===== Helper Methods =====
