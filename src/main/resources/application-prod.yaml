@@ -46,3 +46,6 @@ aws:
     max-bytes: 20971520
   cloudfront:
     domain: ${CLOUDFRONT_DOMAIN}
+
+firebase:
+  enabled: true
