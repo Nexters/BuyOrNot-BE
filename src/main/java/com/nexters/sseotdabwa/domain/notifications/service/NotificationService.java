@@ -102,4 +102,9 @@ public class NotificationService {
             return null;
         }
     }
+
+    @Transactional
+    public void deleteByFeed(Feed feed) {
+        notificationRepository.deleteByFeedId(feed.getId());
+    }
 }

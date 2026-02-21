@@ -13,11 +13,27 @@ spec:
       labels:
         app: buyornot-be
     spec:
+      # (1) firebase-sa Secret을 파일로 마운트하기 위한 volumes 추가
+      volumes:
+        - name: firebase-sa
+          secret:
+            secretName: firebase-sa
+            items:
+              - key: serviceAccount.json
+                path: serviceAccount.json
+
       containers:
         - name: buyornot-be
           image: buyornot22/sseotdabwa-be:2026-02-22T05-17-21
           ports:
             - containerPort: 8080
+
+          # (2) 컨테이너 안에 /etc/buyornot/firebase/serviceAccount.json 파일이 생기게 됨
+          volumeMounts:
+            - name: firebase-sa
+              mountPath: /etc/buyornot/firebase
+              readOnly: true
+
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: "prod"
