@@ -140,7 +140,7 @@ public class FeedService {
     @Transactional
     public List<Long> closeExpiredFeedsAndReturnIds() {
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime cutoff = now.minusMinutes(1);
+        LocalDateTime cutoff = now.minusHours(48);
 
         List<ReportStatus> excluded = Arrays.asList(ReportStatus.DELETED, ReportStatus.REPORTED);
 
