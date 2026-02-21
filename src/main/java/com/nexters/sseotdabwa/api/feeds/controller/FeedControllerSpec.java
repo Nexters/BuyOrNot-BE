@@ -1,11 +1,10 @@
 package com.nexters.sseotdabwa.api.feeds.controller;
 
-import java.util.List;
-
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequest;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateResponse;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
 import com.nexters.sseotdabwa.common.response.ApiResponse;
+import com.nexters.sseotdabwa.common.response.CursorPageResponse;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -51,7 +50,7 @@ public interface FeedControllerSpec {
 
     @Operation(
             summary = "피드 리스트 조회",
-            description = "전체 피드 리스트를 조회합니다. 비로그인 유저도 접근 가능하며, 로그인 시 투표 상태가 포함됩니다.",
+            description = "커서 기반 페이지네이션으로 피드 리스트를 조회합니다. 비로그인 유저도 접근 가능하며, 로그인 시 투표 상태가 포함됩니다.",
             security = @SecurityRequirement(name = "Bearer Authentication")
     )
     @ApiResponses(value = {
@@ -60,8 +59,10 @@ public interface FeedControllerSpec {
                     description = "피드 리스트 조회 성공"
             )
     })
-    ApiResponse<List<FeedResponse>> getFeedList(
-            @Parameter(hidden = true) User user
+    ApiResponse<CursorPageResponse<FeedResponse>> getFeedList(
+            @Parameter(hidden = true) User user,
+            @Parameter(description = "이전 페이지 마지막 feedId (첫 페이지는 생략)") Long cursor,
+            @Parameter(description = "페이지 크기 (기본값 20, 최대 50)") Integer size
     );
 
     @Operation(

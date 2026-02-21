@@ -1,5 +1,7 @@
 package com.nexters.sseotdabwa.domain.feeds.service;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -92,6 +94,14 @@ public class FeedService {
 
     public List<Feed> findAllExceptDeleted() {
         return feedRepository.findByReportStatusNotOrderByCreatedAtDesc(ReportStatus.DELETED);
+    }
+
+    public List<Feed> findAllExceptDeletedWithCursor(Long cursor, int size) {
+        Pageable pageable = PageRequest.ofSize(size + 1);
+        if (cursor == null) {
+            return feedRepository.findByReportStatusNotOrderByIdDesc(ReportStatus.DELETED, pageable);
+        }
+        return feedRepository.findByIdLessThanAndReportStatusNotOrderByIdDesc(cursor, ReportStatus.DELETED, pageable);
     }
 
     public List<Feed> findByUserIdOrderByCreatedAtDesc(Long userId) {

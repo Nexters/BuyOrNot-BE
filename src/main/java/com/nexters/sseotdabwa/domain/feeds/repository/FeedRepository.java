@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
@@ -28,6 +29,10 @@ public interface FeedRepository extends JpaRepository<Feed, Long> {
     List<Feed> findByReportStatusNotOrderByCreatedAtDesc(ReportStatus reportStatus);
 
     List<Feed> findByUserIdOrderByCreatedAtDesc(Long userId);
+
+    List<Feed> findByReportStatusNotOrderByIdDesc(ReportStatus reportStatus, Pageable pageable);
+
+    List<Feed> findByIdLessThanAndReportStatusNotOrderByIdDesc(Long id, ReportStatus reportStatus, Pageable pageable);
 
     @Modifying
     @Query("UPDATE Feed f SET f.feedStatus = 'CLOSED', f.updatedAt = :now WHERE f.feedStatus = 'OPEN' AND f.createdAt < :cutoff")

@@ -9,6 +9,7 @@ import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateResponse;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
 import com.nexters.sseotdabwa.common.config.AwsProperties;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
+import com.nexters.sseotdabwa.common.response.CursorPageResponse;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
 import com.nexters.sseotdabwa.domain.feeds.exception.FeedErrorCode;
@@ -34,6 +35,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 @RequiredArgsConstructor
 public class FeedFacade {
+
+    private static final int DEFAULT_PAGE_SIZE = 20;
+    private static final int MAX_PAGE_SIZE = 50;
 
     private final FeedService feedService;
     private final FeedImageService feedImageService;
@@ -67,39 +71,49 @@ public class FeedFacade {
     }
 
     /**
-     * 피드 리스트 조회 (비로그인 가능)
+     * 피드 리스트 조회 (비로그인 가능, 커서 기반 페이지네이션)
      * - 인증된 경우: 투표 상태(hasVoted, myVoteChoice) 포함
      * - 비인증인 경우: 투표 상태 없음
      */
     @Transactional(readOnly = true)
-    public List<FeedResponse> getFeedList(User user) {
-        List<Feed> feeds = feedService.findAllExceptDeleted();
-        List<FeedImage> feedImages = feedImageService.findByFeeds(feeds);
+    public CursorPageResponse<FeedResponse> getFeedList(User user, Long cursor, Integer size) {
+        int pageSize = (size == null) ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
+
+        List<Feed> feeds = feedService.findAllExceptDeletedWithCursor(cursor, pageSize);
+
+        boolean hasNext = feeds.size() > pageSize;
+        List<Feed> slicedFeeds = hasNext ? feeds.subList(0, pageSize) : feeds;
+
+        List<FeedImage> feedImages = feedImageService.findByFeeds(slicedFeeds);
         Map<Long, FeedImage> imageMap = feedImages.stream()
                 .collect(Collectors.toMap(fi -> fi.getFeed().getId(), fi -> fi));
 
-        if (user == null || feeds.isEmpty()) {
-            return feeds.stream()
+        List<FeedResponse> content;
+        if (user == null || slicedFeeds.isEmpty()) {
+            content = slicedFeeds.stream()
                     .map(feed -> {
                         FeedImage img = imageMap.get(feed.getId());
                         return FeedResponse.of(feed, img, buildViewUrl(img));
                     })
                     .toList();
+        } else {
+            List<Long> feedIds = slicedFeeds.stream().map(Feed::getId).toList();
+            Map<Long, VoteChoice> voteMap = voteLogService.findByUserIdAndFeedIds(user.getId(), feedIds)
+                    .stream()
+                    .collect(Collectors.toMap(vl -> vl.getFeed().getId(), vl -> vl.getChoice()));
+
+            content = slicedFeeds.stream()
+                    .map(feed -> {
+                        FeedImage img = imageMap.get(feed.getId());
+                        VoteChoice myChoice = voteMap.get(feed.getId());
+                        boolean hasVoted = myChoice != null;
+                        return FeedResponse.of(feed, img, buildViewUrl(img), hasVoted, myChoice);
+                    })
+                    .toList();
         }
 
-        List<Long> feedIds = feeds.stream().map(Feed::getId).toList();
-        Map<Long, VoteChoice> voteMap = voteLogService.findByUserIdAndFeedIds(user.getId(), feedIds)
-                .stream()
-                .collect(Collectors.toMap(vl -> vl.getFeed().getId(), vl -> vl.getChoice()));
-
-        return feeds.stream()
-                .map(feed -> {
-                    FeedImage img = imageMap.get(feed.getId());
-                    VoteChoice myChoice = voteMap.get(feed.getId());
-                    boolean hasVoted = myChoice != null;
-                    return FeedResponse.of(feed, img, buildViewUrl(img), hasVoted, myChoice);
-                })
-                .toList();
+        Long nextCursor = hasNext ? slicedFeeds.get(slicedFeeds.size() - 1).getId() : null;
+        return CursorPageResponse.of(content, nextCursor, hasNext);
     }
 
     private String buildViewUrl(FeedImage feedImage) {

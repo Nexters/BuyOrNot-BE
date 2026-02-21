@@ -1,12 +1,11 @@
 package com.nexters.sseotdabwa.api.feeds.controller;
 
-import java.util.List;
-
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequest;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateResponse;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
 import com.nexters.sseotdabwa.api.feeds.facade.FeedFacade;
 import com.nexters.sseotdabwa.common.response.ApiResponse;
+import com.nexters.sseotdabwa.common.response.CursorPageResponse;
 import com.nexters.sseotdabwa.common.security.CurrentUser;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 
@@ -35,10 +34,12 @@ public class FeedController implements FeedControllerSpec {
 
     @Override
     @GetMapping
-    public ApiResponse<List<FeedResponse>> getFeedList(
-            @CurrentUser User user
+    public ApiResponse<CursorPageResponse<FeedResponse>> getFeedList(
+            @CurrentUser User user,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(required = false) Integer size
     ) {
-        List<FeedResponse> response = feedFacade.getFeedList(user);
+        CursorPageResponse<FeedResponse> response = feedFacade.getFeedList(user, cursor, size);
         return ApiResponse.success(response, HttpStatus.OK);
     }
 
