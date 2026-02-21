@@ -188,7 +188,7 @@ public class NotificationFacade {
             data.put("type", type.name());
 
             fcmSender.send(user.getFcmToken(), FEED_CLOSED_TITLE, FEED_CLOSED_BODY, data);
-            log.info("FCM 전송 성공 userId={}, token={}", user.getId(), user.getFcmToken());
+//            log.info("FCM 전송 성공 userId={}, token={}", user.getId(), user.getFcmToken());
         } catch (Exception e) {
             log.warn("FCM 전송 실패 (best-effort). userId={}, feedId={}, type={}",
                     user.getId(), feed.getId(), type, e);
@@ -248,8 +248,8 @@ public class NotificationFacade {
     public void sendTestPushOnly(User user, String title, String body) {
 
         if (!user.canReceivePush()) {
-            log.warn("테스트 푸시 불가: userId={}, pushEnabled={}, token={}",
-                    user.getId(), user.isPushEnabled(), user.getFcmToken());
+//            log.warn("테스트 푸시 불가: userId={}, pushEnabled={}, token={}",
+//                    user.getId(), user.isPushEnabled(), user.getFcmToken());
             return;
         }
 
