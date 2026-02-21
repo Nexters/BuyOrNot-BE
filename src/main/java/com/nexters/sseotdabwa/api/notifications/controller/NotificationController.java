@@ -45,7 +45,7 @@ public class NotificationController implements NotificationControllerSpec {
     public ApiResponse<Void> sendTestPush(
             @CurrentUser User user,
             @RequestParam(defaultValue = "테스트 알림!!!!") String title,
-            @RequestParam(defaultValue = "푸시가 정상 동작하는지 확인합니다.") String body
+            @RequestParam(defaultValue = "푸시가 정상 동작하는지 확인합니다..") String body
     ) {
         notificationFacade.sendTestPushOnly(user, title, body);
         return ApiResponse.success(HttpStatus.OK);
