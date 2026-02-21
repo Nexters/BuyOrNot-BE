@@ -6,6 +6,7 @@ import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.votes.entity.VoteLog;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface VoteLogRepository extends JpaRepository<VoteLog, Long> {
 
@@ -32,5 +33,5 @@ public interface VoteLogRepository extends JpaRepository<VoteLog, Long> {
           and v.voteType = com.nexters.sseotdabwa.domain.votes.enums.VoteType.USER
           and v.user is not null
     """)
-    List<Long> findDistinctUserIdsVotedByFeedId(Long feedId);
+    List<Long> findDistinctUserIdsVotedByFeedId(@Param("feedId") Long feedId);
 }
