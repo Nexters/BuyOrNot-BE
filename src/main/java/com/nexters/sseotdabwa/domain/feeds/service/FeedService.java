@@ -117,6 +117,20 @@ public class FeedService {
         return feedRepository.findByUserIdOrderByCreatedAtDesc(userId);
     }
 
+    public List<Feed> findByUserIdWithCursor(Long userId, Long cursor, int size, FeedStatus feedStatus) {
+        Pageable pageable = PageRequest.ofSize(size + 1);
+        if (feedStatus != null) {
+            if (cursor == null) {
+                return feedRepository.findByUserIdAndFeedStatusOrderByIdDesc(userId, feedStatus, pageable);
+            }
+            return feedRepository.findByUserIdAndIdLessThanAndFeedStatusOrderByIdDesc(userId, cursor, feedStatus, pageable);
+        }
+        if (cursor == null) {
+            return feedRepository.findByUserIdOrderByIdDesc(userId, pageable);
+        }
+        return feedRepository.findByUserIdAndIdLessThanOrderByIdDesc(userId, cursor, pageable);
+    }
+
     @Transactional
     public void delete(Feed feed) {
         feedRepository.delete(feed);
