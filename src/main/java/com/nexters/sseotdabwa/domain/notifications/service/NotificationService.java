@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.nexters.sseotdabwa.api.notifications.exception.NotificationErrorCode;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -94,6 +95,11 @@ public class NotificationService {
                 .type(type)
                 .build();
 
-        return notificationRepository.save(notification);
+        try {
+            return notificationRepository.save(notification);
+        } catch (DataIntegrityViolationException e) {
+            log.warn("중복 알림 생성 시도 무시: userId={}, feedId={}, type={}", user.getId(), feed.getId(), type);
+            return null;
+        }
     }
 }

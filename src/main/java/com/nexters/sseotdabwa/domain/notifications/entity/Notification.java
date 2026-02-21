@@ -17,6 +17,9 @@ import java.time.LocalDateTime;
 @Entity
 @Table(
         name = "notifications",
+        uniqueConstraints = {
+                @UniqueConstraint(name ="uk_notifications_user_feed_type", columnNames ={"user_id","feed_id","type"})
+        },
         indexes = {
                 @Index(name = "idx_notifications_user_created", columnList = "user_id, created_at"),
                 @Index(name = "idx_notifications_user_is_read", columnList = "user_id, is_read")
