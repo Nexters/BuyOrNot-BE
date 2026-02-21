@@ -199,9 +199,10 @@ class UserControllerTest {
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("200"))
-                .andExpect(jsonPath("$.data").isArray())
-                .andExpect(jsonPath("$.data[0].feedId").value(feed.getId()))
-                .andExpect(jsonPath("$.data[0].author.userId").value(user.getId()));
+                .andExpect(jsonPath("$.data.content").isArray())
+                .andExpect(jsonPath("$.data.content[0].feedId").value(feed.getId()))
+                .andExpect(jsonPath("$.data.content[0].author.userId").value(user.getId()))
+                .andExpect(jsonPath("$.data.hasNext").value(false));
     }
 
     @Test
@@ -210,6 +211,67 @@ class UserControllerTest {
         // when & then
         mockMvc.perform(get("/api/v1/users/me/feeds"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("내 피드 커서 페이지네이션 - size 지정 + hasNext 확인")
+    void getMyFeeds_pagination_hasNext() throws Exception {
+        // given
+        User user = createUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+        Feed feed1 = createFeed(user);
+        Feed feed2 = createFeed(user);
+        Feed feed3 = createFeed(user);
+
+        // when & then - size=2 요청, 3건 있으므로 hasNext=true
+        mockMvc.perform(get("/api/v1/users/me/feeds")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content").isArray())
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.hasNext").value(true))
+                .andExpect(jsonPath("$.data.nextCursor").isNumber());
+    }
+
+    @Test
+    @DisplayName("내 피드 커서 페이지네이션 - cursor + size 지정으로 두 번째 페이지 조회")
+    void getMyFeeds_pagination_secondPage() throws Exception {
+        // given
+        User user = createUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+        Feed feed1 = createFeed(user);
+        Feed feed2 = createFeed(user);
+        Feed feed3 = createFeed(user);
+
+        // when & then - feed3 ID를 커서로 지정, 나머지 2건만 조회
+        mockMvc.perform(get("/api/v1/users/me/feeds")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .param("cursor", String.valueOf(feed3.getId()))
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.hasNext").value(false));
+    }
+
+    @Test
+    @DisplayName("내 피드 feedStatus=OPEN 필터 조회")
+    void getMyFeeds_filterByFeedStatus() throws Exception {
+        // given
+        User user = createUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+        Feed openFeed = createFeed(user);
+        Feed closedFeed = createFeed(user);
+        closedFeed.closeVote();
+        feedRepository.save(closedFeed);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/users/me/feeds")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .param("feedStatus", "OPEN"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].feedId").value(openFeed.getId()));
     }
 
     private User createUser() {
