@@ -20,6 +20,7 @@ import com.nexters.sseotdabwa.domain.feeds.service.FeedService;
 import com.nexters.sseotdabwa.domain.feeds.service.command.FeedCreateCommand;
 import com.nexters.sseotdabwa.domain.storage.service.S3StorageService;
 import com.nexters.sseotdabwa.domain.users.entity.User;
+import com.nexters.sseotdabwa.domain.votes.entity.VoteLog;
 import com.nexters.sseotdabwa.domain.votes.enums.VoteChoice;
 import com.nexters.sseotdabwa.domain.votes.service.VoteLogService;
 
@@ -69,6 +70,27 @@ public class FeedFacade {
         feedImageService.save(savedFeed, command.s3ObjectKey());
 
         return new FeedCreateResponse(savedFeed.getId());
+    }
+
+    /**
+     * 피드 단건 조회 (비로그인 가능)
+     * - 인증된 경우: 투표 상태(hasVoted, myVoteChoice) 포함
+     * - 비인증인 경우: 투표 상태 없음
+     */
+    @Transactional(readOnly = true)
+    public FeedResponse getFeedDetail(User user, Long feedId) {
+        Feed feed = feedService.findById(feedId);
+        FeedImage feedImage = feedImageService.findByFeed(feed).orElse(null);
+        String viewUrl = buildViewUrl(feedImage);
+
+        if (user == null) {
+            return FeedResponse.of(feed, feedImage, viewUrl);
+        }
+
+        List<VoteLog> voteLogs = voteLogService.findByUserIdAndFeedIds(user.getId(), List.of(feedId));
+        VoteChoice myChoice = voteLogs.isEmpty() ? null : voteLogs.get(0).getChoice();
+        boolean hasVoted = myChoice != null;
+        return FeedResponse.of(feed, feedImage, viewUrl, hasVoted, myChoice);
     }
 
     /**
