@@ -116,13 +116,6 @@ public class FeedService {
                 .orElseThrow(() -> new GlobalException(FeedErrorCode.FEED_NOT_FOUND));
     }
 
-    @Transactional
-    public int closeExpiredFeeds() {
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime cutoff = now.minusHours(48);
-        return feedRepository.closeExpiredFeeds(cutoff, now);
-    }
-
     /**
      * 만료된 OPEN 피드들을 CLOSED로 전환하고, 마감된 feedId 리스트를 반환한다.
      * - count가 아닌 대상 id가 필요 (알림 생성).
@@ -130,7 +123,7 @@ public class FeedService {
     @Transactional
     public List<Long> closeExpiredFeedsAndReturnIds() {
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime cutoff = now.minusMinutes(1);
+        LocalDateTime cutoff = now.minusHours(48);
 
         List<ReportStatus> excluded = Arrays.asList(ReportStatus.DELETED, ReportStatus.REPORTED);
 
