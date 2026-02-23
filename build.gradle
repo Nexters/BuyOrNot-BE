@@ -93,6 +93,48 @@ jacocoTestReport {
     }
 }
 
+tasks.register('updateCoverageBadge') {
+    dependsOn jacocoTestReport
+    group = 'verification'
+    description = 'Updates the coverage badge in README.md'
+
+    doLast {
+        def reportFile = file("${buildDir}/reports/jacoco/test/jacocoTestReport.xml")
+        if (!reportFile.exists()) {
+            logger.warn('JaCoCo report not found, skipping badge update.')
+            return
+        }
+
+        def parser = new XmlSlurper()
+        parser.setFeature("http://apache.org/xml/features/disallow-doctype-decl", false)
+        parser.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+        def xml = parser.parse(reportFile)
+        def lineCounter = xml.counter.find { it.@type == 'LINE' }
+        def missed = lineCounter.@missed.toInteger()
+        def covered = lineCounter.@covered.toInteger()
+        def total = missed + covered
+        def percentage = total > 0 ? ((covered / total) * 100).trunc(1) : 0
+
+        def color
+        if (percentage >= 80) color = 'brightgreen'
+        else if (percentage >= 60) color = 'yellow'
+        else color = 'red'
+
+        def badge = "![Coverage](https://img.shields.io/badge/coverage-${percentage}%25-${color})"
+
+        def readme = file('README.md')
+        def content = readme.text
+        def updated = content.replaceFirst(
+            /!\[Coverage\]\(https:\/\/img\.shields\.io\/badge\/coverage-[^)]+\)/,
+            badge
+        )
+        readme.text = updated
+        println "Coverage badge updated: ${percentage}% (${color})"
+    }
+}
+
+jacocoTestReport.finalizedBy updateCoverageBadge
+
 // ===== Spotless 설정 =====
 //spotless {
 //    java {
