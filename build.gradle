@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'jacoco'
     id 'org.springframework.boot' version '3.2.3'
     id 'io.spring.dependency-management' version '1.1.7'
     id 'com.diffplug.spotless' version '7.0.2'
@@ -60,8 +61,36 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+jacoco {
+    toolVersion = "0.8.12"
+}
+
 tasks.named('test') {
     useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    dependsOn test
+
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                '**/dto/**',
+                '**/entity/**',
+                '**/enums/**',
+                '**/config/**',
+                '**/common/exception/**',
+                '**/SseotdabwaApplication.class'
+            ])
+        }))
+    }
+
+    reports {
+        html.required = true
+        xml.required = true
+        csv.required = false
+    }
 }
 
 // ===== Spotless 설정 =====
