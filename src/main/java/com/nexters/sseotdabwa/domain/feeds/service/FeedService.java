@@ -103,14 +103,14 @@ public class FeedService {
         Pageable pageable = PageRequest.ofSize(size + 1);
         if (feedStatus != null) {
             if (cursor == null) {
-                return feedRepository.findByFeedStatusAndReportStatusNotOrderByIdDesc(feedStatus, ReportStatus.DELETED, pageable);
+                return feedRepository.findByFeedStatusAndReportStatusNotOrderByCreatedAtDescIdDesc(feedStatus, ReportStatus.DELETED, pageable);
             }
-            return feedRepository.findByIdLessThanAndFeedStatusAndReportStatusNotOrderByIdDesc(cursor, feedStatus, ReportStatus.DELETED, pageable);
+            return feedRepository.findByIdLessThanAndFeedStatusAndReportStatusNotOrderByCreatedAtDescIdDesc(cursor, feedStatus, ReportStatus.DELETED, pageable);
         }
         if (cursor == null) {
-            return feedRepository.findByReportStatusNotOrderByIdDesc(ReportStatus.DELETED, pageable);
+            return feedRepository.findByReportStatusNotOrderByCreatedAtDescIdDesc(ReportStatus.DELETED, pageable);
         }
-        return feedRepository.findByIdLessThanAndReportStatusNotOrderByIdDesc(cursor, ReportStatus.DELETED, pageable);
+        return feedRepository.findByIdLessThanAndReportStatusNotOrderByCreatedAtDescIdDesc(cursor, ReportStatus.DELETED, pageable);
     }
 
     public List<Feed> findByUserIdOrderByCreatedAtDesc(Long userId) {
@@ -121,14 +121,14 @@ public class FeedService {
         Pageable pageable = PageRequest.ofSize(size + 1);
         if (feedStatus != null) {
             if (cursor == null) {
-                return feedRepository.findByUserIdAndFeedStatusOrderByIdDesc(userId, feedStatus, pageable);
+                return feedRepository.findByUserIdAndFeedStatusOrderByCreatedAtDescIdDesc(userId, feedStatus, pageable);
             }
-            return feedRepository.findByUserIdAndIdLessThanAndFeedStatusOrderByIdDesc(userId, cursor, feedStatus, pageable);
+            return feedRepository.findByUserIdAndIdLessThanAndFeedStatusOrderByCreatedAtDescIdDesc(userId, cursor, feedStatus, pageable);
         }
         if (cursor == null) {
-            return feedRepository.findByUserIdOrderByIdDesc(userId, pageable);
+            return feedRepository.findByUserIdOrderByCreatedAtDescIdDesc(userId, pageable);
         }
-        return feedRepository.findByUserIdAndIdLessThanOrderByIdDesc(userId, cursor, pageable);
+        return feedRepository.findByUserIdAndIdLessThanOrderByCreatedAtDescIdDesc(userId, cursor, pageable);
     }
 
     @Transactional
