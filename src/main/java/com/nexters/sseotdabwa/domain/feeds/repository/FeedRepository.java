@@ -31,21 +31,21 @@ public interface FeedRepository extends JpaRepository<Feed, Long> {
 
     List<Feed> findByUserIdOrderByCreatedAtDesc(Long userId);
 
-    List<Feed> findByReportStatusNotOrderByIdDesc(ReportStatus reportStatus, Pageable pageable);
+    List<Feed> findByReportStatusNotOrderByCreatedAtDescIdDesc(ReportStatus reportStatus, Pageable pageable);
 
-    List<Feed> findByIdLessThanAndReportStatusNotOrderByIdDesc(Long id, ReportStatus reportStatus, Pageable pageable);
+    List<Feed> findByIdLessThanAndReportStatusNotOrderByCreatedAtDescIdDesc(Long id, ReportStatus reportStatus, Pageable pageable);
 
-    List<Feed> findByFeedStatusAndReportStatusNotOrderByIdDesc(FeedStatus feedStatus, ReportStatus reportStatus, Pageable pageable);
+    List<Feed> findByFeedStatusAndReportStatusNotOrderByCreatedAtDescIdDesc(FeedStatus feedStatus, ReportStatus reportStatus, Pageable pageable);
 
-    List<Feed> findByIdLessThanAndFeedStatusAndReportStatusNotOrderByIdDesc(Long id, FeedStatus feedStatus, ReportStatus reportStatus, Pageable pageable);
+    List<Feed> findByIdLessThanAndFeedStatusAndReportStatusNotOrderByCreatedAtDescIdDesc(Long id, FeedStatus feedStatus, ReportStatus reportStatus, Pageable pageable);
 
-    List<Feed> findByUserIdOrderByIdDesc(Long userId, Pageable pageable);
+    List<Feed> findByUserIdOrderByCreatedAtDescIdDesc(Long userId, Pageable pageable);
 
-    List<Feed> findByUserIdAndIdLessThanOrderByIdDesc(Long userId, Long id, Pageable pageable);
+    List<Feed> findByUserIdAndIdLessThanOrderByCreatedAtDescIdDesc(Long userId, Long id, Pageable pageable);
 
-    List<Feed> findByUserIdAndFeedStatusOrderByIdDesc(Long userId, FeedStatus feedStatus, Pageable pageable);
+    List<Feed> findByUserIdAndFeedStatusOrderByCreatedAtDescIdDesc(Long userId, FeedStatus feedStatus, Pageable pageable);
 
-    List<Feed> findByUserIdAndIdLessThanAndFeedStatusOrderByIdDesc(Long userId, Long id, FeedStatus feedStatus, Pageable pageable);
+    List<Feed> findByUserIdAndIdLessThanAndFeedStatusOrderByCreatedAtDescIdDesc(Long userId, Long id, FeedStatus feedStatus, Pageable pageable);
 
     @Modifying
     @Query("UPDATE Feed f SET f.feedStatus = 'CLOSED', f.updatedAt = :now WHERE f.feedStatus = 'OPEN' AND f.createdAt < :cutoff")
