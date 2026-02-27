@@ -274,7 +274,7 @@ class FeedServiceTest {
 
         // then
         assertThat(result).hasSize(3); // size+1 = 3건 조회
-        assertThat(result.get(0).getId()).isGreaterThan(result.get(1).getId()); // ID 내림차순
+        assertThat(result.get(0).getId()).isGreaterThan(result.get(1).getId()); // 최신순(createdAt DESC, id DESC)
     }
 
     @Test
@@ -430,7 +430,7 @@ class FeedServiceTest {
 
         // then
         assertThat(result).hasSize(3); // size+1 = 3건 조회
-        assertThat(result.get(0).getId()).isGreaterThan(result.get(1).getId()); // ID 내림차순
+        assertThat(result.get(0).getId()).isGreaterThan(result.get(1).getId()); // 최신순(createdAt DESC, id DESC)
     }
 
     @Test
