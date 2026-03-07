@@ -1,5 +1,7 @@
 package com.nexters.sseotdabwa.api.users.controller;
 
+import java.util.List;
+
 import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
 import com.nexters.sseotdabwa.api.users.dto.FcmTokenRequest;
 import com.nexters.sseotdabwa.api.users.dto.UserResponse;
@@ -8,6 +10,7 @@ import com.nexters.sseotdabwa.common.response.ApiResponse;
 import com.nexters.sseotdabwa.common.response.CursorPageResponse;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus;
 import com.nexters.sseotdabwa.domain.users.entity.User;
+import com.nexters.sseotdabwa.api.users.dto.BlockedUserResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -87,5 +90,48 @@ public interface UserControllerSpec {
     ApiResponse<Void> updateFcmToken(
             @Parameter(hidden = true) User user,
             @RequestBody FcmTokenRequest request
+    );
+
+    @Operation(
+            summary = "사용자 차단",
+            description = "특정 사용자를 차단합니다.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "차단 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "자기 자신 차단 불가"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "대상 사용자 없음"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 차단됨"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
+    })
+    ApiResponse<Void> blockUser(
+            @Parameter(hidden = true) User user,
+            @Parameter(description = "차단할 사용자 ID") Long userId
+    );
+
+    @Operation(
+            summary = "차단 사용자 목록 조회",
+            description = "현재 로그인한 사용자가 차단한 사용자 목록을 조회합니다.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
+    })
+    ApiResponse<List<BlockedUserResponse>> getBlockedUsers(@Parameter(hidden = true) User user);
+
+    @Operation(
+            summary = "사용자 차단 해제",
+            description = "특정 사용자 차단을 해제합니다.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "차단 해제 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "차단 관계 없음"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
+    })
+    ApiResponse<Void> unblockUser(
+            @Parameter(hidden = true) User user,
+            @Parameter(description = "차단 해제할 사용자 ID") Long userId
     );
 }

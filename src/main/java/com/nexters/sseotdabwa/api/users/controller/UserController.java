@@ -1,6 +1,7 @@
 package com.nexters.sseotdabwa.api.users.controller;
 
 import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
+import com.nexters.sseotdabwa.api.users.dto.BlockedUserResponse;
 import com.nexters.sseotdabwa.api.users.dto.FcmTokenRequest;
 import com.nexters.sseotdabwa.api.users.dto.UserResponse;
 import com.nexters.sseotdabwa.api.users.dto.UserWithdrawResponse;
@@ -18,10 +19,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -63,6 +68,32 @@ public class UserController implements UserControllerSpec {
             @Valid @RequestBody FcmTokenRequest request
     ) {
         userFacade.updateFcmToken(user, request);
+        return ApiResponse.success(HttpStatus.OK);
+    }
+
+    @PostMapping("/blocks/{targetUserId}")
+    public ApiResponse<Void> blockUser(
+            @CurrentUser User user,
+            @PathVariable Long targetUserId
+    ) {
+        userFacade.blockUser(user, targetUserId);
+        return ApiResponse.success(HttpStatus.OK);
+    }
+
+    @GetMapping("/blocks")
+    public ApiResponse<List<BlockedUserResponse>> getBlockedUsers(
+            @CurrentUser User user
+    ) {
+        List<BlockedUserResponse> response = userFacade.getBlockedUsers(user);
+        return ApiResponse.success(response, HttpStatus.OK);
+    }
+
+    @DeleteMapping("/blocks/{targetUserId}")
+    public ApiResponse<Void> unblockUser(
+            @CurrentUser User user,
+            @PathVariable Long targetUserId
+    ) {
+        userFacade.unblockUser(user, targetUserId);
         return ApiResponse.success(HttpStatus.OK);
     }
 }
