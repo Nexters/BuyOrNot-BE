@@ -3,6 +3,7 @@ package com.nexters.sseotdabwa.domain.users.repository;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.nexters.sseotdabwa.domain.users.entity.UserBlock;
@@ -16,6 +17,7 @@ public interface UserBlockRepository extends JpaRepository<UserBlock, Long> {
 
     Optional<UserBlock> findByUserIdAndBlockedUserId(Long userId, Long blockedUserId);
 
+    @EntityGraph(attributePaths = "blockedUser")
     List<UserBlock> findAllByUserIdOrderByCreatedAtDesc(Long userId);
 
     void deleteAllByUserId(Long userId);
