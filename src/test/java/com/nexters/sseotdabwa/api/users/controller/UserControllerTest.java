@@ -7,6 +7,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.nexters.sseotdabwa.api.users.dto.FcmTokenRequest;
 
+import com.nexters.sseotdabwa.domain.users.entity.UserBlock;
+import com.nexters.sseotdabwa.domain.users.repository.UserBlockRepository;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,6 +59,9 @@ class UserControllerTest {
     private UserRepository userRepository;
 
     @Autowired
+    private UserBlockRepository userBlockRepository;
+
+    @Autowired
     private FeedRepository feedRepository;
 
     @Autowired
@@ -102,6 +108,9 @@ class UserControllerTest {
         Feed otherFeed = createFeed(otherUser);
         voteLogRepository.save(VoteLog.builder().user(user).feed(otherFeed).choice(VoteChoice.NO).voteType(VoteType.USER).build());
 
+        userBlockRepository.save(UserBlock.builder().user(user).blockedUser(otherUser).build());
+        userBlockRepository.save(UserBlock.builder().user(otherUser).blockedUser(user).build());
+
         String accessToken = jwtTokenService.createAccessToken(user.getId());
 
         // when
@@ -115,6 +124,7 @@ class UserControllerTest {
         assertThat(feedImageRepository.count()).isZero();
         assertThat(feedReviewRepository.count()).isZero();
         assertThat(voteLogRepository.count()).isZero();
+        assertThat(userBlockRepository.count()).isZero();
     }
 
     @Test
@@ -125,6 +135,7 @@ class UserControllerTest {
         User otherUser = createUser();
         Feed otherFeed = createFeed(otherUser);
         feedImageRepository.save(FeedImage.builder().feed(otherFeed).s3ObjectKey("other-key").build());
+        userBlockRepository.save(UserBlock.builder().user(otherUser).blockedUser(createUser()).build());
 
         String accessToken = jwtTokenService.createAccessToken(user.getId());
 
@@ -137,6 +148,7 @@ class UserControllerTest {
         assertThat(userRepository.findById(otherUser.getId())).isPresent();
         assertThat(feedRepository.findByUserId(otherUser.getId())).hasSize(1);
         assertThat(feedImageRepository.count()).isEqualTo(1);
+        assertThat(userBlockRepository.count()).isEqualTo(1);
     }
 
     @Test
