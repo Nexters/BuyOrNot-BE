@@ -142,8 +142,8 @@ public class UserFacade {
      * 사용자 차단
      */
     @Transactional
-    public void blockUser(User user, Long targetUserId) {
-        User targetUser = userService.findById(targetUserId);
+    public void blockUser(User user, Long userId) {
+        User targetUser = userService.findById(userId);
         userBlockService.blockUser(user, targetUser);
     }
 
@@ -162,7 +162,7 @@ public class UserFacade {
      * 차단 해제
      */
     @Transactional
-    public void unblockUser(User user, Long targetUserId) {
-        userBlockService.unblock(user, targetUserId);
+    public void unblockUser(User user, Long userId) {
+        userBlockService.unblock(user, userId);
     }
 }

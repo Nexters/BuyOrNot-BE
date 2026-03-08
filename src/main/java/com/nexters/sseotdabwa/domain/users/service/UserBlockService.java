@@ -60,8 +60,8 @@ public class UserBlockService {
      * 사용자 차단 해제
      */
     @Transactional
-    public void unblock(User user, Long targetUserId) {
-        UserBlock relation = userBlockRepository.findByUserIdAndBlockedUserId(user.getId(), targetUserId)
+    public void unblock(User user, Long userId) {
+        UserBlock relation = userBlockRepository.findByUserIdAndBlockedUserId(user.getId(), userId)
                 .orElseThrow(() -> new GlobalException(UserErrorCode.BLOCK_USER_NOT_FOUND));
 
         userBlockRepository.delete(relation);

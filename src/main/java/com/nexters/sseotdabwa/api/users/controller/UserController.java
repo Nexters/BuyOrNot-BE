@@ -71,12 +71,12 @@ public class UserController implements UserControllerSpec {
         return ApiResponse.success(HttpStatus.OK);
     }
 
-    @PostMapping("/blocks/{targetUserId}")
+    @PostMapping("/blocks/{userId}")
     public ApiResponse<Void> blockUser(
             @CurrentUser User user,
-            @PathVariable Long targetUserId
+            @PathVariable Long userId
     ) {
-        userFacade.blockUser(user, targetUserId);
+        userFacade.blockUser(user, userId);
         return ApiResponse.success(HttpStatus.OK);
     }
 
@@ -88,12 +88,12 @@ public class UserController implements UserControllerSpec {
         return ApiResponse.success(response, HttpStatus.OK);
     }
 
-    @DeleteMapping("/blocks/{targetUserId}")
+    @DeleteMapping("/blocks/{userId}")
     public ApiResponse<Void> unblockUser(
             @CurrentUser User user,
-            @PathVariable Long targetUserId
+            @PathVariable Long userId
     ) {
-        userFacade.unblockUser(user, targetUserId);
+        userFacade.unblockUser(user, userId);
         return ApiResponse.success(HttpStatus.OK);
     }
 }
