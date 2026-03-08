@@ -17,4 +17,8 @@ public interface UserBlockRepository extends JpaRepository<UserBlock, Long> {
     Optional<UserBlock> findByUserIdAndBlockedUserId(Long userId, Long blockedUserId);
 
     List<UserBlock> findAllByUserIdOrderByCreatedAtDesc(Long userId);
+
+    void deleteAllByUserId(Long userId);
+
+    void deleteAllByBlockedUserId(Long userId);
 }

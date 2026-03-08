@@ -80,6 +80,7 @@ public class UserFacade {
         voteLogService.deleteByUserId(user.getId());
         feedService.deleteByUserId(user.getId());
         refreshTokenService.deleteByUserId(user.getId());
+        userBlockService.deleteAllBlocksOfUser(user.getId());
         userService.delete(user);
 
         return response;

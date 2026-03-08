@@ -66,4 +66,13 @@ public class UserBlockService {
 
         userBlockRepository.delete(relation);
     }
+
+    /**
+     * 사용자 탈퇴 시 차단 관계 정리
+     */
+    @Transactional
+    public void deleteAllBlocksOfUser(Long userId) {
+        userBlockRepository.deleteAllByUserId(userId);
+        userBlockRepository.deleteAllByBlockedUserId(userId);
+    }
 }
