@@ -1,2 +1,2 @@
-![Coverage](https://img.shields.io/badge/coverage-79.2%25-yellow)
+![Coverage](https://img.shields.io/badge/coverage-80.0%25-brightgreen)
 # Sseotdabwa-BE
