@@ -361,7 +361,7 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("사용자 차단 성공 - 200 OK")
+    @DisplayName("사용자 차단 성공 - 201 CREATED")
     void blockUser_success() throws Exception {
         // given
         User user = createUser();
@@ -372,8 +372,8 @@ class UserControllerTest {
         // when & then
         mockMvc.perform(post("/api/v1/users/blocks/{userId}", target.getId())
                         .header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("200"));
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("201"));
     }
 
     @Test
@@ -401,7 +401,7 @@ class UserControllerTest {
         // 먼저 차단
         mockMvc.perform(post("/api/v1/users/blocks/{userId}", target.getId())
                         .header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
 
         // when & then
         mockMvc.perform(get("/api/v1/users/blocks")
@@ -423,7 +423,7 @@ class UserControllerTest {
         // 차단
         mockMvc.perform(post("/api/v1/users/blocks/{userId}", target.getId())
                         .header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
 
         // when
         mockMvc.perform(delete("/api/v1/users/blocks/{userId}", target.getId())
