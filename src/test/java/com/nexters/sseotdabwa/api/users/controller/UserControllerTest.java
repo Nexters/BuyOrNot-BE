@@ -7,6 +7,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.nexters.sseotdabwa.api.users.dto.FcmTokenRequest;
 
+import com.nexters.sseotdabwa.domain.users.entity.UserBlock;
+import com.nexters.sseotdabwa.domain.users.repository.UserBlockRepository;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +37,7 @@ import com.nexters.sseotdabwa.domain.votes.enums.VoteType;
 import com.nexters.sseotdabwa.domain.votes.repository.VoteLogRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -53,6 +57,9 @@ class UserControllerTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private UserBlockRepository userBlockRepository;
 
     @Autowired
     private FeedRepository feedRepository;
@@ -101,6 +108,9 @@ class UserControllerTest {
         Feed otherFeed = createFeed(otherUser);
         voteLogRepository.save(VoteLog.builder().user(user).feed(otherFeed).choice(VoteChoice.NO).voteType(VoteType.USER).build());
 
+        userBlockRepository.save(UserBlock.builder().user(user).blockedUser(otherUser).build());
+        userBlockRepository.save(UserBlock.builder().user(otherUser).blockedUser(user).build());
+
         String accessToken = jwtTokenService.createAccessToken(user.getId());
 
         // when
@@ -114,6 +124,7 @@ class UserControllerTest {
         assertThat(feedImageRepository.count()).isZero();
         assertThat(feedReviewRepository.count()).isZero();
         assertThat(voteLogRepository.count()).isZero();
+        assertThat(userBlockRepository.count()).isZero();
     }
 
     @Test
@@ -124,6 +135,7 @@ class UserControllerTest {
         User otherUser = createUser();
         Feed otherFeed = createFeed(otherUser);
         feedImageRepository.save(FeedImage.builder().feed(otherFeed).s3ObjectKey("other-key").build());
+        userBlockRepository.save(UserBlock.builder().user(otherUser).blockedUser(createUser()).build());
 
         String accessToken = jwtTokenService.createAccessToken(user.getId());
 
@@ -136,6 +148,7 @@ class UserControllerTest {
         assertThat(userRepository.findById(otherUser.getId())).isPresent();
         assertThat(feedRepository.findByUserId(otherUser.getId())).hasSize(1);
         assertThat(feedImageRepository.count()).isEqualTo(1);
+        assertThat(userBlockRepository.count()).isEqualTo(1);
     }
 
     @Test
@@ -347,4 +360,100 @@ class UserControllerTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    @DisplayName("사용자 차단 성공 - 201 CREATED")
+    void blockUser_success() throws Exception {
+        // given
+        User user = createUser();
+        User target = createUser();
+
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+
+        // when & then
+        mockMvc.perform(post("/api/v1/users/blocks/{userId}", target.getId())
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("201"));
+    }
+
+    @Test
+    @DisplayName("사용자 차단 실패 - 자기 자신 차단 400")
+    void blockUser_selfBlock_returns400() throws Exception {
+        // given
+        User user = createUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+
+        // when & then
+        mockMvc.perform(post("/api/v1/users/blocks/{userId}", user.getId())
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("차단 사용자 목록 조회 성공")
+    void getBlockedUsers_success() throws Exception {
+        // given
+        User user = createUser();
+        User target = createUser();
+
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+
+        // 먼저 차단
+        mockMvc.perform(post("/api/v1/users/blocks/{userId}", target.getId())
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isCreated());
+
+        // when & then
+        mockMvc.perform(get("/api/v1/users/blocks")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data[0].userId").value(target.getId()));
+    }
+
+    @Test
+    @DisplayName("사용자 차단 해제 성공")
+    void unblockUser_success() throws Exception {
+        // given
+        User user = createUser();
+        User target = createUser();
+
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+
+        // 차단
+        mockMvc.perform(post("/api/v1/users/blocks/{userId}", target.getId())
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isCreated());
+
+        // when
+        mockMvc.perform(delete("/api/v1/users/blocks/{userId}", target.getId())
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("200"));
+    }
+
+    @Test
+    @DisplayName("차단 해제 실패 - 차단 관계 없음 404")
+    void unblockUser_notFound_returns404() throws Exception {
+        // given
+        User user = createUser();
+        User target = createUser();
+
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/users/blocks/{userId}", target.getId())
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("차단 API 실패 - 인증 없음 401")
+    void blockUser_unauthorized_returns401() throws Exception {
+
+        User target = createUser();
+
+        mockMvc.perform(post("/api/v1/users/blocks/{userId}", target.getId()))
+                .andExpect(status().isUnauthorized());
+    }
 }
