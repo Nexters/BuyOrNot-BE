@@ -113,6 +113,23 @@ public class FeedService {
         return feedRepository.findByIdLessThanAndReportStatusNotOrderByCreatedAtDescIdDesc(cursor, ReportStatus.DELETED, pageable);
     }
 
+    public List<Feed> findAllExceptDeletedWithCursor(Long cursor, int size, FeedStatus feedStatus, List<Long> excludedUserIds) {
+        if (excludedUserIds == null || excludedUserIds.isEmpty()) {
+            return findAllExceptDeletedWithCursor(cursor, size, feedStatus);
+        }
+        Pageable pageable = PageRequest.ofSize(size + 1);
+        if (feedStatus != null) {
+            if (cursor == null) {
+                return feedRepository.findByFeedStatusAndReportStatusNotAndUserIdNotInOrderByCreatedAtDescIdDesc(feedStatus, excludedUserIds, pageable);
+            }
+            return feedRepository.findByIdLessThanAndFeedStatusAndReportStatusNotAndUserIdNotInOrderByCreatedAtDescIdDesc(cursor, feedStatus, excludedUserIds, pageable);
+        }
+        if (cursor == null) {
+            return feedRepository.findByReportStatusNotAndUserIdNotInOrderByCreatedAtDescIdDesc(excludedUserIds, pageable);
+        }
+        return feedRepository.findByIdLessThanAndReportStatusNotAndUserIdNotInOrderByCreatedAtDescIdDesc(cursor, excludedUserIds, pageable);
+    }
+
     public List<Feed> findByUserIdOrderByCreatedAtDesc(Long userId) {
         return feedRepository.findByUserIdOrderByCreatedAtDesc(userId);
     }
