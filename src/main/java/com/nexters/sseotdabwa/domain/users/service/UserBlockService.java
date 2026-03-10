@@ -68,6 +68,13 @@ public class UserBlockService {
     }
 
     /**
+     * 차단한 사용자 ID 목록 조회 (피드 필터링용)
+     */
+    public List<Long> findBlockedUserIds(Long userId) {
+        return userBlockRepository.findBlockedUserIdsByUserId(userId);
+    }
+
+    /**
      * 사용자 탈퇴 시 차단 관계 정리
      */
     @Transactional
