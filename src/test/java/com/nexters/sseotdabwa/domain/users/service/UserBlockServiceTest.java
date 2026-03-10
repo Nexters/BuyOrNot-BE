@@ -1,5 +1,6 @@
 package com.nexters.sseotdabwa.domain.users.service;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -117,6 +118,21 @@ class UserBlockServiceTest {
         userBlockService.unblock(user, 2L);
 
         verify(userBlockRepository).delete(block);
+    }
+
+    @Test
+    @DisplayName("차단한 사용자 ID 목록 조회 - repository 위임 확인")
+    void findBlockedUserIds_delegatesToRepository() {
+        User user = createUser(1L);
+        List<Long> expectedIds = List.of(2L, 3L);
+
+        when(userBlockRepository.findBlockedUserIdsByUserId(1L))
+                .thenReturn(expectedIds);
+
+        List<Long> result = userBlockService.findBlockedUserIds(user.getId());
+
+        assertThat(result).isEqualTo(expectedIds);
+        verify(userBlockRepository).findBlockedUserIdsByUserId(1L);
     }
 
     @Test
