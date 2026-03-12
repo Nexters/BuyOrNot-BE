@@ -1,5 +1,6 @@
 package com.nexters.sseotdabwa.api.feeds.facade;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -21,6 +22,7 @@ import com.nexters.sseotdabwa.domain.feeds.service.command.FeedCreateCommand;
 import com.nexters.sseotdabwa.domain.notifications.service.NotificationService;
 import com.nexters.sseotdabwa.domain.storage.service.S3StorageService;
 import com.nexters.sseotdabwa.domain.users.entity.User;
+import com.nexters.sseotdabwa.domain.users.service.UserBlockService;
 import com.nexters.sseotdabwa.domain.votes.entity.VoteLog;
 import com.nexters.sseotdabwa.domain.votes.enums.VoteChoice;
 import com.nexters.sseotdabwa.domain.votes.service.VoteLogService;
@@ -48,6 +50,7 @@ public class FeedFacade {
     private final VoteLogService voteLogService;
     private final S3StorageService s3StorageService;
     private final NotificationService notificationService;
+    private final UserBlockService userBlockService;
     private final AwsProperties awsProperties;
 
     /**
@@ -104,7 +107,11 @@ public class FeedFacade {
     public CursorPageResponse<FeedResponse> getFeedList(User user, Long cursor, Integer size, FeedStatus feedStatus) {
         int pageSize = (size == null) ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
 
-        List<Feed> feeds = feedService.findAllExceptDeletedWithCursor(cursor, pageSize, feedStatus);
+        List<Long> excludedUserIds = (user != null)
+                ? userBlockService.findBlockedUserIds(user.getId())
+                : Collections.emptyList();
+
+        List<Feed> feeds = feedService.findAllExceptDeletedWithCursor(cursor, pageSize, feedStatus, excludedUserIds);
 
         boolean hasNext = feeds.size() > pageSize;
         List<Feed> slicedFeeds = hasNext ? feeds.subList(0, pageSize) : feeds;

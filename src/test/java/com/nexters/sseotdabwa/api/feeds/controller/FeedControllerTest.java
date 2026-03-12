@@ -26,7 +26,9 @@ import com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedImageRepository;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
 import com.nexters.sseotdabwa.domain.users.entity.User;
+import com.nexters.sseotdabwa.domain.users.entity.UserBlock;
 import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
+import com.nexters.sseotdabwa.domain.users.repository.UserBlockRepository;
 import com.nexters.sseotdabwa.domain.users.repository.UserRepository;
 import com.nexters.sseotdabwa.domain.votes.entity.VoteLog;
 import com.nexters.sseotdabwa.domain.votes.enums.VoteChoice;
@@ -58,6 +60,9 @@ class FeedControllerTest {
 
     @Autowired
     private VoteLogRepository voteLogRepository;
+
+    @Autowired
+    private UserBlockRepository userBlockRepository;
 
     // ===== 피드 등록 =====
 
@@ -611,6 +616,69 @@ class FeedControllerTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content.length()").value(2));
+    }
+
+    // ===== 차단 사용자 피드 필터링 =====
+
+    @Test
+    @DisplayName("로그인 사용자 피드 리스트 조회 - 차단한 사용자의 피드 미표시")
+    void getFeedList_blockedUserFeedNotShown() throws Exception {
+        // given
+        User viewer = createUser();
+        User blocked = createUser();
+        String viewerToken = jwtTokenService.createAccessToken(viewer.getId());
+
+        createFeedWithImage(viewer);
+        Feed blockedFeed = createFeedWithImage(blocked);
+        userBlockRepository.save(UserBlock.builder().user(viewer).blockedUser(blocked).build());
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds")
+                        .header("Authorization", "Bearer " + viewerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[*].feedId",
+                        org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem(blockedFeed.getId().intValue()))));
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자 피드 리스트 조회 - 전체 피드 표시")
+    void getFeedList_guestSeesAllFeeds() throws Exception {
+        // given
+        User user1 = createUser();
+        User user2 = createUser();
+        Feed feed1 = createFeedWithImage(user1);
+        Feed feed2 = createFeedWithImage(user2);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[*].feedId",
+                        org.hamcrest.Matchers.hasItems(feed1.getId().intValue(), feed2.getId().intValue())));
+    }
+
+    @Test
+    @DisplayName("차단 사용자 피드 제외 후 페이지네이션 정확성 확인")
+    void getFeedList_blockFilterWithPagination() throws Exception {
+        // given
+        User viewer = createUser();
+        User blocked = createUser();
+        String viewerToken = jwtTokenService.createAccessToken(viewer.getId());
+
+        Feed myFeed1 = createFeedWithImage(viewer);
+        Feed blockedFeed = createFeedWithImage(blocked);
+        Feed myFeed2 = createFeedWithImage(viewer);
+
+        userBlockRepository.save(UserBlock.builder().user(viewer).blockedUser(blocked).build());
+
+        // when & then - size=2, 차단 피드 제외 후 내 피드 2개만 반환
+        mockMvc.perform(get("/api/v1/feeds")
+                        .param("size", "2")
+                        .header("Authorization", "Bearer " + viewerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.hasNext").value(false))
+                .andExpect(jsonPath("$.data.content[*].feedId",
+                        org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem(blockedFeed.getId().intValue()))));
     }
 
     // ===== Helper Methods =====

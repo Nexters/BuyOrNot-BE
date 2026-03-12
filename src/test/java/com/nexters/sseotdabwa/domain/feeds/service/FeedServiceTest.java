@@ -554,6 +554,107 @@ class FeedServiceTest {
         });
     }
 
+    // ===== findAllExceptDeletedWithCursor (excludedUserIds) =====
+
+    @Test
+    @DisplayName("차단 필터 - 차단 사용자의 피드 제외")
+    void findAllExceptDeletedWithCursor_excludesBlockedUserFeeds() {
+        // given
+        User user = createUser();
+        User blockedUser = createUser();
+        Feed myFeed = createFeed(user);
+        Feed blockedFeed = createFeed(blockedUser);
+
+        // when
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, null, List.of(blockedUser.getId()));
+
+        // then
+        assertThat(result).extracting(Feed::getId)
+                .contains(myFeed.getId())
+                .doesNotContain(blockedFeed.getId());
+    }
+
+    @Test
+    @DisplayName("차단 필터 - excludedUserIds가 빈 리스트이면 전체 피드 반환")
+    void findAllExceptDeletedWithCursor_emptyExcluded_returnsAll() {
+        // given
+        User user = createUser();
+        User other = createUser();
+        Feed feed1 = createFeed(user);
+        Feed feed2 = createFeed(other);
+
+        // when
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, null, List.of());
+
+        // then
+        assertThat(result).extracting(Feed::getId)
+                .containsExactlyInAnyOrder(feed1.getId(), feed2.getId());
+    }
+
+    @Test
+    @DisplayName("차단 필터 - 커서 + 차단 필터 동시 동작")
+    void findAllExceptDeletedWithCursor_cursorAndExcluded() {
+        // given
+        User user = createUser();
+        User blockedUser = createUser();
+        Feed feed1 = createFeed(user);
+        Feed feed2 = createFeed(user);
+        Feed blockedFeed = createFeed(blockedUser);
+        // feed3(blockedFeed) > feed2 > feed1 순서라 가정
+        Feed feed3 = createFeed(user);
+
+        // when - feed3을 커서로, blockedUser 차단
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(feed3.getId(), 10, null, List.of(blockedUser.getId()));
+
+        // then
+        assertThat(result).extracting(Feed::getId)
+                .doesNotContain(blockedFeed.getId())
+                .doesNotContain(feed3.getId());
+        assertThat(result).allSatisfy(f -> assertThat(f.getId()).isLessThan(feed3.getId()));
+    }
+
+    @Test
+    @DisplayName("차단 필터 - feedStatus + 차단 필터 동시 동작")
+    void findAllExceptDeletedWithCursor_feedStatusAndExcluded() {
+        // given
+        User user = createUser();
+        User blockedUser = createUser();
+        Feed openFeed = createFeed(user);
+        Feed blockedOpenFeed = createFeed(blockedUser);
+
+        // when
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, FeedStatus.OPEN, List.of(blockedUser.getId()));
+
+        // then
+        assertThat(result).extracting(Feed::getId)
+                .contains(openFeed.getId())
+                .doesNotContain(blockedOpenFeed.getId());
+    }
+
+    @Test
+    @DisplayName("차단 필터 - 커서 + feedStatus + 차단 필터 동시 동작")
+    void findAllExceptDeletedWithCursor_cursorAndFeedStatusAndExcluded() {
+        // given
+        User user = createUser();
+        User blockedUser = createUser();
+        Feed open1 = createFeed(user);
+        Feed open2 = createFeed(user);
+        Feed blockedOpen = createFeed(blockedUser);
+        Feed open3 = createFeed(user);
+
+        // when - open3을 커서로, OPEN 필터, blockedUser 차단
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(open3.getId(), 10, FeedStatus.OPEN, List.of(blockedUser.getId()));
+
+        // then
+        assertThat(result).extracting(Feed::getId)
+                .doesNotContain(blockedOpen.getId())
+                .doesNotContain(open3.getId());
+        assertThat(result).allSatisfy(f -> {
+            assertThat(f.getId()).isLessThan(open3.getId());
+            assertThat(f.getFeedStatus()).isEqualTo(FeedStatus.OPEN);
+        });
+    }
+
     private Feed createFeed(User user) {
         return feedRepository.save(Feed.builder()
                 .user(user)
