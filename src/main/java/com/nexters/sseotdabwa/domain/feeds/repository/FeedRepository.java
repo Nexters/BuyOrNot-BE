@@ -47,6 +47,56 @@ public interface FeedRepository extends JpaRepository<Feed, Long> {
 
     List<Feed> findByUserIdAndIdLessThanAndFeedStatusOrderByCreatedAtDescIdDesc(Long userId, Long id, FeedStatus feedStatus, Pageable pageable);
 
+    // ===== NOT IN 차단 필터 조합 (Case A~D) =====
+
+    // Case A: 커서 없음, feedStatus 없음
+    @Query("""
+        SELECT f FROM Feed f
+        WHERE f.reportStatus <> com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.DELETED
+          AND f.user.id NOT IN :excludedUserIds
+        ORDER BY f.createdAt DESC, f.id DESC
+    """)
+    List<Feed> findByReportStatusNotAndUserIdNotInOrderByCreatedAtDescIdDesc(
+            @Param("excludedUserIds") List<Long> excludedUserIds, Pageable pageable);
+
+    // Case B: 커서 있음, feedStatus 없음
+    @Query("""
+        SELECT f FROM Feed f
+        WHERE f.id < :cursor
+          AND f.reportStatus <> com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.DELETED
+          AND f.user.id NOT IN :excludedUserIds
+        ORDER BY f.createdAt DESC, f.id DESC
+    """)
+    List<Feed> findByIdLessThanAndReportStatusNotAndUserIdNotInOrderByCreatedAtDescIdDesc(
+            @Param("cursor") Long cursor,
+            @Param("excludedUserIds") List<Long> excludedUserIds, Pageable pageable);
+
+    // Case C: 커서 없음, feedStatus 있음
+    @Query("""
+        SELECT f FROM Feed f
+        WHERE f.feedStatus = :feedStatus
+          AND f.reportStatus <> com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.DELETED
+          AND f.user.id NOT IN :excludedUserIds
+        ORDER BY f.createdAt DESC, f.id DESC
+    """)
+    List<Feed> findByFeedStatusAndReportStatusNotAndUserIdNotInOrderByCreatedAtDescIdDesc(
+            @Param("feedStatus") FeedStatus feedStatus,
+            @Param("excludedUserIds") List<Long> excludedUserIds, Pageable pageable);
+
+    // Case D: 커서 있음, feedStatus 있음
+    @Query("""
+        SELECT f FROM Feed f
+        WHERE f.id < :cursor
+          AND f.feedStatus = :feedStatus
+          AND f.reportStatus <> com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.DELETED
+          AND f.user.id NOT IN :excludedUserIds
+        ORDER BY f.createdAt DESC, f.id DESC
+    """)
+    List<Feed> findByIdLessThanAndFeedStatusAndReportStatusNotAndUserIdNotInOrderByCreatedAtDescIdDesc(
+            @Param("cursor") Long cursor,
+            @Param("feedStatus") FeedStatus feedStatus,
+            @Param("excludedUserIds") List<Long> excludedUserIds, Pageable pageable);
+
     @Modifying
     @Query("UPDATE Feed f SET f.feedStatus = 'CLOSED', f.updatedAt = :now WHERE f.feedStatus = 'OPEN' AND f.createdAt < :cutoff")
     int closeExpiredFeeds(@Param("cutoff") LocalDateTime cutoff, @Param("now") LocalDateTime now);

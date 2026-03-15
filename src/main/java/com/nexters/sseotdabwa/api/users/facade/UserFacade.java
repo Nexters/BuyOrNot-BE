@@ -4,7 +4,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.nexters.sseotdabwa.api.users.dto.BlockedUserResponse;
 import com.nexters.sseotdabwa.api.users.dto.FcmTokenRequest;
+
+import com.nexters.sseotdabwa.domain.users.service.UserBlockService;
 
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +47,7 @@ public class UserFacade {
     private final VoteLogService voteLogService;
     private final RefreshTokenService refreshTokenService;
     private final UserService userService;
+    private final UserBlockService userBlockService;
     private final AwsProperties awsProperties;
 
     /**
@@ -76,6 +80,7 @@ public class UserFacade {
         voteLogService.deleteByUserId(user.getId());
         feedService.deleteByUserId(user.getId());
         refreshTokenService.deleteByUserId(user.getId());
+        userBlockService.deleteAllBlocksOfUser(user.getId());
         userService.delete(user);
 
         return response;
@@ -132,5 +137,33 @@ public class UserFacade {
     @Transactional
     public void updateFcmToken(User user, FcmTokenRequest request) {
         userService.updateFcmToken(user.getId(), request.fcmToken());
+    }
+
+    /**
+     * 사용자 차단
+     */
+    @Transactional
+    public void blockUser(User user, Long userId) {
+        User targetUser = userService.findById(userId);
+        userBlockService.blockUser(user, targetUser);
+    }
+
+    /**
+     * 차단한 사용자 목록 조회
+     */
+    @Transactional(readOnly = true)
+    public List<BlockedUserResponse> getBlockedUsers(User user) {
+        return userBlockService.findMyBlocks(user.getId())
+                .stream()
+                .map(BlockedUserResponse::from)
+                .toList();
+    }
+
+    /**
+     * 차단 해제
+     */
+    @Transactional
+    public void unblockUser(User user, Long userId) {
+        userBlockService.unblock(user, userId);
     }
 }
