@@ -40,11 +40,11 @@ public class FeedImageService {
     }
 
     public List<FeedImage> findByFeed(Feed feed) {
-        return feedImageRepository.findByFeed(feed);
+        return feedImageRepository.findByFeedOrderByIdAsc(feed);
     }
 
     public List<FeedImage> findByFeeds(List<Feed> feeds) {
-        return feedImageRepository.findByFeedIn(feeds);
+        return feedImageRepository.findByFeedInOrderByIdAsc(feeds);
     }
 
     @Transactional
