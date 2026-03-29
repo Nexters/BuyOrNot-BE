@@ -99,8 +99,8 @@ public class UserFacade {
         List<Feed> slicedFeeds = hasNext ? feeds.subList(0, pageSize) : feeds;
 
         List<FeedImage> feedImages = feedImageService.findByFeeds(slicedFeeds);
-        Map<Long, FeedImage> imageMap = feedImages.stream()
-                .collect(Collectors.toMap(fi -> fi.getFeed().getId(), fi -> fi));
+        Map<Long, List<FeedImage>> imageMap = feedImages.stream()
+                .collect(Collectors.groupingBy(fi -> fi.getFeed().getId()));
 
         List<Long> feedIds = slicedFeeds.stream().map(Feed::getId).toList();
         Map<Long, VoteChoice> voteMap = voteLogService.findByUserIdAndFeedIds(user.getId(), feedIds)
@@ -109,10 +109,19 @@ public class UserFacade {
 
         List<FeedResponse> content = slicedFeeds.stream()
                 .map(feed -> {
-                    FeedImage img = imageMap.get(feed.getId());
+                    List<FeedImage> imgs = imageMap.getOrDefault(feed.getId(), List.of());
+
+                    List<String> viewUrls = buildViewUrls(imgs);
+
                     VoteChoice myChoice = voteMap.get(feed.getId());
                     boolean hasVoted = myChoice != null;
-                    return FeedResponse.of(feed, img, buildViewUrl(img), hasVoted, myChoice);
+                    return FeedResponse.of(
+                            feed,
+                            imgs,
+                            viewUrls,
+                            hasVoted,
+                            myChoice
+                    );
                 })
                 .toList();
 
@@ -120,15 +129,14 @@ public class UserFacade {
         return CursorPageResponse.of(content, nextCursor, hasNext);
     }
 
-    private String buildViewUrl(FeedImage feedImage) {
-        if (feedImage == null) {
-            return null;
-        }
-        String domain = awsProperties.cloudfront().domain();
-        if (domain.endsWith("/")) {
-            domain = domain.substring(0, domain.length() - 1);
-        }
-        return domain + "/" + feedImage.getS3ObjectKey();
+    private List<String> buildViewUrls(List<FeedImage> images) {
+        if (images == null || images.isEmpty()) return List.of();
+
+        final String domain = awsProperties.cloudfront().domain().replaceAll("/$", "");
+
+        return images.stream()
+                .map(img -> domain + "/" + img.getS3ObjectKey())
+                .toList();
     }
 
     /**
