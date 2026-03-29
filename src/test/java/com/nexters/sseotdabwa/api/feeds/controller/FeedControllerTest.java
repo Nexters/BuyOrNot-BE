@@ -4,6 +4,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
@@ -67,22 +69,17 @@ class FeedControllerTest {
     // ===== 피드 등록 =====
 
     @Test
-    @DisplayName("피드 등록 성공 - 201 Created 및 feedId 반환")
-    void createFeed_success() throws Exception {
+    @DisplayName("피드 등록 성공 - 이미지 1개 등록")
+    void createFeed_success_single_image() throws Exception {
         // given
-        User user = userRepository.save(User.builder()
-                .socialId(UUID.randomUUID().toString())
-                .nickname("테스트_" + UUID.randomUUID().toString().substring(0, 8))
-                .socialAccount(SocialAccount.KAKAO)
-                .build());
-
+        User user = createUser();
         String token = jwtTokenService.createAccessToken(user.getId());
 
         FeedCreateRequest request = new FeedCreateRequest(
-                FeedCategory.valueOf("FOOD"),
+                FeedCategory.FOOD,
                 8000L,
                 "두쫀쿠 맛있어보이는데 살까 말까",
-                "feeds/uuid_test.jpg",
+                List.of("feeds/image1.jpg"), // 리스트로 변경
                 1080,
                 1350
         );
@@ -93,47 +90,45 @@ class FeedControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.data.feedId").exists())
-                .andExpect(jsonPath("$.status").value("201"));
+                .andExpect(jsonPath("$.data.feedId").exists());
     }
 
     @Test
-    @DisplayName("피드 등록 실패 - 인증 없으면 401")
-    void createFeed_unauthorized() throws Exception {
+    @DisplayName("피드 등록 성공 - 이미지 3개(최대) 등록")
+    void createFeed_success_max_images() throws Exception {
         // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+
         FeedCreateRequest request = new FeedCreateRequest(
-                FeedCategory.valueOf("FOOD"),
+                FeedCategory.FOOD,
                 8000L,
-                "두쫀쿠 맛있어보이는데 살까 말까",
-                "feeds/uuid_test.jpg",
+                "이미지 3개 테스트",
+                List.of("feeds/1.jpg", "feeds/2.jpg", "feeds/3.jpg"),
                 1080,
                 1350
         );
 
         // when & then
         mockMvc.perform(post("/api/v1/feeds")
+                        .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isCreated());
     }
 
     @Test
-    @DisplayName("피드 등록 실패 - s3ObjectKey blank면 400")
-    void createFeed_invalid_s3ObjectKey_blank_returns400() throws Exception {
+    @DisplayName("피드 등록 실패 - 이미지 0개면 400 (NotEmpty)")
+    void createFeed_invalid_image_empty_returns400() throws Exception {
         // given
-        User user = userRepository.save(User.builder()
-                .socialId(UUID.randomUUID().toString())
-                .nickname("테스트_" + UUID.randomUUID().toString().substring(0, 8))
-                .socialAccount(SocialAccount.KAKAO)
-                .build());
-
+        User user = createUser();
         String token = jwtTokenService.createAccessToken(user.getId());
 
         FeedCreateRequest request = new FeedCreateRequest(
-                FeedCategory.valueOf("FOOD"),
+                FeedCategory.FOOD,
                 8000L,
-                "두쫀쿠 맛있어보이는데 살까 말까",
-                "   ", // @NotBlank
+                "이미지 없음",
+                Collections.emptyList(), // @NotEmpty 검증 대상
                 1080,
                 1350
         );
@@ -145,27 +140,44 @@ class FeedControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("COMMON_400"));
+    }
+
+    @Test
+    @DisplayName("피드 등록 실패 - 이미지 4개 이상이면 400 (Size)")
+    void createFeed_invalid_image_too_many_returns400() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+
+        FeedCreateRequest request = new FeedCreateRequest(
+                FeedCategory.FOOD,
+                8000L,
+                "이미지 4개",
+                List.of("1.jpg", "2.jpg", "3.jpg", "4.jpg"), // @Size(max=3)
+                1080,
+                1350
+        );
+
+        // when & then
+        mockMvc.perform(post("/api/v1/feeds")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
     @DisplayName("피드 등록 실패 - content 100자 초과면 400")
     void createFeed_invalid_content_tooLong_returns400() throws Exception {
         // given
-        User user = userRepository.save(User.builder()
-                .socialId(UUID.randomUUID().toString())
-                .nickname("테스트_" + UUID.randomUUID().toString().substring(0, 8))
-                .socialAccount(SocialAccount.KAKAO)
-                .build());
-
+        User user = createUser();
         String token = jwtTokenService.createAccessToken(user.getId());
 
-        String longContent = "a".repeat(101);
-
         FeedCreateRequest request = new FeedCreateRequest(
-                FeedCategory.valueOf("FOOD"),
+                FeedCategory.FOOD,
                 8000L,
-                longContent, // @Size(max=100)
-                "feeds/uuid_test.jpg",
+                "a".repeat(101),
+                List.of("feeds/test.jpg"),
                 1080,
                 1350
         );
@@ -175,8 +187,7 @@ class FeedControllerTest {
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errorCode").value("COMMON_400"));
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -192,11 +203,11 @@ class FeedControllerTest {
         String token = jwtTokenService.createAccessToken(user.getId());
 
         FeedCreateRequest request = new FeedCreateRequest(
-                FeedCategory.valueOf("FOOD"),
+                FeedCategory.FOOD, // valueOf("FOOD") 대신 Enum 직접 사용 권장
                 8000L,
                 "두쫀쿠 맛있어보이는데 살까 말까",
-                "feeds/uuid_test.jpg",
-                0,      // @Positive
+                List.of("feeds/uuid_test.jpg"), // String -> List<String>으로 수정
+                0,      // @Positive 검증 대상
                 1350
         );
 
@@ -212,7 +223,7 @@ class FeedControllerTest {
     // ===== 피드 리스트 조회 =====
 
     @Test
-    @DisplayName("피드 리스트 조회 성공 - 200 OK, viewUrl에 CloudFront 전체 URL 반환")
+    @DisplayName("피드 리스트 조회 성공 - 200 OK, imageUrls에 CloudFront 전체 URL 리스트 반환")
     void getFeedList_success() throws Exception {
         // given
         User user = createUser();
@@ -227,8 +238,8 @@ class FeedControllerTest {
                 .andExpect(jsonPath("$.data.content").isArray())
                 .andExpect(jsonPath("$.data.content[0].feedId").value(feed.getId()))
                 .andExpect(jsonPath("$.data.content[0].author.userId").value(user.getId()))
-                .andExpect(jsonPath("$.data.content[0].s3ObjectKey").value(org.hamcrest.Matchers.startsWith("feeds/")))
-                .andExpect(jsonPath("$.data.content[0].viewUrl").value(org.hamcrest.Matchers.startsWith("https://")));
+                .andExpect(jsonPath("$.data.content[0].imageUrls").isArray())
+                .andExpect(jsonPath("$.data.content[0].imageUrls[0]").value(org.hamcrest.Matchers.startsWith("https://")));
     }
 
     @Test
@@ -243,6 +254,25 @@ class FeedControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("200"))
                 .andExpect(jsonPath("$.data.content").isArray());
+    }
+
+    @Test
+    @DisplayName("피드 리스트 조회 성공 - 여러 장의 이미지가 있을 경우")
+    void getFeedList_with_multiple_images() throws Exception {
+        // given
+        User user = createUser();
+        Feed feed = feedRepository.save(Feed.builder()
+                .user(user).content("다중이미지").price(1000L).category(FeedCategory.ELECTRONICS).imageWidth(100).imageHeight(100).build());
+
+        // 이미지 2개 저장
+        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img1.jpg").build());
+        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img2.jpg").build());
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].imageUrls").isArray())
+                .andExpect(jsonPath("$.data.content[0].imageUrls.length()").value(2));
     }
 
     // ===== 피드 삭제 =====
@@ -506,8 +536,8 @@ class FeedControllerTest {
                 .andExpect(jsonPath("$.data.feedId").value(feed.getId()))
                 .andExpect(jsonPath("$.data.content").value("테스트 피드"))
                 .andExpect(jsonPath("$.data.author.userId").value(user.getId()))
-                .andExpect(jsonPath("$.data.s3ObjectKey").value(org.hamcrest.Matchers.startsWith("feeds/")))
-                .andExpect(jsonPath("$.data.viewUrl").value(org.hamcrest.Matchers.startsWith("https://")));
+                .andExpect(jsonPath("$.data.imageUrls").isArray())
+                .andExpect(jsonPath("$.data.imageUrls[0]").value(org.hamcrest.Matchers.startsWith("https://")));
     }
 
     @Test

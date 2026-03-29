@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import com.nexters.sseotdabwa.domain.feeds.service.command.FeedCreateCommand;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -655,14 +657,51 @@ class FeedServiceTest {
         });
     }
 
+    @Test
+    @DisplayName("다중 이미지를 포함한 피드 생성 성공")
+    void createFeed_with_multiple_images_success() {
+        // given
+        User user = createUser();
+        List<String> images = List.of("img1.jpg", "img2.jpg", "img3.jpg");
+        FeedCreateCommand command = new FeedCreateCommand(
+                user, "내용", 5000L, FeedCategory.ELECTRONICS, 100, 100, images
+        );
+
+        // when
+        Feed savedFeed = feedService.createFeed(command);
+
+        // then
+        assertThat(savedFeed.getId()).isNotNull();
+        assertThat(savedFeed.getContent()).isEqualTo("내용");
+        // 이미지 엔티티 저장은 FeedFacade가 담당하므로 여기서는 Feed 엔티티 필드만 확인
+    }
+
+    @Test
+    @DisplayName("이미지 3개 초과 생성 시 실패")
+    void createFeed_too_many_images_fail() {
+        // given
+        User user = createUser();
+        List<String> images = List.of("1.jpg", "2.jpg", "3.jpg", "4.jpg");
+        FeedCreateCommand command = new FeedCreateCommand(
+                user, "내용", 5000L, FeedCategory.FASHION, 100, 100, images
+        );
+
+        // when & then
+        assertThatThrownBy(() -> feedService.createFeed(command))
+                .isInstanceOf(GlobalException.class);
+    }
+
     private Feed createFeed(User user) {
-        return feedRepository.save(Feed.builder()
-                .user(user)
-                .content("테스트 피드")
-                .price(10000L)
-                .category(FeedCategory.FASHION)
-                .imageWidth(300)
-                .imageHeight(400)
-                .build());
+        // FeedService의 createFeed를 직접 호출하여 도메인 로직(검증 등)을 함께 테스트
+        FeedCreateCommand command = new FeedCreateCommand(
+                user,
+                "테스트 피드 내용",
+                10000L,
+                FeedCategory.FASHION,
+                300,
+                400,
+                List.of("feeds/test-image.jpg")
+        );
+        return feedService.createFeed(command);
     }
 }
