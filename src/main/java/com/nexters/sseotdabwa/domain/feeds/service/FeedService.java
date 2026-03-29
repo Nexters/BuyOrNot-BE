@@ -69,8 +69,12 @@ public class FeedService {
         }
 
         // image
-        if (command.s3ObjectKey() == null || command.s3ObjectKey().isBlank()) {
+        if (command.s3ObjectKeys() == null || command.s3ObjectKeys().isEmpty()) {
             throw new GlobalException(FeedErrorCode.FEED_IMAGE_REQUIRED);
+        }
+
+        if (command.s3ObjectKeys().size() > 3) {
+            throw new GlobalException(FeedErrorCode.FEED_IMAGE_LIMIT_EXCEEDED);
         }
     }
 

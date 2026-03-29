@@ -65,14 +65,14 @@ public class FeedFacade {
                 request.category(),
                 request.imageWidth(),
                 request.imageHeight(),
-                request.s3ObjectKey()
+                request.s3ObjectKeys()
         );
 
         // 1) Feed 저장
         Feed savedFeed = feedService.createFeed(command);
 
         // 2) FeedImage 저장
-        feedImageService.save(savedFeed, command.s3ObjectKey());
+        feedImageService.saveAll(savedFeed, command.s3ObjectKeys());
 
         return new FeedCreateResponse(savedFeed.getId());
     }
@@ -85,17 +85,18 @@ public class FeedFacade {
     @Transactional(readOnly = true)
     public FeedResponse getFeedDetail(User user, Long feedId) {
         Feed feed = feedService.findById(feedId);
-        FeedImage feedImage = feedImageService.findByFeed(feed).orElse(null);
-        String viewUrl = buildViewUrl(feedImage);
+
+        List<FeedImage> images = feedImageService.findByFeed(feed);
+        List<String> imageUrls = buildViewUrls(images);
 
         if (user == null) {
-            return FeedResponse.of(feed, feedImage, viewUrl);
+            return FeedResponse.of(feed, images, imageUrls);
         }
 
         List<VoteLog> voteLogs = voteLogService.findByUserIdAndFeedIds(user.getId(), List.of(feedId));
         VoteChoice myChoice = voteLogs.isEmpty() ? null : voteLogs.get(0).getChoice();
         boolean hasVoted = myChoice != null;
-        return FeedResponse.of(feed, feedImage, viewUrl, hasVoted, myChoice);
+        return FeedResponse.of(feed, images, imageUrls, hasVoted, myChoice);
     }
 
     /**
@@ -116,30 +117,32 @@ public class FeedFacade {
         boolean hasNext = feeds.size() > pageSize;
         List<Feed> slicedFeeds = hasNext ? feeds.subList(0, pageSize) : feeds;
 
-        List<FeedImage> feedImages = feedImageService.findByFeeds(slicedFeeds);
-        Map<Long, FeedImage> imageMap = feedImages.stream()
-                .collect(Collectors.toMap(fi -> fi.getFeed().getId(), fi -> fi));
+        List<Long> feedIds = slicedFeeds.stream().map(Feed::getId).toList();
+        List<FeedImage> images = feedImageService.findByFeedIds(feedIds);
+
+        Map<Long, List<FeedImage>> imageMap = images.stream()
+                .collect(Collectors.groupingBy(fi -> fi.getFeed().getId()));
 
         List<FeedResponse> content;
         if (user == null || slicedFeeds.isEmpty()) {
             content = slicedFeeds.stream()
                     .map(feed -> {
-                        FeedImage img = imageMap.get(feed.getId());
-                        return FeedResponse.of(feed, img, buildViewUrl(img));
+                        List<FeedImage> imgs = imageMap.getOrDefault(feed.getId(), List.of());
+                        return FeedResponse.of(feed, imgs, buildViewUrls(imgs));
                     })
                     .toList();
         } else {
-            List<Long> feedIds = slicedFeeds.stream().map(Feed::getId).toList();
             Map<Long, VoteChoice> voteMap = voteLogService.findByUserIdAndFeedIds(user.getId(), feedIds)
                     .stream()
                     .collect(Collectors.toMap(vl -> vl.getFeed().getId(), vl -> vl.getChoice()));
 
             content = slicedFeeds.stream()
                     .map(feed -> {
-                        FeedImage img = imageMap.get(feed.getId());
+                        List<FeedImage> imgs = imageMap.getOrDefault(feed.getId(), List.of());
                         VoteChoice myChoice = voteMap.get(feed.getId());
                         boolean hasVoted = myChoice != null;
-                        return FeedResponse.of(feed, img, buildViewUrl(img), hasVoted, myChoice);
+
+                        return FeedResponse.of(feed, imgs, buildViewUrls(imgs), hasVoted, myChoice);
                     })
                     .toList();
         }
@@ -148,15 +151,14 @@ public class FeedFacade {
         return CursorPageResponse.of(content, nextCursor, hasNext);
     }
 
-    private String buildViewUrl(FeedImage feedImage) {
-        if (feedImage == null) {
-            return null;
-        }
-        String domain = awsProperties.cloudfront().domain();
-        if (domain.endsWith("/")) {
-            domain = domain.substring(0, domain.length() - 1);
-        }
-        return domain + "/" + feedImage.getS3ObjectKey();
+    private List<String> buildViewUrls(List<FeedImage> images) {
+        if (images == null || images.isEmpty()) return List.of();
+
+        final String domain = awsProperties.cloudfront().domain().replaceAll("/$", "");
+
+        return images.stream()
+                .map(img -> domain + "/" + img.getS3ObjectKey())
+                .toList();
     }
 
     /**
@@ -170,9 +172,9 @@ public class FeedFacade {
         }
 
         // S3 삭제를 위해 s3ObjectKey 미리 조회
-        String s3ObjectKey = feedImageService.findByFeed(feed)
+        List<String> s3Keys = feedImageService.findByFeed(feed).stream()
                 .map(FeedImage::getS3ObjectKey)
-                .orElse(null);
+                .toList();
 
         notificationService.deleteByFeed(feed);
         voteLogService.deleteByFeed(feed);
@@ -181,11 +183,11 @@ public class FeedFacade {
         feedService.delete(feed);
 
         // S3 오브젝트 삭제 (실패해도 DB 트랜잭션은 유지)
-        if (s3ObjectKey != null) {
+        for (String key : s3Keys) {
             try {
-                s3StorageService.deleteObject(s3ObjectKey);
+                s3StorageService.deleteObject(key);
             } catch (Exception e) {
-                log.warn("S3 오브젝트 삭제 실패. key={}", s3ObjectKey, e);
+                log.warn("S3 삭제 실패 key={}", key, e);
             }
         }
     }

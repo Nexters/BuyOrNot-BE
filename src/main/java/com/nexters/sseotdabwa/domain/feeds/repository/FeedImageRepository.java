@@ -15,7 +15,7 @@ public interface FeedImageRepository extends JpaRepository<FeedImage, Long> {
 
     List<FeedImage> findByFeedIn(List<Feed> feeds);
 
-    Optional<FeedImage> findByFeed(Feed feed);
+    List<FeedImage> findByFeed(Feed feed);
 
     void deleteByFeed(Feed feed);
 

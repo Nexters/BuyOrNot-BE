@@ -1,6 +1,7 @@
 package com.nexters.sseotdabwa.api.feeds.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
@@ -17,8 +18,8 @@ public record FeedResponse(
         Long noCount,
         Long totalCount,
         FeedStatus feedStatus,
-        String s3ObjectKey,
-        String viewUrl,
+        List<String> s3ObjectKeys,
+        List<String> imageUrls,
         Integer imageWidth,
         Integer imageHeight,
         FeedAuthorResponse author,
@@ -33,7 +34,7 @@ public record FeedResponse(
             String profileImage
     ) {}
 
-    public static FeedResponse of(Feed feed, FeedImage feedImage, String viewUrl) {
+    public static FeedResponse of(Feed feed, List<FeedImage> images, List<String> viewUrls) {
         return new FeedResponse(
                 feed.getId(),
                 feed.getContent(),
@@ -43,8 +44,8 @@ public record FeedResponse(
                 feed.getNoCount(),
                 feed.getYesCount() + feed.getNoCount(),
                 feed.getFeedStatus(),
-                feedImage != null ? feedImage.getS3ObjectKey() : null,
-                viewUrl,
+                images.stream().map(FeedImage::getS3ObjectKey).toList(),
+                viewUrls,
                 feed.getImageWidth(),
                 feed.getImageHeight(),
                 new FeedAuthorResponse(
@@ -58,7 +59,7 @@ public record FeedResponse(
         );
     }
 
-    public static FeedResponse of(Feed feed, FeedImage feedImage, String viewUrl, Boolean hasVoted, VoteChoice myVoteChoice) {
+    public static FeedResponse of(Feed feed, List<FeedImage> images, List<String> viewUrls, Boolean hasVoted, VoteChoice myVoteChoice) {
         return new FeedResponse(
                 feed.getId(),
                 feed.getContent(),
@@ -68,8 +69,8 @@ public record FeedResponse(
                 feed.getNoCount(),
                 feed.getYesCount() + feed.getNoCount(),
                 feed.getFeedStatus(),
-                feedImage != null ? feedImage.getS3ObjectKey() : null,
-                viewUrl,
+                images.stream().map(FeedImage::getS3ObjectKey).toList(),
+                viewUrls,
                 feed.getImageWidth(),
                 feed.getImageHeight(),
                 new FeedAuthorResponse(
