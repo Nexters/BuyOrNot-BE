@@ -69,7 +69,7 @@ class FeedImageServiceTest {
         List<FeedImage> savedImages = feedImageRepository.findByFeedOrderByIdAsc(feed);
         assertThat(savedImages).hasSize(3);
         assertThat(savedImages).extracting(FeedImage::getS3ObjectKey)
-                .containsExactlyInAnyOrder("key1.jpg", "key2.jpg", "key3.jpg");
+                .containsExactly("key1.jpg", "key2.jpg", "key3.jpg");
     }
 
     @Test
@@ -85,7 +85,7 @@ class FeedImageServiceTest {
         // then
         List<FeedImage> savedImages = feedImageRepository.findByFeedOrderByIdAsc(feed);
         assertThat(savedImages).extracting(FeedImage::getS3ObjectKey)
-                .containsExactlyInAnyOrder("feeds/trim1.jpg", "feeds/trim2.jpg");
+                .containsExactly("feeds/trim1.jpg", "feeds/trim2.jpg");
     }
 
     @Test
