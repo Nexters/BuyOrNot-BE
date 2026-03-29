@@ -112,6 +112,36 @@ class FeedServiceUnitTest {
     }
 
     @Test
+    @DisplayName("피드 생성 실패 - s3ObjectKeys 리스트 내부 원소에 null이나 공백이 포함되면 FEED_IMAGE_REQUIRED")
+    void createFeed_s3KeyListContainsInvalidElement_throws() {
+        // given
+        User user = User.builder().socialId("x").nickname("n").build();
+
+        // 1. null 원소가 포함된 경우
+        FeedCreateCommand commandWithNull = new FeedCreateCommand(
+                user, "내용", 10000L, FeedCategory.FOOD, 100, 100,
+                Collections.singletonList(null)
+        );
+
+        // 2. 공백 원소가 포함된 경우
+        FeedCreateCommand commandWithBlank = new FeedCreateCommand(
+                user, "내용", 10000L, FeedCategory.FOOD, 100, 100,
+                List.of("  ")
+        );
+
+        // when & then
+        assertThatThrownBy(() -> feedService.createFeed(commandWithNull))
+                .isInstanceOf(GlobalException.class)
+                .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_IMAGE_REQUIRED);
+
+        assertThatThrownBy(() -> feedService.createFeed(commandWithBlank))
+                .isInstanceOf(GlobalException.class)
+                .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_IMAGE_REQUIRED);
+
+        verifyNoInteractions(feedRepository);
+    }
+
+    @Test
     @DisplayName("피드 생성 실패 - 이미지 3개 초과 시 FEED_IMAGE_LIMIT_EXCEEDED")
     void createFeed_imageLimitExceeded_throws() {
         // given
