@@ -24,6 +24,7 @@ public interface FeedImageRepository extends JpaRepository<FeedImage, Long> {
         from FeedImage fi
         join fetch fi.feed f
         where f.id in :feedIds
+        order by fi.id asc
     """)
     List<FeedImage> findByFeedIds(@Param("feedIds") List<Long> feedIds);
 }

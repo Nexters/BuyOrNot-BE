@@ -4,7 +4,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,12 +18,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequest;
+import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequestV2;
 import com.nexters.sseotdabwa.domain.auth.service.JwtTokenService;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
-import com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus;
-import com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedImageRepository;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
 import com.nexters.sseotdabwa.domain.users.entity.User;
@@ -66,11 +64,11 @@ class FeedControllerTest {
     @Autowired
     private UserBlockRepository userBlockRepository;
 
-    // ===== 피드 등록 =====
+    // ===== 피드 등록 V1 =====
 
     @Test
-    @DisplayName("피드 등록 성공 - 이미지 1개 등록")
-    void createFeed_success_single_image() throws Exception {
+    @DisplayName("[V1] 피드 등록 성공 - 단일 이미지")
+    void createFeed_v1_success() throws Exception {
         // given
         User user = createUser();
         String token = jwtTokenService.createAccessToken(user.getId());
@@ -79,7 +77,7 @@ class FeedControllerTest {
                 FeedCategory.FOOD,
                 8000L,
                 "두쫀쿠 맛있어보이는데 살까 말까",
-                List.of("feeds/image1.jpg"), // 리스트로 변경
+                "feeds/image1.jpg",
                 1080,
                 1350
         );
@@ -94,8 +92,8 @@ class FeedControllerTest {
     }
 
     @Test
-    @DisplayName("피드 등록 성공 - 이미지 3개(최대) 등록")
-    void createFeed_success_max_images() throws Exception {
+    @DisplayName("[V1] 피드 등록 실패 - s3ObjectKey 빈 문자열이면 400")
+    void createFeed_v1_invalid_blankKey_returns400() throws Exception {
         // given
         User user = createUser();
         String token = jwtTokenService.createAccessToken(user.getId());
@@ -103,32 +101,8 @@ class FeedControllerTest {
         FeedCreateRequest request = new FeedCreateRequest(
                 FeedCategory.FOOD,
                 8000L,
-                "이미지 3개 테스트",
-                List.of("feeds/1.jpg", "feeds/2.jpg", "feeds/3.jpg"),
-                1080,
-                1350
-        );
-
-        // when & then
-        mockMvc.perform(post("/api/v1/feeds")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isCreated());
-    }
-
-    @Test
-    @DisplayName("피드 등록 실패 - 이미지 0개면 400 (NotEmpty)")
-    void createFeed_invalid_image_empty_returns400() throws Exception {
-        // given
-        User user = createUser();
-        String token = jwtTokenService.createAccessToken(user.getId());
-
-        FeedCreateRequest request = new FeedCreateRequest(
-                FeedCategory.FOOD,
-                8000L,
-                "이미지 없음",
-                Collections.emptyList(), // @NotEmpty 검증 대상
+                "내용",
+                "",  // @NotBlank 검증 대상
                 1080,
                 1350
         );
@@ -143,32 +117,8 @@ class FeedControllerTest {
     }
 
     @Test
-    @DisplayName("피드 등록 실패 - 이미지 4개 이상이면 400 (Size)")
-    void createFeed_invalid_image_too_many_returns400() throws Exception {
-        // given
-        User user = createUser();
-        String token = jwtTokenService.createAccessToken(user.getId());
-
-        FeedCreateRequest request = new FeedCreateRequest(
-                FeedCategory.FOOD,
-                8000L,
-                "이미지 4개",
-                List.of("1.jpg", "2.jpg", "3.jpg", "4.jpg"), // @Size(max=3)
-                1080,
-                1350
-        );
-
-        // when & then
-        mockMvc.perform(post("/api/v1/feeds")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    @DisplayName("피드 등록 실패 - content 100자 초과면 400")
-    void createFeed_invalid_content_tooLong_returns400() throws Exception {
+    @DisplayName("[V1] 피드 등록 실패 - content 100자 초과면 400")
+    void createFeed_v1_invalid_contentTooLong_returns400() throws Exception {
         // given
         User user = createUser();
         String token = jwtTokenService.createAccessToken(user.getId());
@@ -177,7 +127,7 @@ class FeedControllerTest {
                 FeedCategory.FOOD,
                 8000L,
                 "a".repeat(101),
-                List.of("feeds/test.jpg"),
+                "feeds/test.jpg",
                 1080,
                 1350
         );
@@ -191,8 +141,8 @@ class FeedControllerTest {
     }
 
     @Test
-    @DisplayName("피드 등록 실패 - imageWidth 0이면 400")
-    void createFeed_invalid_imageWidth_returns400() throws Exception {
+    @DisplayName("[V1] 피드 등록 실패 - imageWidth 0이면 400")
+    void createFeed_v1_invalid_imageWidth_returns400() throws Exception {
         // given
         User user = userRepository.save(User.builder()
                 .socialId(UUID.randomUUID().toString())
@@ -203,11 +153,11 @@ class FeedControllerTest {
         String token = jwtTokenService.createAccessToken(user.getId());
 
         FeedCreateRequest request = new FeedCreateRequest(
-                FeedCategory.FOOD, // valueOf("FOOD") 대신 Enum 직접 사용 권장
+                FeedCategory.FOOD,
                 8000L,
                 "두쫀쿠 맛있어보이는데 살까 말까",
-                List.of("feeds/uuid_test.jpg"), // String -> List<String>으로 수정
-                0,      // @Positive 검증 대상
+                "feeds/uuid_test.jpg",
+                0,  // @Positive 검증 대상
                 1350
         );
 
@@ -220,11 +170,115 @@ class FeedControllerTest {
                 .andExpect(jsonPath("$.errorCode").value("COMMON_400"));
     }
 
-    // ===== 피드 리스트 조회 =====
+    // ===== 피드 등록 V2 =====
 
     @Test
-    @DisplayName("피드 리스트 조회 성공 - 200 OK, imageUrls에 CloudFront 전체 URL 리스트 반환")
-    void getFeedList_success() throws Exception {
+    @DisplayName("[V2] 피드 등록 성공 - 이미지 1개")
+    void createFeed_v2_success_singleImage() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+
+        FeedCreateRequestV2 request = new FeedCreateRequestV2(
+                FeedCategory.FOOD,
+                8000L,
+                "두쫀쿠 맛있어보이는데 살까 말까",
+                List.of("feeds/image1.jpg"),
+                1080,
+                1350
+        );
+
+        // when & then
+        mockMvc.perform(post("/api/v2/feeds")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.feedId").exists());
+    }
+
+    @Test
+    @DisplayName("[V2] 피드 등록 성공 - 이미지 3개(최대), DB에 FeedImage 3건 저장")
+    void createFeed_v2_success_maxImages() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+
+        FeedCreateRequestV2 request = new FeedCreateRequestV2(
+                FeedCategory.FOOD,
+                8000L,
+                "이미지 3개 테스트",
+                List.of("feeds/1.jpg", "feeds/2.jpg", "feeds/3.jpg"),
+                1080,
+                1350
+        );
+
+        // when & then
+        mockMvc.perform(post("/api/v2/feeds")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.feedId").exists());
+
+        // DB에 이미지 3건 저장 확인
+        org.assertj.core.api.Assertions.assertThat(feedImageRepository.count()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("[V2] 피드 등록 실패 - 이미지 0개면 400 (NotEmpty)")
+    void createFeed_v2_invalid_imageEmpty_returns400() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+
+        FeedCreateRequestV2 request = new FeedCreateRequestV2(
+                FeedCategory.FOOD,
+                8000L,
+                "이미지 없음",
+                List.of(),  // @NotEmpty 검증 대상
+                1080,
+                1350
+        );
+
+        // when & then
+        mockMvc.perform(post("/api/v2/feeds")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("COMMON_400"));
+    }
+
+    @Test
+    @DisplayName("[V2] 피드 등록 실패 - 이미지 4개 이상이면 400 (Size)")
+    void createFeed_v2_invalid_imageTooMany_returns400() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+
+        FeedCreateRequestV2 request = new FeedCreateRequestV2(
+                FeedCategory.FOOD,
+                8000L,
+                "이미지 4개",
+                List.of("1.jpg", "2.jpg", "3.jpg", "4.jpg"),  // @Size(max=3)
+                1080,
+                1350
+        );
+
+        // when & then
+        mockMvc.perform(post("/api/v2/feeds")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    // ===== 피드 리스트 조회 V1 =====
+
+    @Test
+    @DisplayName("[V1] 피드 리스트 조회 성공 - viewUrl(단건) 반환")
+    void getFeedList_v1_success() throws Exception {
         // given
         User user = createUser();
         String token = jwtTokenService.createAccessToken(user.getId());
@@ -238,13 +292,31 @@ class FeedControllerTest {
                 .andExpect(jsonPath("$.data.content").isArray())
                 .andExpect(jsonPath("$.data.content[0].feedId").value(feed.getId()))
                 .andExpect(jsonPath("$.data.content[0].author.userId").value(user.getId()))
-                .andExpect(jsonPath("$.data.content[0].imageUrls").isArray())
-                .andExpect(jsonPath("$.data.content[0].imageUrls[0]").value(org.hamcrest.Matchers.startsWith("https://")));
+                .andExpect(jsonPath("$.data.content[0].viewUrl").value(org.hamcrest.Matchers.startsWith("https://")));
     }
 
     @Test
-    @DisplayName("피드 리스트 조회 성공 - 비로그인 유저도 접근 가능")
-    void getFeedList_noAuth_success() throws Exception {
+    @DisplayName("[V1] 피드 리스트 조회 - 이미지 여러 장이어도 첫 번째 이미지만 viewUrl로 반환")
+    void getFeedList_v1_multipleImages_returnsFirstOnly() throws Exception {
+        // given
+        User user = createUser();
+        Feed feed = feedRepository.save(Feed.builder()
+                .user(user).content("다중이미지").price(1000L).category(FeedCategory.ELECTRONICS)
+                .imageWidth(100).imageHeight(100).build());
+
+        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img1.jpg").build());
+        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img2.jpg").build());
+
+        // when & then - V1은 첫 번째 이미지만 viewUrl(단건) 반환
+        mockMvc.perform(get("/api/v1/feeds"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].viewUrl").exists())
+                .andExpect(jsonPath("$.data.content[0].s3ObjectKey").value("img1.jpg"));
+    }
+
+    @Test
+    @DisplayName("[V1] 피드 리스트 조회 성공 - 비로그인 유저도 접근 가능")
+    void getFeedList_v1_noAuth_success() throws Exception {
         // given
         User user = createUser();
         createFeedWithImage(user);
@@ -256,20 +328,51 @@ class FeedControllerTest {
                 .andExpect(jsonPath("$.data.content").isArray());
     }
 
+    // ===== 피드 리스트 조회 V2 =====
+
     @Test
-    @DisplayName("피드 리스트 조회 성공 - 여러 장의 이미지가 있을 경우")
-    void getFeedList_with_multiple_images() throws Exception {
+    @DisplayName("[V2] 피드 리스트 조회 성공 - 비로그인 유저도 접근 가능")
+    void getFeedList_v2_noAuth_success() throws Exception {
         // given
         User user = createUser();
-        Feed feed = feedRepository.save(Feed.builder()
-                .user(user).content("다중이미지").price(1000L).category(FeedCategory.ELECTRONICS).imageWidth(100).imageHeight(100).build());
+        createFeedWithImage(user);
 
-        // 이미지 2개 저장
+        // when & then
+        mockMvc.perform(get("/api/v2/feeds"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content").isArray());
+    }
+
+    @Test
+    @DisplayName("[V2] 피드 단건 조회 성공 - 비로그인 유저도 접근 가능")
+    void getFeedDetail_v2_noAuth_success() throws Exception {
+        // given
+        User user = createUser();
+        Feed feed = createFeedWithImage(user);
+
+        // when & then
+        mockMvc.perform(get("/api/v2/feeds/" + feed.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.feedId").value(feed.getId()))
+                .andExpect(jsonPath("$.data.hasVoted").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("[V2] 피드 리스트 조회 성공 - imageUrls(다중) 반환")
+    void getFeedList_v2_success() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+        Feed feed = feedRepository.save(Feed.builder()
+                .user(user).content("다중이미지").price(1000L).category(FeedCategory.ELECTRONICS)
+                .imageWidth(100).imageHeight(100).build());
+
         feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img1.jpg").build());
         feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img2.jpg").build());
 
         // when & then
-        mockMvc.perform(get("/api/v1/feeds"))
+        mockMvc.perform(get("/api/v2/feeds")
+                        .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[0].imageUrls").isArray())
                 .andExpect(jsonPath("$.data.content[0].imageUrls.length()").value(2));
@@ -518,11 +621,11 @@ class FeedControllerTest {
                 .andExpect(jsonPath("$.data.nextCursor").exists());
     }
 
-    // ===== 피드 단건 조회 =====
+    // ===== 피드 단건 조회 V1 =====
 
     @Test
-    @DisplayName("피드 단건 조회 성공 - 로그인 유저 200 OK")
-    void getFeedDetail_success() throws Exception {
+    @DisplayName("[V1] 피드 단건 조회 성공 - viewUrl(단건) 반환")
+    void getFeedDetail_v1_success() throws Exception {
         // given
         User user = createUser();
         String token = jwtTokenService.createAccessToken(user.getId());
@@ -536,13 +639,12 @@ class FeedControllerTest {
                 .andExpect(jsonPath("$.data.feedId").value(feed.getId()))
                 .andExpect(jsonPath("$.data.content").value("테스트 피드"))
                 .andExpect(jsonPath("$.data.author.userId").value(user.getId()))
-                .andExpect(jsonPath("$.data.imageUrls").isArray())
-                .andExpect(jsonPath("$.data.imageUrls[0]").value(org.hamcrest.Matchers.startsWith("https://")));
+                .andExpect(jsonPath("$.data.viewUrl").value(org.hamcrest.Matchers.startsWith("https://")));
     }
 
     @Test
-    @DisplayName("피드 단건 조회 성공 - 비로그인 유저도 접근 가능, hasVoted/myVoteChoice null")
-    void getFeedDetail_noAuth_success() throws Exception {
+    @DisplayName("[V1] 피드 단건 조회 성공 - 비로그인 유저도 접근 가능, hasVoted/myVoteChoice null")
+    void getFeedDetail_v1_noAuth_success() throws Exception {
         // given
         User user = createUser();
         Feed feed = createFeedWithImage(user);
@@ -586,6 +688,30 @@ class FeedControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.hasVoted").value(true))
                 .andExpect(jsonPath("$.data.myVoteChoice").value("YES"));
+    }
+
+    // ===== 피드 단건 조회 V2 =====
+
+    @Test
+    @DisplayName("[V2] 피드 단건 조회 성공 - imageUrls(다중) 반환")
+    void getFeedDetail_v2_success() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+        Feed feed = feedRepository.save(Feed.builder()
+                .user(user).content("다중이미지 피드").price(10000L).category(FeedCategory.FASHION)
+                .imageWidth(300).imageHeight(400).build());
+
+        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img1.jpg").build());
+        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img2.jpg").build());
+
+        // when & then
+        mockMvc.perform(get("/api/v2/feeds/" + feed.getId())
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.feedId").value(feed.getId()))
+                .andExpect(jsonPath("$.data.imageUrls").isArray())
+                .andExpect(jsonPath("$.data.imageUrls.length()").value(2));
     }
 
     // ===== 피드 리스트 feedStatus 필터 =====
