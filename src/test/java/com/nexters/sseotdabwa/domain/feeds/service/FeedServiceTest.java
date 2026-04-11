@@ -664,7 +664,7 @@ class FeedServiceTest {
         User user = createUser();
         List<String> images = List.of("img1.jpg", "img2.jpg", "img3.jpg");
         FeedCreateCommand command = new FeedCreateCommand(
-                user, "내용", 5000L, FeedCategory.ELECTRONICS, 100, 100, images
+                user, "내용", 5000L, FeedCategory.ELECTRONICS, 100, 100, images, null, null
         );
 
         // when
@@ -683,7 +683,7 @@ class FeedServiceTest {
         User user = createUser();
         List<String> images = List.of("1.jpg", "2.jpg", "3.jpg", "4.jpg");
         FeedCreateCommand command = new FeedCreateCommand(
-                user, "내용", 5000L, FeedCategory.FASHION, 100, 100, images
+                user, "내용", 5000L, FeedCategory.FASHION, 100, 100, images, null, null
         );
 
         // when & then
@@ -700,7 +700,9 @@ class FeedServiceTest {
                 FeedCategory.FASHION,
                 300,
                 400,
-                List.of("feeds/test-image.jpg")
+                List.of("feeds/test-image.jpg"),
+                null,
+                null
         );
         return feedService.createFeed(command);
     }

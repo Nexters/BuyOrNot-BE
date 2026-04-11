@@ -12,6 +12,8 @@ public record FeedCreateCommand(
         FeedCategory category,
         Integer imageWidth,
         Integer imageHeight,
-        List<String> s3ObjectKeys
+        List<String> s3ObjectKeys,
+        String link,
+        String title
 ) {
 }

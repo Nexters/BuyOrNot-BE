@@ -106,7 +106,8 @@ public class NotificationFacade {
                             voteClosedAt,
                             result.resultPercent(),
                             result.resultLabel(),
-                            viewUrl
+                            viewUrl,
+                            feed.getTitle()
                     );
                 })
                 .toList();

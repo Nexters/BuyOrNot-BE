@@ -185,7 +185,9 @@ class FeedControllerTest {
                 "두쫀쿠 맛있어보이는데 살까 말까",
                 List.of("feeds/image1.jpg"),
                 1080,
-                1350
+                1350,
+                null,
+                null
         );
 
         // when & then
@@ -210,7 +212,9 @@ class FeedControllerTest {
                 "이미지 3개 테스트",
                 List.of("feeds/1.jpg", "feeds/2.jpg", "feeds/3.jpg"),
                 1080,
-                1350
+                1350,
+                null,
+                null
         );
 
         // when & then
@@ -238,7 +242,9 @@ class FeedControllerTest {
                 "이미지 없음",
                 List.of(),  // @NotEmpty 검증 대상
                 1080,
-                1350
+                1350,
+                null,
+                null
         );
 
         // when & then
@@ -263,7 +269,9 @@ class FeedControllerTest {
                 "이미지 4개",
                 List.of("1.jpg", "2.jpg", "3.jpg", "4.jpg"),  // @Size(max=3)
                 1080,
-                1350
+                1350,
+                null,
+                null
         );
 
         // when & then
@@ -361,16 +369,17 @@ class FeedControllerTest {
     @DisplayName("[V2] 피드 리스트 조회 성공 - imageUrls(다중) 반환")
     void getFeedList_v2_success() throws Exception {
         // given
-        User user = createUser();
-        String token = jwtTokenService.createAccessToken(user.getId());
+        User me = createUser();
+        User other = createUser();
+        String token = jwtTokenService.createAccessToken(me.getId());
         Feed feed = feedRepository.save(Feed.builder()
-                .user(user).content("다중이미지").price(1000L).category(FeedCategory.ELECTRONICS)
+                .user(other).content("다중이미지").price(1000L).category(FeedCategory.ELECTRONICS)
                 .imageWidth(100).imageHeight(100).build());
 
         feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img1.jpg").build());
         feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img2.jpg").build());
 
-        // when & then
+        // when & then - 로그인 시 본인 피드 제외, 타인 피드는 조회됨
         mockMvc.perform(get("/api/v2/feeds")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
@@ -835,6 +844,148 @@ class FeedControllerTest {
                 .andExpect(jsonPath("$.data.hasNext").value(false))
                 .andExpect(jsonPath("$.data.content[*].feedId",
                         org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem(blockedFeed.getId().intValue()))));
+    }
+
+    // ===== 피드 등록 V2 link/title =====
+
+    @Test
+    @DisplayName("[V2] 피드 등록 성공 - 유효한 link와 title 포함")
+    void createFeed_v2_withLinkAndTitle_success() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+
+        FeedCreateRequestV2 request = new FeedCreateRequestV2(
+                FeedCategory.FOOD,
+                8000L,
+                "링크 포함 피드",
+                List.of("feeds/image1.jpg"),
+                1080,
+                1350,
+                "https://www.example.com/product/123",
+                "이 신발 살까 말까"
+        );
+
+        // when & then
+        mockMvc.perform(post("/api/v2/feeds")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.feedId").exists());
+    }
+
+    @Test
+    @DisplayName("[V2] 피드 등록 실패 - http/https 아닌 link면 400")
+    void createFeed_v2_invalidLink_returns400() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+
+        FeedCreateRequestV2 request = new FeedCreateRequestV2(
+                FeedCategory.FOOD,
+                8000L,
+                "잘못된 링크",
+                List.of("feeds/image1.jpg"),
+                1080,
+                1350,
+                "ftp://invalid.com",
+                null
+        );
+
+        // when & then
+        mockMvc.perform(post("/api/v2/feeds")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("COMMON_400"));
+    }
+
+    @Test
+    @DisplayName("[V2] 피드 등록 실패 - title 40자 초과면 400")
+    void createFeed_v2_titleTooLong_returns400() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+
+        FeedCreateRequestV2 request = new FeedCreateRequestV2(
+                FeedCategory.FOOD,
+                8000L,
+                "내용",
+                List.of("feeds/image1.jpg"),
+                1080,
+                1350,
+                null,
+                "a".repeat(41)  // @Size(max=40)
+        );
+
+        // when & then
+        mockMvc.perform(post("/api/v2/feeds")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("COMMON_400"));
+    }
+
+    @Test
+    @DisplayName("[V2] 피드 단건 조회 - link와 title 반환 확인")
+    void getFeedDetail_v2_returnsLinkAndTitle() throws Exception {
+        // given
+        User user = createUser();
+        Feed feed = feedRepository.save(Feed.builder()
+                .user(user).content("링크 피드").price(5000L).category(FeedCategory.FOOD)
+                .imageWidth(100).imageHeight(100)
+                .link("https://www.example.com")
+                .title("살까 말까")
+                .build());
+        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img1.jpg").build());
+
+        // when & then
+        mockMvc.perform(get("/api/v2/feeds/" + feed.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.link").value("https://www.example.com"))
+                .andExpect(jsonPath("$.data.title").value("살까 말까"));
+    }
+
+    // ===== 피드 리스트 V2 본인 피드 제외 =====
+
+    @Test
+    @DisplayName("[V2] 피드 리스트 조회 - 로그인 시 본인 피드 자동 제외")
+    void getFeedList_v2_loggedIn_excludesMyFeeds() throws Exception {
+        // given
+        User me = createUser();
+        User other = createUser();
+        String myToken = jwtTokenService.createAccessToken(me.getId());
+
+        Feed myFeed = createFeedWithImage(me);
+        Feed otherFeed = createFeedWithImage(other);
+
+        // when & then
+        mockMvc.perform(get("/api/v2/feeds")
+                        .header("Authorization", "Bearer " + myToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[*].feedId",
+                        org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem(myFeed.getId().intValue()))))
+                .andExpect(jsonPath("$.data.content[*].feedId",
+                        org.hamcrest.Matchers.hasItem(otherFeed.getId().intValue())));
+    }
+
+    @Test
+    @DisplayName("[V2] 피드 리스트 조회 - 비로그인 시 전체 피드 표시")
+    void getFeedList_v2_noAuth_showsAllFeeds() throws Exception {
+        // given
+        User user1 = createUser();
+        User user2 = createUser();
+        Feed feed1 = createFeedWithImage(user1);
+        Feed feed2 = createFeedWithImage(user2);
+
+        // when & then
+        mockMvc.perform(get("/api/v2/feeds"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[*].feedId",
+                        org.hamcrest.Matchers.hasItems(feed1.getId().intValue(), feed2.getId().intValue())));
     }
 
     // ===== Helper Methods =====

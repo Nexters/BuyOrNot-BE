@@ -1,5 +1,6 @@
 package com.nexters.sseotdabwa.api.feeds.dto;
 
+import com.nexters.sseotdabwa.common.validation.ValidUrl;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
 import jakarta.validation.constraints.*;
 
@@ -27,6 +28,12 @@ public record FeedCreateRequestV2(
 
         @NotNull(message = "이미지 높이는 필수입니다.")
         @Positive(message = "이미지 높이는 1 이상이어야 합니다.")
-        Integer imageHeight
+        Integer imageHeight,
+
+        @ValidUrl
+        String link,
+
+        @Size(max = 40, message = "제목은 40자 이하로 입력해주세요.")
+        String title
 ) {
 }

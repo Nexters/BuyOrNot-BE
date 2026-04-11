@@ -51,6 +51,8 @@ public class FeedService {
                 .category(command.category())
                 .imageWidth(command.imageWidth())
                 .imageHeight(command.imageHeight())
+                .link(command.link())
+                .title(command.title())
                 .build();
 
         return feedRepository.save(feed);
