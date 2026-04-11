@@ -9,6 +9,7 @@ import com.nexters.sseotdabwa.domain.feeds.exception.FeedErrorCode;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus;
 import com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
+import com.nexters.sseotdabwa.common.validation.UrlValidator;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
 import com.nexters.sseotdabwa.domain.feeds.service.command.FeedCreateCommand;
@@ -33,6 +34,10 @@ import java.util.List;
 public class FeedService {
 
     private static final int MAX_CONTENT_LENGTH = 100;
+    private static final int MAX_TITLE_LENGTH = 40;
+    private static final int MAX_LINK_LENGTH = 500;
+
+    private static final UrlValidator URL_VALIDATOR = new UrlValidator();
 
     private final FeedRepository feedRepository;
 
@@ -83,6 +88,20 @@ public class FeedService {
         // 리스트 내 단 하나라도 유효하지 않은 키가 있다면 예외를 던집니다.
         if (command.s3ObjectKeys().stream().anyMatch(key -> key == null || key.isBlank())) {
             throw new GlobalException(FeedErrorCode.FEED_IMAGE_REQUIRED);
+        }
+
+        // 5. link 검증 (값이 있는 경우에만)
+        String link = command.link();
+        if (link != null && !link.isBlank()) {
+            if (link.length() > MAX_LINK_LENGTH || !URL_VALIDATOR.isValid(link, null)) {
+                throw new GlobalException(FeedErrorCode.FEED_INVALID_LINK);
+            }
+        }
+
+        // 6. title 길이 검증 (값이 있는 경우에만)
+        String title = command.title();
+        if (title != null && title.length() > MAX_TITLE_LENGTH) {
+            throw new GlobalException(FeedErrorCode.FEED_TITLE_TOO_LONG);
         }
     }
 

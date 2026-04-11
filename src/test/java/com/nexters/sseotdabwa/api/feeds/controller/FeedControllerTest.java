@@ -903,6 +903,33 @@ class FeedControllerTest {
     }
 
     @Test
+    @DisplayName("[V2] 피드 등록 실패 - 호스트 없는 URL이면 400")
+    void createFeed_v2_linkWithoutHost_returns400() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+
+        FeedCreateRequestV2 request = new FeedCreateRequestV2(
+                FeedCategory.FOOD,
+                8000L,
+                "호스트 없는 링크",
+                List.of("feeds/image1.jpg"),
+                1080,
+                1350,
+                "https://foo",  // 점 없는 호스트
+                null
+        );
+
+        // when & then
+        mockMvc.perform(post("/api/v2/feeds")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("COMMON_400"));
+    }
+
+    @Test
     @DisplayName("[V2] 피드 등록 실패 - title 40자 초과면 400")
     void createFeed_v2_titleTooLong_returns400() throws Exception {
         // given
