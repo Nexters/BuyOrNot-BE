@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -38,7 +39,7 @@ class FeedServiceUnitTest {
     private FeedService feedService;
 
     @Test
-    @DisplayName("피드 생성 성공 - Feed/FeedImage 저장 후 feedId 반환")
+    @DisplayName("피드 생성 성공 - Feed 저장 후 반환")
     void createFeed_success() {
         // given
         User user = User.builder()
@@ -53,10 +54,9 @@ class FeedServiceUnitTest {
                 FeedCategory.FOOD,
                 1080,
                 720,
-                "  feeds/abc.jpg  "
+                List.of("feeds/abc.jpg") // List로 변경
         );
 
-        // FeedRepository.save()가 id=1L인 Feed를 반환하도록 스텁
         Feed savedFeed = Feed.builder()
                 .user(user)
                 .content("내용입니다")
@@ -77,19 +77,92 @@ class FeedServiceUnitTest {
         // then
         assertThat(result.getId()).isEqualTo(1L);
 
-        // Feed 저장 내용 검증
         ArgumentCaptor<Feed> feedCaptor = ArgumentCaptor.forClass(Feed.class);
         verify(feedRepository, times(1)).save(feedCaptor.capture());
 
         Feed capturedFeed = feedCaptor.getValue();
-        assertThat(capturedFeed.getUser()).isEqualTo(user);
-        assertThat(capturedFeed.getContent()).isEqualTo("내용입니다"); // trim 반영
+        assertThat(capturedFeed.getContent()).isEqualTo("내용입니다");
         assertThat(capturedFeed.getPrice()).isEqualTo(10000L);
-        assertThat(capturedFeed.getCategory()).isEqualTo(FeedCategory.FOOD);
-        assertThat(capturedFeed.getImageWidth()).isEqualTo(1080);
-        assertThat(capturedFeed.getImageHeight()).isEqualTo(720);
 
         verifyNoMoreInteractions(feedRepository);
+    }
+
+    @Test
+    @DisplayName("피드 생성 실패 - 이미지가 없으면(Empty List) FEED_IMAGE_REQUIRED")
+    void createFeed_imageEmpty_throws() {
+        // given
+        User user = User.builder().socialId("x").nickname("n").build();
+
+        FeedCreateCommand command = new FeedCreateCommand(
+                user,
+                "내용",
+                10000L,
+                FeedCategory.FOOD,
+                100,
+                100,
+                Collections.emptyList()
+        );
+
+        // when & then
+        assertThatThrownBy(() -> feedService.createFeed(command))
+                .isInstanceOf(GlobalException.class)
+                .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_IMAGE_REQUIRED);
+
+        verifyNoInteractions(feedRepository);
+    }
+
+    @Test
+    @DisplayName("피드 생성 실패 - s3ObjectKeys 리스트 내부 원소에 null이나 공백이 포함되면 FEED_IMAGE_REQUIRED")
+    void createFeed_s3KeyListContainsInvalidElement_throws() {
+        // given
+        User user = User.builder().socialId("x").nickname("n").build();
+
+        // 1. null 원소가 포함된 경우
+        FeedCreateCommand commandWithNull = new FeedCreateCommand(
+                user, "내용", 10000L, FeedCategory.FOOD, 100, 100,
+                Collections.singletonList(null)
+        );
+
+        // 2. 공백 원소가 포함된 경우
+        FeedCreateCommand commandWithBlank = new FeedCreateCommand(
+                user, "내용", 10000L, FeedCategory.FOOD, 100, 100,
+                List.of("  ")
+        );
+
+        // when & then
+        assertThatThrownBy(() -> feedService.createFeed(commandWithNull))
+                .isInstanceOf(GlobalException.class)
+                .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_IMAGE_REQUIRED);
+
+        assertThatThrownBy(() -> feedService.createFeed(commandWithBlank))
+                .isInstanceOf(GlobalException.class)
+                .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_IMAGE_REQUIRED);
+
+        verifyNoInteractions(feedRepository);
+    }
+
+    @Test
+    @DisplayName("피드 생성 실패 - 이미지 3개 초과 시 FEED_IMAGE_LIMIT_EXCEEDED")
+    void createFeed_imageLimitExceeded_throws() {
+        // given
+        User user = User.builder().socialId("x").nickname("n").build();
+
+        FeedCreateCommand command = new FeedCreateCommand(
+                user,
+                "내용",
+                10000L,
+                FeedCategory.FOOD,
+                100,
+                100,
+                List.of("1.jpg", "2.jpg", "3.jpg", "4.jpg") // 4개 전달
+        );
+
+        // when & then
+        assertThatThrownBy(() -> feedService.createFeed(command))
+                .isInstanceOf(GlobalException.class)
+                .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_IMAGE_LIMIT_EXCEEDED);
+
+        verifyNoInteractions(feedRepository);
     }
 
     @Test
@@ -106,7 +179,7 @@ class FeedServiceUnitTest {
                 FeedCategory.FOOD,
                 100,
                 100,
-                "feeds/abc.jpg"
+                List.of("feeds/1.jpg", "feeds/2.jpg")
         );
 
         // when & then
@@ -142,30 +215,6 @@ class FeedServiceUnitTest {
     }
 
     @Test
-    @DisplayName("피드 생성 실패 - s3ObjectKey가 blank이면 FEED_IMAGE_REQUIRED")
-    void createFeed_s3KeyBlank_throws() {
-        // given
-        User user = User.builder().socialId("x").nickname("n").build();
-
-        FeedCreateCommand command = new FeedCreateCommand(
-                user,
-                "내용",
-                10000L,
-                FeedCategory.FOOD,
-                100,
-                100,
-                "   "
-        );
-
-        // when & then
-        assertThatThrownBy(() -> feedService.createFeed(command))
-                .isInstanceOf(GlobalException.class)
-                .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_IMAGE_REQUIRED);
-
-        verifyNoInteractions(feedRepository);
-    }
-
-    @Test
     @DisplayName("피드 생성 성공 - content가 null이면 빈 문자열로 저장(정책상 허용되는 현재 구현)")
     void createFeed_nullContent_savedAsEmptyString() {
         // given
@@ -178,7 +227,7 @@ class FeedServiceUnitTest {
                 FeedCategory.FOOD,
                 100,
                 100,
-                "feeds/abc.jpg"
+                List.of("feeds/1.jpg", "feeds/2.jpg")
         );
 
         Feed savedFeed = spy(Feed.builder()

@@ -17,8 +17,8 @@ public class FeedImage extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "feed_id", nullable = false, unique = true)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "feed_id", nullable = false)
     private Feed feed;
 
     @Column(name = "s3_object_key", nullable = false, length = 255)

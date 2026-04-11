@@ -306,6 +306,35 @@ class UserControllerTest {
                 .build());
     }
 
+    // ===== 내가 작성한 피드 조회 V2 =====
+
+    @Test
+    @DisplayName("[V2] 내가 작성한 피드 조회 성공 - imageUrls(다중) 반환")
+    void getMyFeeds_v2_success_multipleImages() throws Exception {
+        // given
+        User user = createUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+        Feed feed = createFeed(user);
+        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("feeds/img1.jpg").build());
+        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("feeds/img2.jpg").build());
+
+        // when & then
+        mockMvc.perform(get("/api/v2/users/me/feeds")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].feedId").value(feed.getId()))
+                .andExpect(jsonPath("$.data.content[0].imageUrls").isArray())
+                .andExpect(jsonPath("$.data.content[0].imageUrls.length()").value(2));
+    }
+
+    @Test
+    @DisplayName("[V2] 내가 작성한 피드 조회 실패 - 비로그인 401")
+    void getMyFeeds_v2_unauthorized_returns401() throws Exception {
+        // when & then
+        mockMvc.perform(get("/api/v2/users/me/feeds"))
+                .andExpect(status().isUnauthorized());
+    }
+
     @Test
     @DisplayName("FCM 토큰 등록/갱신 성공 - DB에 fcmToken 저장")
     void updateFcmToken_success_updatesDb() throws Exception {

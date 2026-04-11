@@ -23,13 +23,15 @@ public class FeedImageService {
      * Feed : FeedImage = 1 : 1 저장
      */
     @Transactional
-    public void save(Feed feed, String s3ObjectKey) {
-        FeedImage feedImage = FeedImage.builder()
-                .feed(feed)
-                .s3ObjectKey(s3ObjectKey.trim())
-                .build();
+    public void saveAll(Feed feed, List<String> s3ObjectKeys) {
+        List<FeedImage> images = s3ObjectKeys.stream()
+                .map(key -> FeedImage.builder()
+                        .feed(feed)
+                        .s3ObjectKey(key.trim())
+                        .build())
+                .toList();
 
-        feedImageRepository.save(feedImage);
+        feedImageRepository.saveAll(images);
     }
 
     @Transactional
@@ -37,12 +39,12 @@ public class FeedImageService {
         feedImageRepository.deleteByFeedIn(feeds);
     }
 
-    public Optional<FeedImage> findByFeed(Feed feed) {
-        return feedImageRepository.findByFeed(feed);
+    public List<FeedImage> findByFeed(Feed feed) {
+        return feedImageRepository.findByFeedOrderByIdAsc(feed);
     }
 
     public List<FeedImage> findByFeeds(List<Feed> feeds) {
-        return feedImageRepository.findByFeedIn(feeds);
+        return feedImageRepository.findByFeedInOrderByIdAsc(feeds);
     }
 
     @Transactional

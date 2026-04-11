@@ -61,15 +61,25 @@ public class FeedService {
      * - Bean Validation 이후, 도메인 레벨에서 최종 방어
      */
     private void validate(FeedCreateCommand command) {
-        // content
+        // 1. content 길이 검증
         String content = normalizeContent(command.content());
-
         if (content.length() > MAX_CONTENT_LENGTH) {
             throw new GlobalException(FeedErrorCode.FEED_CONTENT_TOO_LONG);
         }
 
-        // image
-        if (command.s3ObjectKey() == null || command.s3ObjectKey().isBlank()) {
+        // 2. 이미지 리스트 자체 검증 (null 또는 비어있음)
+        if (command.s3ObjectKeys() == null || command.s3ObjectKeys().isEmpty()) {
+            throw new GlobalException(FeedErrorCode.FEED_IMAGE_REQUIRED);
+        }
+
+        // 3. 이미지 개수 제한 검증 (최대 3장)
+        if (command.s3ObjectKeys().size() > 3) {
+            throw new GlobalException(FeedErrorCode.FEED_IMAGE_LIMIT_EXCEEDED);
+        }
+
+        // 4. 이미지 원소 내부 검증 (원소가 null이거나 공백만 있는 경우 방지)
+        // 리스트 내 단 하나라도 유효하지 않은 키가 있다면 예외를 던집니다.
+        if (command.s3ObjectKeys().stream().anyMatch(key -> key == null || key.isBlank())) {
             throw new GlobalException(FeedErrorCode.FEED_IMAGE_REQUIRED);
         }
     }
