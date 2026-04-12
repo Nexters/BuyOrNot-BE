@@ -25,7 +25,9 @@ public record FeedResponseV2(
         FeedAuthorResponse author,
         LocalDateTime createdAt,
         Boolean hasVoted,
-        VoteChoice myVoteChoice
+        VoteChoice myVoteChoice,
+        String link,
+        String title
 ) {
 
     public record FeedAuthorResponse(
@@ -55,7 +57,9 @@ public record FeedResponseV2(
                 ),
                 feed.getCreatedAt(),
                 null,
-                null
+                null,
+                feed.getLink(),
+                feed.getTitle()
         );
     }
 
@@ -80,7 +84,9 @@ public record FeedResponseV2(
                 ),
                 feed.getCreatedAt(),
                 hasVoted,
-                myVoteChoice
+                myVoteChoice,
+                feed.getLink(),
+                feed.getTitle()
         );
     }
 }

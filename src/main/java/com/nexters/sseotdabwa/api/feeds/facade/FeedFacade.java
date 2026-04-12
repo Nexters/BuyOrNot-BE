@@ -71,7 +71,9 @@ public class FeedFacade {
                 request.category(),
                 request.imageWidth(),
                 request.imageHeight(),
-                List.of(request.s3ObjectKey())
+                List.of(request.s3ObjectKey()),
+                null,
+                null
         );
 
         Feed savedFeed = feedService.createFeed(command);
@@ -171,7 +173,9 @@ public class FeedFacade {
                 request.category(),
                 request.imageWidth(),
                 request.imageHeight(),
-                request.s3ObjectKeys()
+                request.s3ObjectKeys(),
+                request.link(),
+                request.title()
         );
 
         Feed savedFeed = feedService.createFeed(command);
@@ -207,9 +211,13 @@ public class FeedFacade {
     public CursorPageResponse<FeedResponseV2> getFeedListV2(User user, Long cursor, Integer size, FeedStatus feedStatus) {
         int pageSize = (size == null) ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
 
-        List<Long> excludedUserIds = (user != null)
-                ? userBlockService.findBlockedUserIds(user.getId())
-                : Collections.emptyList();
+        List<Long> excludedUserIds;
+        if (user != null) {
+            excludedUserIds = new java.util.ArrayList<>(userBlockService.findBlockedUserIds(user.getId()));
+            excludedUserIds.add(user.getId());
+        } else {
+            excludedUserIds = Collections.emptyList();
+        }
 
         List<Feed> feeds = feedService.findAllExceptDeletedWithCursor(cursor, pageSize, feedStatus, excludedUserIds);
 

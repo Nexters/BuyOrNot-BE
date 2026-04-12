@@ -54,7 +54,9 @@ class FeedServiceUnitTest {
                 FeedCategory.FOOD,
                 1080,
                 720,
-                List.of("feeds/abc.jpg") // List로 변경
+                List.of("feeds/abc.jpg"),
+                null,
+                null
         );
 
         Feed savedFeed = Feed.builder()
@@ -100,7 +102,9 @@ class FeedServiceUnitTest {
                 FeedCategory.FOOD,
                 100,
                 100,
-                Collections.emptyList()
+                Collections.emptyList(),
+                null,
+                null
         );
 
         // when & then
@@ -120,13 +124,13 @@ class FeedServiceUnitTest {
         // 1. null 원소가 포함된 경우
         FeedCreateCommand commandWithNull = new FeedCreateCommand(
                 user, "내용", 10000L, FeedCategory.FOOD, 100, 100,
-                Collections.singletonList(null)
+                Collections.singletonList(null), null, null
         );
 
         // 2. 공백 원소가 포함된 경우
         FeedCreateCommand commandWithBlank = new FeedCreateCommand(
                 user, "내용", 10000L, FeedCategory.FOOD, 100, 100,
-                List.of("  ")
+                List.of("  "), null, null
         );
 
         // when & then
@@ -154,7 +158,9 @@ class FeedServiceUnitTest {
                 FeedCategory.FOOD,
                 100,
                 100,
-                List.of("1.jpg", "2.jpg", "3.jpg", "4.jpg") // 4개 전달
+                List.of("1.jpg", "2.jpg", "3.jpg", "4.jpg"), // 4개 전달
+                null,
+                null
         );
 
         // when & then
@@ -179,7 +185,9 @@ class FeedServiceUnitTest {
                 FeedCategory.FOOD,
                 100,
                 100,
-                List.of("feeds/1.jpg", "feeds/2.jpg")
+                List.of("feeds/1.jpg", "feeds/2.jpg"),
+                null,
+                null
         );
 
         // when & then
@@ -203,6 +211,8 @@ class FeedServiceUnitTest {
                 FeedCategory.FOOD,
                 100,
                 100,
+                null,
+                null,
                 null
         );
 
@@ -227,7 +237,9 @@ class FeedServiceUnitTest {
                 FeedCategory.FOOD,
                 100,
                 100,
-                List.of("feeds/1.jpg", "feeds/2.jpg")
+                List.of("feeds/1.jpg", "feeds/2.jpg"),
+                null,
+                null
         );
 
         Feed savedFeed = spy(Feed.builder()
@@ -253,6 +265,48 @@ class FeedServiceUnitTest {
         assertThat(feedCaptor.getValue().getContent()).isEqualTo("");
 
         verifyNoMoreInteractions(feedRepository);
+    }
+
+    @Test
+    @DisplayName("피드 생성 실패 - 유효하지 않은 link(호스트 없는 URL)면 FEED_INVALID_LINK")
+    void createFeed_invalidLink_throws() {
+        // given
+        User user = User.builder().socialId("x").nickname("n").build();
+
+        FeedCreateCommand command = new FeedCreateCommand(
+                user, "내용", 10000L, FeedCategory.FOOD, 100, 100,
+                List.of("feeds/1.jpg"),
+                "https://foo",  // 점 없는 호스트 → 유효하지 않은 URL
+                null
+        );
+
+        // when & then
+        assertThatThrownBy(() -> feedService.createFeed(command))
+                .isInstanceOf(GlobalException.class)
+                .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_INVALID_LINK);
+
+        verifyNoInteractions(feedRepository);
+    }
+
+    @Test
+    @DisplayName("피드 생성 실패 - title 40자 초과면 FEED_TITLE_TOO_LONG")
+    void createFeed_titleTooLong_throws() {
+        // given
+        User user = User.builder().socialId("x").nickname("n").build();
+
+        FeedCreateCommand command = new FeedCreateCommand(
+                user, "내용", 10000L, FeedCategory.FOOD, 100, 100,
+                List.of("feeds/1.jpg"),
+                null,
+                "a".repeat(41)
+        );
+
+        // when & then
+        assertThatThrownBy(() -> feedService.createFeed(command))
+                .isInstanceOf(GlobalException.class)
+                .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_TITLE_TOO_LONG);
+
+        verifyNoInteractions(feedRepository);
     }
 
     @Test

@@ -62,14 +62,22 @@ public class Feed extends BaseEntity {
     @Column(nullable = false)
     private Integer imageHeight;
 
+    @Column(length = 500)
+    private String link;
+
+    @Column(length = 40)
+    private String title;
+
     @Builder
-    public Feed(User user, String content, Long price, FeedCategory category, Integer imageWidth, Integer imageHeight) {
+    public Feed(User user, String content, Long price, FeedCategory category, Integer imageWidth, Integer imageHeight, String link, String title) {
         this.user = user;
         this.content = content;
         this.price = price;
         this.category = category;
         this.imageWidth = imageWidth;
         this.imageHeight = imageHeight;
+        this.link = link;
+        this.title = title;
         this.reportStatus = ReportStatus.NONE;
         this.feedStatus = FeedStatus.OPEN;
         this.yesCount = 0L;
