@@ -101,7 +101,7 @@ class UserControllerTest {
         User user = createUser();
         User otherUser = createUser();
         Feed feed = createFeed(user);
-        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("key1").build());
+        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("key1").imageWidth(100).imageHeight(100).build());
         feedReviewRepository.save(FeedReview.builder().feed(feed).content("리뷰").build());
         voteLogRepository.save(VoteLog.builder().user(otherUser).feed(feed).choice(VoteChoice.YES).voteType(VoteType.USER).build());
 
@@ -134,7 +134,7 @@ class UserControllerTest {
         User user = createUser();
         User otherUser = createUser();
         Feed otherFeed = createFeed(otherUser);
-        feedImageRepository.save(FeedImage.builder().feed(otherFeed).s3ObjectKey("other-key").build());
+        feedImageRepository.save(FeedImage.builder().feed(otherFeed).s3ObjectKey("other-key").imageWidth(100).imageHeight(100).build());
         userBlockRepository.save(UserBlock.builder().user(otherUser).blockedUser(createUser()).build());
 
         String accessToken = jwtTokenService.createAccessToken(user.getId());
@@ -205,6 +205,8 @@ class UserControllerTest {
         feedImageRepository.save(FeedImage.builder()
                 .feed(feed)
                 .s3ObjectKey("feeds/test_image.jpg")
+                .imageWidth(1080)
+                .imageHeight(1350)
                 .build());
 
         // when & then
@@ -301,8 +303,6 @@ class UserControllerTest {
                 .content("테스트 피드")
                 .price(10000L)
                 .category(FeedCategory.FASHION)
-                .imageWidth(300)
-                .imageHeight(400)
                 .build());
     }
 
@@ -315,16 +315,16 @@ class UserControllerTest {
         User user = createUser();
         String accessToken = jwtTokenService.createAccessToken(user.getId());
         Feed feed = createFeed(user);
-        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("feeds/img1.jpg").build());
-        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("feeds/img2.jpg").build());
+        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("feeds/img1.jpg").imageWidth(100).imageHeight(100).build());
+        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("feeds/img2.jpg").imageWidth(100).imageHeight(100).build());
 
         // when & then
         mockMvc.perform(get("/api/v2/users/me/feeds")
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[0].feedId").value(feed.getId()))
-                .andExpect(jsonPath("$.data.content[0].imageUrls").isArray())
-                .andExpect(jsonPath("$.data.content[0].imageUrls.length()").value(2));
+                .andExpect(jsonPath("$.data.content[0].images").isArray())
+                .andExpect(jsonPath("$.data.content[0].images.length()").value(2));
     }
 
     @Test

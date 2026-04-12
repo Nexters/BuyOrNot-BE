@@ -58,8 +58,6 @@ class FeedTest {
                 .content("테스트 피드")
                 .price(10000L)
                 .category(FeedCategory.FASHION)
-                .imageWidth(300)
-                .imageHeight(400)
                 .build();
     }
 

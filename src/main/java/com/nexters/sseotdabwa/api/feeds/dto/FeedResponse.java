@@ -45,8 +45,8 @@ public record FeedResponse(
                 feed.getFeedStatus(),
                 feedImage != null ? feedImage.getS3ObjectKey() : null,
                 viewUrl,
-                feed.getImageWidth(),
-                feed.getImageHeight(),
+                feedImage != null ? feedImage.getImageWidth() : null,
+                feedImage != null ? feedImage.getImageHeight() : null,
                 new FeedAuthorResponse(
                         feed.getUser().getId(),
                         feed.getUser().getNickname(),
@@ -70,8 +70,8 @@ public record FeedResponse(
                 feed.getFeedStatus(),
                 feedImage != null ? feedImage.getS3ObjectKey() : null,
                 viewUrl,
-                feed.getImageWidth(),
-                feed.getImageHeight(),
+                feedImage != null ? feedImage.getImageWidth() : null,
+                feedImage != null ? feedImage.getImageHeight() : null,
                 new FeedAuthorResponse(
                         feed.getUser().getId(),
                         feed.getUser().getNickname(),

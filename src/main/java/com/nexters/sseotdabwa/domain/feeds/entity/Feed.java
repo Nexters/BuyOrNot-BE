@@ -56,12 +56,6 @@ public class Feed extends BaseEntity {
     @Column(nullable = false)
     private FeedStatus feedStatus;
 
-    @Column(nullable = false)
-    private Integer imageWidth;
-
-    @Column(nullable = false)
-    private Integer imageHeight;
-
     @Column(length = 500)
     private String link;
 
@@ -69,13 +63,11 @@ public class Feed extends BaseEntity {
     private String title;
 
     @Builder
-    public Feed(User user, String content, Long price, FeedCategory category, Integer imageWidth, Integer imageHeight, String link, String title) {
+    public Feed(User user, String content, Long price, FeedCategory category, String link, String title) {
         this.user = user;
         this.content = content;
         this.price = price;
         this.category = category;
-        this.imageWidth = imageWidth;
-        this.imageHeight = imageHeight;
         this.link = link;
         this.title = title;
         this.reportStatus = ReportStatus.NONE;

@@ -14,6 +14,7 @@ import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedImageRepository;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
+import com.nexters.sseotdabwa.domain.feeds.service.command.FeedImageCreateInfo;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
 import com.nexters.sseotdabwa.domain.users.repository.UserRepository;
@@ -43,8 +44,8 @@ class FeedImageServiceTest {
         User user = createUser();
         Feed feed = createFeed(user);
 
-        // when -
-        feedImageService.saveAll(feed, List.of("feeds/abc.jpg"));
+        // when
+        feedImageService.saveAll(feed, List.of(new FeedImageCreateInfo("feeds/abc.jpg", 1080, 1350)));
 
         // then
         assertThat(feedImageRepository.count()).isEqualTo(1);
@@ -52,6 +53,8 @@ class FeedImageServiceTest {
         FeedImage saved = feedImageRepository.findAll().get(0);
         assertThat(saved.getFeed().getId()).isEqualTo(feed.getId());
         assertThat(saved.getS3ObjectKey()).isEqualTo("feeds/abc.jpg");
+        assertThat(saved.getImageWidth()).isEqualTo(1080);
+        assertThat(saved.getImageHeight()).isEqualTo(1350);
     }
 
     @Test
@@ -60,7 +63,11 @@ class FeedImageServiceTest {
         // given
         User user = createUser();
         Feed feed = createFeed(user);
-        List<String> keys = List.of("key1.jpg", "key2.jpg", "key3.jpg");
+        List<FeedImageCreateInfo> keys = List.of(
+                new FeedImageCreateInfo("key1.jpg", 100, 200),
+                new FeedImageCreateInfo("key2.jpg", 100, 200),
+                new FeedImageCreateInfo("key3.jpg", 100, 200)
+        );
 
         // when
         feedImageService.saveAll(feed, keys);
@@ -80,7 +87,10 @@ class FeedImageServiceTest {
         Feed feed = createFeed(user);
 
         // when
-        feedImageService.saveAll(feed, List.of("  feeds/trim1.jpg  ", "  feeds/trim2.jpg  "));
+        feedImageService.saveAll(feed, List.of(
+                new FeedImageCreateInfo("  feeds/trim1.jpg  ", 100, 200),
+                new FeedImageCreateInfo("  feeds/trim2.jpg  ", 100, 200)
+        ));
 
         // then
         List<FeedImage> savedImages = feedImageRepository.findByFeedOrderByIdAsc(feed);
@@ -95,8 +105,8 @@ class FeedImageServiceTest {
         User user = createUser();
         Feed feed1 = createFeed(user);
         Feed feed2 = createFeed(user);
-        feedImageRepository.save(FeedImage.builder().feed(feed1).s3ObjectKey("key1").build());
-        feedImageRepository.save(FeedImage.builder().feed(feed2).s3ObjectKey("key2").build());
+        feedImageRepository.save(FeedImage.builder().feed(feed1).s3ObjectKey("key1").imageWidth(100).imageHeight(100).build());
+        feedImageRepository.save(FeedImage.builder().feed(feed2).s3ObjectKey("key2").imageWidth(100).imageHeight(100).build());
 
         // when
         feedImageService.deleteByFeeds(List.of(feed1, feed2));
@@ -126,8 +136,6 @@ class FeedImageServiceTest {
                 .content("테스트 피드")
                 .price(10000L)
                 .category(FeedCategory.FASHION)
-                .imageWidth(300)
-                .imageHeight(400)
                 .build());
     }
 }

@@ -6,6 +6,7 @@ import java.util.Optional;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedImageRepository;
+import com.nexters.sseotdabwa.domain.feeds.service.command.FeedImageCreateInfo;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,15 +20,14 @@ public class FeedImageService {
 
     private final FeedImageRepository feedImageRepository;
 
-    /**
-     * Feed : FeedImage = 1 : 1 저장
-     */
     @Transactional
-    public void saveAll(Feed feed, List<String> s3ObjectKeys) {
-        List<FeedImage> images = s3ObjectKeys.stream()
-                .map(key -> FeedImage.builder()
+    public void saveAll(Feed feed, List<FeedImageCreateInfo> imageInfos) {
+        List<FeedImage> images = imageInfos.stream()
+                .map(info -> FeedImage.builder()
                         .feed(feed)
-                        .s3ObjectKey(key.trim())
+                        .s3ObjectKey(info.s3ObjectKey().trim())
+                        .imageWidth(info.imageWidth())
+                        .imageHeight(info.imageHeight())
                         .build())
                 .toList();
 

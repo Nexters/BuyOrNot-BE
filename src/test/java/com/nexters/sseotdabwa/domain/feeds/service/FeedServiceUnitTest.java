@@ -26,6 +26,7 @@ import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
 import com.nexters.sseotdabwa.domain.feeds.service.command.FeedCreateCommand;
+import com.nexters.sseotdabwa.domain.feeds.service.command.FeedImageCreateInfo;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
 
@@ -52,9 +53,7 @@ class FeedServiceUnitTest {
                 "  내용입니다  ",
                 10000L,
                 FeedCategory.FOOD,
-                1080,
-                720,
-                List.of("feeds/abc.jpg"),
+                List.of(new FeedImageCreateInfo("feeds/abc.jpg", 1080, 720)),
                 null,
                 null
         );
@@ -64,8 +63,6 @@ class FeedServiceUnitTest {
                 .content("내용입니다")
                 .price(10000L)
                 .category(FeedCategory.FOOD)
-                .imageWidth(1080)
-                .imageHeight(720)
                 .build();
 
         Feed savedFeedSpy = spy(savedFeed);
@@ -100,8 +97,6 @@ class FeedServiceUnitTest {
                 "내용",
                 10000L,
                 FeedCategory.FOOD,
-                100,
-                100,
                 Collections.emptyList(),
                 null,
                 null
@@ -123,14 +118,14 @@ class FeedServiceUnitTest {
 
         // 1. null 원소가 포함된 경우
         FeedCreateCommand commandWithNull = new FeedCreateCommand(
-                user, "내용", 10000L, FeedCategory.FOOD, 100, 100,
+                user, "내용", 10000L, FeedCategory.FOOD,
                 Collections.singletonList(null), null, null
         );
 
         // 2. 공백 원소가 포함된 경우
         FeedCreateCommand commandWithBlank = new FeedCreateCommand(
-                user, "내용", 10000L, FeedCategory.FOOD, 100, 100,
-                List.of("  "), null, null
+                user, "내용", 10000L, FeedCategory.FOOD,
+                List.of(new FeedImageCreateInfo("  ", 100, 100)), null, null
         );
 
         // when & then
@@ -156,9 +151,12 @@ class FeedServiceUnitTest {
                 "내용",
                 10000L,
                 FeedCategory.FOOD,
-                100,
-                100,
-                List.of("1.jpg", "2.jpg", "3.jpg", "4.jpg"), // 4개 전달
+                List.of(
+                        new FeedImageCreateInfo("1.jpg", 100, 100),
+                        new FeedImageCreateInfo("2.jpg", 100, 100),
+                        new FeedImageCreateInfo("3.jpg", 100, 100),
+                        new FeedImageCreateInfo("4.jpg", 100, 100)
+                ),
                 null,
                 null
         );
@@ -183,9 +181,7 @@ class FeedServiceUnitTest {
                 longContent,
                 10000L,
                 FeedCategory.FOOD,
-                100,
-                100,
-                List.of("feeds/1.jpg", "feeds/2.jpg"),
+                List.of(new FeedImageCreateInfo("feeds/1.jpg", 100, 100)),
                 null,
                 null
         );
@@ -209,8 +205,6 @@ class FeedServiceUnitTest {
                 "내용",
                 10000L,
                 FeedCategory.FOOD,
-                100,
-                100,
                 null,
                 null,
                 null
@@ -235,9 +229,7 @@ class FeedServiceUnitTest {
                 null,
                 10000L,
                 FeedCategory.FOOD,
-                100,
-                100,
-                List.of("feeds/1.jpg", "feeds/2.jpg"),
+                List.of(new FeedImageCreateInfo("feeds/1.jpg", 100, 100)),
                 null,
                 null
         );
@@ -247,8 +239,6 @@ class FeedServiceUnitTest {
                 .content("")
                 .price(10000L)
                 .category(FeedCategory.FOOD)
-                .imageWidth(100)
-                .imageHeight(100)
                 .build());
         given(savedFeed.getId()).willReturn(10L);
 
@@ -274,8 +264,8 @@ class FeedServiceUnitTest {
         User user = User.builder().socialId("x").nickname("n").build();
 
         FeedCreateCommand command = new FeedCreateCommand(
-                user, "내용", 10000L, FeedCategory.FOOD, 100, 100,
-                List.of("feeds/1.jpg"),
+                user, "내용", 10000L, FeedCategory.FOOD,
+                List.of(new FeedImageCreateInfo("feeds/1.jpg", 100, 100)),
                 "https://foo",  // 점 없는 호스트 → 유효하지 않은 URL
                 null
         );
@@ -295,8 +285,8 @@ class FeedServiceUnitTest {
         User user = User.builder().socialId("x").nickname("n").build();
 
         FeedCreateCommand command = new FeedCreateCommand(
-                user, "내용", 10000L, FeedCategory.FOOD, 100, 100,
-                List.of("feeds/1.jpg"),
+                user, "내용", 10000L, FeedCategory.FOOD,
+                List.of(new FeedImageCreateInfo("feeds/1.jpg", 100, 100)),
                 null,
                 "a".repeat(41)
         );
@@ -323,16 +313,12 @@ class FeedServiceUnitTest {
                 .content("피드1")
                 .price(10000L)
                 .category(FeedCategory.FASHION)
-                .imageWidth(300)
-                .imageHeight(400)
                 .build();
         Feed feed2 = Feed.builder()
                 .user(user)
                 .content("피드2")
                 .price(20000L)
                 .category(FeedCategory.FOOD)
-                .imageWidth(300)
-                .imageHeight(400)
                 .build();
         given(feedRepository.findByReportStatusNotOrderByCreatedAtDesc(ReportStatus.DELETED))
                 .willReturn(List.of(feed1, feed2));
@@ -358,8 +344,6 @@ class FeedServiceUnitTest {
                 .content("테스트 피드")
                 .price(10000L)
                 .category(FeedCategory.FASHION)
-                .imageWidth(300)
-                .imageHeight(400)
                 .build();
         given(feedRepository.findById(1L)).willReturn(Optional.of(feed));
 
@@ -396,8 +380,6 @@ class FeedServiceUnitTest {
                 .content("테스트 피드")
                 .price(10000L)
                 .category(FeedCategory.FASHION)
-                .imageWidth(300)
-                .imageHeight(400)
                 .build();
 
         // when

@@ -21,6 +21,7 @@ import com.nexters.sseotdabwa.domain.feeds.service.FeedImageService;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedReviewService;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedService;
 import com.nexters.sseotdabwa.domain.feeds.service.command.FeedCreateCommand;
+import com.nexters.sseotdabwa.domain.feeds.service.command.FeedImageCreateInfo;
 import com.nexters.sseotdabwa.domain.notifications.service.NotificationService;
 import com.nexters.sseotdabwa.domain.storage.service.S3StorageService;
 import com.nexters.sseotdabwa.domain.users.entity.User;
@@ -69,15 +70,13 @@ public class FeedFacade {
                 request.content(),
                 request.price(),
                 request.category(),
-                request.imageWidth(),
-                request.imageHeight(),
-                List.of(request.s3ObjectKey()),
+                List.of(new FeedImageCreateInfo(request.s3ObjectKey(), request.imageWidth(), request.imageHeight())),
                 null,
                 null
         );
 
         Feed savedFeed = feedService.createFeed(command);
-        feedImageService.saveAll(savedFeed, command.s3ObjectKeys());
+        feedImageService.saveAll(savedFeed, command.images());
 
         return new FeedCreateResponse(savedFeed.getId());
     }
@@ -166,20 +165,22 @@ public class FeedFacade {
      */
     @Transactional
     public FeedCreateResponse createFeedV2(User user, FeedCreateRequestV2 request) {
+        List<FeedImageCreateInfo> imageInfos = request.images().stream()
+                .map(img -> new FeedImageCreateInfo(img.s3ObjectKey(), img.imageWidth(), img.imageHeight()))
+                .toList();
+
         FeedCreateCommand command = new FeedCreateCommand(
                 user,
                 request.content(),
                 request.price(),
                 request.category(),
-                request.imageWidth(),
-                request.imageHeight(),
-                request.s3ObjectKeys(),
+                imageInfos,
                 request.link(),
                 request.title()
         );
 
         Feed savedFeed = feedService.createFeed(command);
-        feedImageService.saveAll(savedFeed, command.s3ObjectKeys());
+        feedImageService.saveAll(savedFeed, command.images());
 
         return new FeedCreateResponse(savedFeed.getId());
     }
