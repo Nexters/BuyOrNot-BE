@@ -7,6 +7,7 @@ import com.nexters.sseotdabwa.api.feeds.facade.FeedFacade;
 import com.nexters.sseotdabwa.common.response.ApiResponse;
 import com.nexters.sseotdabwa.common.response.CursorPageResponse;
 import com.nexters.sseotdabwa.common.security.CurrentUser;
+import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 
@@ -39,9 +40,10 @@ public class FeedController implements FeedControllerSpec {
             @CurrentUser User user,
             @RequestParam(required = false) Long cursor,
             @RequestParam(required = false) Integer size,
-            @RequestParam(required = false) FeedStatus feedStatus
+            @RequestParam(required = false) FeedStatus feedStatus,
+            @RequestParam(required = false) FeedCategory category
     ) {
-        CursorPageResponse<FeedResponse> response = feedFacade.getFeedList(user, cursor, size, feedStatus);
+        CursorPageResponse<FeedResponse> response = feedFacade.getFeedList(user, cursor, size, feedStatus, category);
         return ApiResponse.success(response, HttpStatus.OK);
     }
 
