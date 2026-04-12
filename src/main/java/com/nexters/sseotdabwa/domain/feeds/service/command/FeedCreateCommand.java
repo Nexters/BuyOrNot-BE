@@ -10,9 +10,7 @@ public record FeedCreateCommand(
         String content,
         Long price,
         FeedCategory category,
-        Integer imageWidth,
-        Integer imageHeight,
-        List<String> s3ObjectKeys,
+        List<FeedImageCreateInfo> images,
         String link,
         String title
 ) {

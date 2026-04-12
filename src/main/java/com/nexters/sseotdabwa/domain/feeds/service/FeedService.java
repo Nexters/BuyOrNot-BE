@@ -54,8 +54,6 @@ public class FeedService {
                 .content(normalizeContent(command.content()))
                 .price(command.price())
                 .category(command.category())
-                .imageWidth(command.imageWidth())
-                .imageHeight(command.imageHeight())
                 .link(command.link())
                 .title(command.title())
                 .build();
@@ -75,22 +73,27 @@ public class FeedService {
         }
 
         // 2. 이미지 리스트 자체 검증 (null 또는 비어있음)
-        if (command.s3ObjectKeys() == null || command.s3ObjectKeys().isEmpty()) {
+        if (command.images() == null || command.images().isEmpty()) {
             throw new GlobalException(FeedErrorCode.FEED_IMAGE_REQUIRED);
         }
 
         // 3. 이미지 개수 제한 검증 (최대 3장)
-        if (command.s3ObjectKeys().size() > 3) {
+        if (command.images().size() > 3) {
             throw new GlobalException(FeedErrorCode.FEED_IMAGE_LIMIT_EXCEEDED);
         }
 
-        // 4. 이미지 원소 내부 검증 (원소가 null이거나 공백만 있는 경우 방지)
-        // 리스트 내 단 하나라도 유효하지 않은 키가 있다면 예외를 던집니다.
-        if (command.s3ObjectKeys().stream().anyMatch(key -> key == null || key.isBlank())) {
+        // 4. 이미지 원소 내부 검증 (s3ObjectKey가 null이거나 공백만 있는 경우 방지)
+        if (command.images().stream().anyMatch(img -> img == null || img.s3ObjectKey() == null || img.s3ObjectKey().isBlank())) {
             throw new GlobalException(FeedErrorCode.FEED_IMAGE_REQUIRED);
         }
 
-        // 5. link 검증 (값이 있는 경우에만)
+        // 5. 이미지 크기 검증 (imageWidth/imageHeight가 null이거나 1 미만인 경우 방지)
+        if (command.images().stream().anyMatch(img -> img.imageWidth() == null || img.imageWidth() < 1
+                || img.imageHeight() == null || img.imageHeight() < 1)) {
+            throw new GlobalException(FeedErrorCode.FEED_IMAGE_INVALID_SIZE);
+        }
+
+        // 6. link 검증 (값이 있는 경우에만)
         String link = command.link();
         if (link != null && !link.isBlank()) {
             if (link.length() > MAX_LINK_LENGTH || !URL_VALIDATOR.isValid(link, null)) {
@@ -98,7 +101,7 @@ public class FeedService {
             }
         }
 
-        // 6. title 길이 검증 (값이 있는 경우에만)
+        // 7. title 길이 검증 (값이 있는 경우에만)
         String title = command.title();
         if (title != null && title.length() > MAX_TITLE_LENGTH) {
             throw new GlobalException(FeedErrorCode.FEED_TITLE_TOO_LONG);

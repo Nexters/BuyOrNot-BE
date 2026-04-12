@@ -183,9 +183,7 @@ class FeedControllerTest {
                 FeedCategory.FOOD,
                 8000L,
                 "두쫀쿠 맛있어보이는데 살까 말까",
-                List.of("feeds/image1.jpg"),
-                1080,
-                1350,
+                List.of(new FeedCreateRequestV2.ImageRequest("feeds/image1.jpg", 1080, 1350)),
                 null,
                 null
         );
@@ -210,9 +208,11 @@ class FeedControllerTest {
                 FeedCategory.FOOD,
                 8000L,
                 "이미지 3개 테스트",
-                List.of("feeds/1.jpg", "feeds/2.jpg", "feeds/3.jpg"),
-                1080,
-                1350,
+                List.of(
+                        new FeedCreateRequestV2.ImageRequest("feeds/1.jpg", 1080, 1350),
+                        new FeedCreateRequestV2.ImageRequest("feeds/2.jpg", 720, 960),
+                        new FeedCreateRequestV2.ImageRequest("feeds/3.jpg", 400, 500)
+                ),
                 null,
                 null
         );
@@ -241,8 +241,6 @@ class FeedControllerTest {
                 8000L,
                 "이미지 없음",
                 List.of(),  // @NotEmpty 검증 대상
-                1080,
-                1350,
                 null,
                 null
         );
@@ -267,9 +265,12 @@ class FeedControllerTest {
                 FeedCategory.FOOD,
                 8000L,
                 "이미지 4개",
-                List.of("1.jpg", "2.jpg", "3.jpg", "4.jpg"),  // @Size(max=3)
-                1080,
-                1350,
+                List.of(
+                        new FeedCreateRequestV2.ImageRequest("1.jpg", 100, 100),
+                        new FeedCreateRequestV2.ImageRequest("2.jpg", 100, 100),
+                        new FeedCreateRequestV2.ImageRequest("3.jpg", 100, 100),
+                        new FeedCreateRequestV2.ImageRequest("4.jpg", 100, 100)
+                ),
                 null,
                 null
         );
@@ -309,11 +310,10 @@ class FeedControllerTest {
         // given
         User user = createUser();
         Feed feed = feedRepository.save(Feed.builder()
-                .user(user).content("다중이미지").price(1000L).category(FeedCategory.ELECTRONICS)
-                .imageWidth(100).imageHeight(100).build());
+                .user(user).content("다중이미지").price(1000L).category(FeedCategory.ELECTRONICS).build());
 
-        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img1.jpg").build());
-        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img2.jpg").build());
+        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img1.jpg").imageWidth(100).imageHeight(100).build());
+        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img2.jpg").imageWidth(100).imageHeight(100).build());
 
         // when & then - V1은 첫 번째 이미지만 viewUrl(단건) 반환
         mockMvc.perform(get("/api/v1/feeds"))
@@ -373,18 +373,17 @@ class FeedControllerTest {
         User other = createUser();
         String token = jwtTokenService.createAccessToken(me.getId());
         Feed feed = feedRepository.save(Feed.builder()
-                .user(other).content("다중이미지").price(1000L).category(FeedCategory.ELECTRONICS)
-                .imageWidth(100).imageHeight(100).build());
+                .user(other).content("다중이미지").price(1000L).category(FeedCategory.ELECTRONICS).build());
 
-        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img1.jpg").build());
-        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img2.jpg").build());
+        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img1.jpg").imageWidth(100).imageHeight(100).build());
+        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img2.jpg").imageWidth(200).imageHeight(200).build());
 
         // when & then - 로그인 시 본인 피드 제외, 타인 피드는 조회됨
         mockMvc.perform(get("/api/v2/feeds")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.content[0].imageUrls").isArray())
-                .andExpect(jsonPath("$.data.content[0].imageUrls.length()").value(2));
+                .andExpect(jsonPath("$.data.content[0].images").isArray())
+                .andExpect(jsonPath("$.data.content[0].images.length()").value(2));
     }
 
     // ===== 피드 삭제 =====
@@ -708,19 +707,20 @@ class FeedControllerTest {
         User user = createUser();
         String token = jwtTokenService.createAccessToken(user.getId());
         Feed feed = feedRepository.save(Feed.builder()
-                .user(user).content("다중이미지 피드").price(10000L).category(FeedCategory.FASHION)
-                .imageWidth(300).imageHeight(400).build());
+                .user(user).content("다중이미지 피드").price(10000L).category(FeedCategory.FASHION).build());
 
-        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img1.jpg").build());
-        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img2.jpg").build());
+        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img1.jpg").imageWidth(300).imageHeight(400).build());
+        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img2.jpg").imageWidth(200).imageHeight(300).build());
 
         // when & then
         mockMvc.perform(get("/api/v2/feeds/" + feed.getId())
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.feedId").value(feed.getId()))
-                .andExpect(jsonPath("$.data.imageUrls").isArray())
-                .andExpect(jsonPath("$.data.imageUrls.length()").value(2));
+                .andExpect(jsonPath("$.data.images").isArray())
+                .andExpect(jsonPath("$.data.images.length()").value(2))
+                .andExpect(jsonPath("$.data.images[0].imageWidth").value(300))
+                .andExpect(jsonPath("$.data.images[0].imageHeight").value(400));
     }
 
     // ===== 피드 리스트 feedStatus 필터 =====
@@ -859,9 +859,7 @@ class FeedControllerTest {
                 FeedCategory.FOOD,
                 8000L,
                 "링크 포함 피드",
-                List.of("feeds/image1.jpg"),
-                1080,
-                1350,
+                List.of(new FeedCreateRequestV2.ImageRequest("feeds/image1.jpg", 1080, 1350)),
                 "https://www.example.com/product/123",
                 "이 신발 살까 말까"
         );
@@ -886,9 +884,7 @@ class FeedControllerTest {
                 FeedCategory.FOOD,
                 8000L,
                 "잘못된 링크",
-                List.of("feeds/image1.jpg"),
-                1080,
-                1350,
+                List.of(new FeedCreateRequestV2.ImageRequest("feeds/image1.jpg", 1080, 1350)),
                 "ftp://invalid.com",
                 null
         );
@@ -913,9 +909,7 @@ class FeedControllerTest {
                 FeedCategory.FOOD,
                 8000L,
                 "호스트 없는 링크",
-                List.of("feeds/image1.jpg"),
-                1080,
-                1350,
+                List.of(new FeedCreateRequestV2.ImageRequest("feeds/image1.jpg", 1080, 1350)),
                 "https://foo",  // 점 없는 호스트
                 null
         );
@@ -940,9 +934,7 @@ class FeedControllerTest {
                 FeedCategory.FOOD,
                 8000L,
                 "내용",
-                List.of("feeds/image1.jpg"),
-                1080,
-                1350,
+                List.of(new FeedCreateRequestV2.ImageRequest("feeds/image1.jpg", 1080, 1350)),
                 null,
                 "a".repeat(41)  // @Size(max=40)
         );
@@ -963,11 +955,10 @@ class FeedControllerTest {
         User user = createUser();
         Feed feed = feedRepository.save(Feed.builder()
                 .user(user).content("링크 피드").price(5000L).category(FeedCategory.FOOD)
-                .imageWidth(100).imageHeight(100)
                 .link("https://www.example.com")
                 .title("살까 말까")
                 .build());
-        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img1.jpg").build());
+        feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img1.jpg").imageWidth(100).imageHeight(100).build());
 
         // when & then
         mockMvc.perform(get("/api/v2/feeds/" + feed.getId()))
@@ -1031,13 +1022,13 @@ class FeedControllerTest {
                 .content("테스트 피드")
                 .price(10000L)
                 .category(FeedCategory.FASHION)
-                .imageWidth(300)
-                .imageHeight(400)
                 .build());
 
         feedImageRepository.save(FeedImage.builder()
                 .feed(feed)
                 .s3ObjectKey("feeds/test_" + UUID.randomUUID() + ".jpg")
+                .imageWidth(1080)
+                .imageHeight(1350)
                 .build());
 
         return feed;

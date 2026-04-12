@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.nexters.sseotdabwa.domain.feeds.service.command.FeedCreateCommand;
+import com.nexters.sseotdabwa.domain.feeds.service.command.FeedImageCreateInfo;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -664,7 +665,9 @@ class FeedServiceTest {
         User user = createUser();
         List<String> images = List.of("img1.jpg", "img2.jpg", "img3.jpg");
         FeedCreateCommand command = new FeedCreateCommand(
-                user, "내용", 5000L, FeedCategory.ELECTRONICS, 100, 100, images, null, null
+                user, "내용", 5000L, FeedCategory.ELECTRONICS,
+                images.stream().map(k -> new FeedImageCreateInfo(k, 100, 100)).toList(),
+                null, null
         );
 
         // when
@@ -683,7 +686,9 @@ class FeedServiceTest {
         User user = createUser();
         List<String> images = List.of("1.jpg", "2.jpg", "3.jpg", "4.jpg");
         FeedCreateCommand command = new FeedCreateCommand(
-                user, "내용", 5000L, FeedCategory.FASHION, 100, 100, images, null, null
+                user, "내용", 5000L, FeedCategory.FASHION,
+                images.stream().map(k -> new FeedImageCreateInfo(k, 100, 100)).toList(),
+                null, null
         );
 
         // when & then
@@ -698,9 +703,7 @@ class FeedServiceTest {
                 "테스트 피드 내용",
                 10000L,
                 FeedCategory.FASHION,
-                300,
-                400,
-                List.of("feeds/test-image.jpg"),
+                List.of(new FeedImageCreateInfo("feeds/test-image.jpg", 300, 400)),
                 null,
                 null
         );

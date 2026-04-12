@@ -18,10 +18,7 @@ public record FeedResponseV2(
         Long noCount,
         Long totalCount,
         FeedStatus feedStatus,
-        List<String> s3ObjectKeys,
-        List<String> imageUrls,
-        Integer imageWidth,
-        Integer imageHeight,
+        List<ImageInfo> images,
         FeedAuthorResponse author,
         LocalDateTime createdAt,
         Boolean hasVoted,
@@ -30,13 +27,20 @@ public record FeedResponseV2(
         String title
 ) {
 
+    public record ImageInfo(
+            String s3ObjectKey,
+            String imageUrl,
+            Integer imageWidth,
+            Integer imageHeight
+    ) {}
+
     public record FeedAuthorResponse(
             Long userId,
             String nickname,
             String profileImage
     ) {}
 
-    public static FeedResponseV2 of(Feed feed, List<FeedImage> images, List<String> viewUrls) {
+    public static FeedResponseV2 of(Feed feed, List<FeedImage> feedImages, List<String> viewUrls) {
         return new FeedResponseV2(
                 feed.getId(),
                 feed.getContent(),
@@ -46,10 +50,7 @@ public record FeedResponseV2(
                 feed.getNoCount(),
                 feed.getYesCount() + feed.getNoCount(),
                 feed.getFeedStatus(),
-                images.stream().map(FeedImage::getS3ObjectKey).toList(),
-                viewUrls,
-                feed.getImageWidth(),
-                feed.getImageHeight(),
+                buildImageInfos(feedImages, viewUrls),
                 new FeedAuthorResponse(
                         feed.getUser().getId(),
                         feed.getUser().getNickname(),
@@ -63,7 +64,7 @@ public record FeedResponseV2(
         );
     }
 
-    public static FeedResponseV2 of(Feed feed, List<FeedImage> images, List<String> viewUrls, Boolean hasVoted, VoteChoice myVoteChoice) {
+    public static FeedResponseV2 of(Feed feed, List<FeedImage> feedImages, List<String> viewUrls, Boolean hasVoted, VoteChoice myVoteChoice) {
         return new FeedResponseV2(
                 feed.getId(),
                 feed.getContent(),
@@ -73,10 +74,7 @@ public record FeedResponseV2(
                 feed.getNoCount(),
                 feed.getYesCount() + feed.getNoCount(),
                 feed.getFeedStatus(),
-                images.stream().map(FeedImage::getS3ObjectKey).toList(),
-                viewUrls,
-                feed.getImageWidth(),
-                feed.getImageHeight(),
+                buildImageInfos(feedImages, viewUrls),
                 new FeedAuthorResponse(
                         feed.getUser().getId(),
                         feed.getUser().getNickname(),
@@ -88,5 +86,15 @@ public record FeedResponseV2(
                 feed.getLink(),
                 feed.getTitle()
         );
+    }
+
+    private static List<ImageInfo> buildImageInfos(List<FeedImage> feedImages, List<String> viewUrls) {
+        List<ImageInfo> result = new java.util.ArrayList<>();
+        for (int i = 0; i < feedImages.size(); i++) {
+            FeedImage img = feedImages.get(i);
+            String url = i < viewUrls.size() ? viewUrls.get(i) : null;
+            result.add(new ImageInfo(img.getS3ObjectKey(), url, img.getImageWidth(), img.getImageHeight()));
+        }
+        return result;
     }
 }
