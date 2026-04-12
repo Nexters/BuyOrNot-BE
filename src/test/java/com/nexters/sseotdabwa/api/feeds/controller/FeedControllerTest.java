@@ -1006,6 +1006,42 @@ class FeedControllerTest {
                         org.hamcrest.Matchers.hasItems(feed1.getId().intValue(), feed2.getId().intValue())));
     }
 
+    @Test
+    @DisplayName("피드 리스트 조회 - category 필터 적용")
+    void getFeedList_filterByCategory() throws Exception {
+        // given
+        User user = createUser();
+        Feed fashionFeed = feedRepository.save(Feed.builder().user(user).content("패션").price(1000L).category(FeedCategory.FASHION).build());
+        Feed foodFeed = feedRepository.save(Feed.builder().user(user).content("음식").price(1000L).category(FeedCategory.FOOD).build());
+        feedImageRepository.save(FeedImage.builder().feed(fashionFeed).s3ObjectKey("f.jpg").imageWidth(10).imageHeight(10).build());
+        feedImageRepository.save(FeedImage.builder().feed(foodFeed).s3ObjectKey("f.jpg").imageWidth(10).imageHeight(10).build());
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds")
+                        .param("category", "FASHION"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].feedId").value(fashionFeed.getId()));
+    }
+
+    @Test
+    @DisplayName("[V2] 피드 리스트 조회 - category 필터 적용")
+    void getFeedList_v2_filterByCategory() throws Exception {
+        // given
+        User user = createUser();
+        Feed fashionFeed = feedRepository.save(Feed.builder().user(user).content("패션").price(1000L).category(FeedCategory.FASHION).build());
+        Feed foodFeed = feedRepository.save(Feed.builder().user(user).content("음식").price(1000L).category(FeedCategory.FOOD).build());
+        feedImageRepository.save(FeedImage.builder().feed(fashionFeed).s3ObjectKey("f.jpg").imageWidth(10).imageHeight(10).build());
+        feedImageRepository.save(FeedImage.builder().feed(foodFeed).s3ObjectKey("f.jpg").imageWidth(10).imageHeight(10).build());
+
+        // when & then
+        mockMvc.perform(get("/api/v2/feeds")
+                        .param("category", "FOOD"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].feedId").value(foodFeed.getId()));
+    }
+
     // ===== Helper Methods =====
 
     private User createUser() {

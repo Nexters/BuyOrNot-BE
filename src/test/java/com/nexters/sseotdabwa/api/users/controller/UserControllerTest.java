@@ -80,6 +80,30 @@ class UserControllerTest {
     private JwtTokenService jwtTokenService;
 
     @Test
+    @DisplayName("내 정보 조회 성공 - 200 OK")
+    void getMyInfo_success() throws Exception {
+        // given
+        User user = createUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+
+        // when & then
+        mockMvc.perform(get("/api/v1/users/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("200"))
+                .andExpect(jsonPath("$.data.nickname").value(user.getNickname()))
+                .andExpect(jsonPath("$.data.socialAccount").value(user.getSocialAccount().name()));
+    }
+
+    @Test
+    @DisplayName("내 정보 조회 실패 - 비로그인 401")
+    void getMyInfo_unauthorized_returns401() throws Exception {
+        // when & then
+        mockMvc.perform(get("/api/v1/users/me"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     @DisplayName("회원 탈퇴 성공 - 닉네임 반환")
     void withdraw_success_returnsNickname() throws Exception {
         // given
@@ -287,6 +311,46 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content.length()").value(1))
                 .andExpect(jsonPath("$.data.content[0].feedId").value(openFeed.getId()));
+    }
+
+    @Test
+    @DisplayName("내가 작성한 피드 조회 - category 필터 적용")
+    void getMyFeeds_filterByCategory() throws Exception {
+        // given
+        User user = createUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+        Feed fashionFeed = feedRepository.save(Feed.builder().user(user).content("패션").price(1000L).category(FeedCategory.FASHION).build());
+        Feed foodFeed = feedRepository.save(Feed.builder().user(user).content("음식").price(1000L).category(FeedCategory.FOOD).build());
+        feedImageRepository.save(FeedImage.builder().feed(fashionFeed).s3ObjectKey("f.jpg").imageWidth(10).imageHeight(10).build());
+        feedImageRepository.save(FeedImage.builder().feed(foodFeed).s3ObjectKey("f.jpg").imageWidth(10).imageHeight(10).build());
+
+        // when & then
+        mockMvc.perform(get("/api/v1/users/me/feeds")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .param("category", "FASHION"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].feedId").value(fashionFeed.getId()));
+    }
+
+    @Test
+    @DisplayName("[V2] 내가 작성한 피드 조회 - category 필터 적용")
+    void getMyFeeds_v2_filterByCategory() throws Exception {
+        // given
+        User user = createUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+        Feed fashionFeed = feedRepository.save(Feed.builder().user(user).content("패션").price(1000L).category(FeedCategory.FASHION).build());
+        Feed foodFeed = feedRepository.save(Feed.builder().user(user).content("음식").price(1000L).category(FeedCategory.FOOD).build());
+        feedImageRepository.save(FeedImage.builder().feed(fashionFeed).s3ObjectKey("f.jpg").imageWidth(10).imageHeight(10).build());
+        feedImageRepository.save(FeedImage.builder().feed(foodFeed).s3ObjectKey("f.jpg").imageWidth(10).imageHeight(10).build());
+
+        // when & then
+        mockMvc.perform(get("/api/v2/users/me/feeds")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .param("category", "FOOD"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].feedId").value(foodFeed.getId()));
     }
 
     private User createUser() {

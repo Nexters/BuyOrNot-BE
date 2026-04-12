@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.nexters.sseotdabwa.domain.feeds.exception.FeedErrorCode;
+import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus;
 import com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
@@ -133,53 +134,26 @@ public class FeedService {
         return feedRepository.findByReportStatusNotOrderByCreatedAtDesc(ReportStatus.DELETED);
     }
 
-    public List<Feed> findAllExceptDeletedWithCursor(Long cursor, int size, FeedStatus feedStatus) {
+    public List<Feed> findAllExceptDeletedWithCursor(Long cursor, int size, FeedStatus feedStatus, FeedCategory category) {
         Pageable pageable = PageRequest.ofSize(size + 1);
-        if (feedStatus != null) {
-            if (cursor == null) {
-                return feedRepository.findByFeedStatusAndReportStatusNotOrderByCreatedAtDescIdDesc(feedStatus, ReportStatus.DELETED, pageable);
-            }
-            return feedRepository.findByIdLessThanAndFeedStatusAndReportStatusNotOrderByCreatedAtDescIdDesc(cursor, feedStatus, ReportStatus.DELETED, pageable);
-        }
-        if (cursor == null) {
-            return feedRepository.findByReportStatusNotOrderByCreatedAtDescIdDesc(ReportStatus.DELETED, pageable);
-        }
-        return feedRepository.findByIdLessThanAndReportStatusNotOrderByCreatedAtDescIdDesc(cursor, ReportStatus.DELETED, pageable);
+        return feedRepository.findFeedsWithCursor(cursor, feedStatus, category, pageable);
     }
 
-    public List<Feed> findAllExceptDeletedWithCursor(Long cursor, int size, FeedStatus feedStatus, List<Long> excludedUserIds) {
-        if (excludedUserIds == null || excludedUserIds.isEmpty()) {
-            return findAllExceptDeletedWithCursor(cursor, size, feedStatus);
-        }
+    public List<Feed> findAllExceptDeletedWithCursor(Long cursor, int size, FeedStatus feedStatus, FeedCategory category, List<Long> excludedUserIds) {
         Pageable pageable = PageRequest.ofSize(size + 1);
-        if (feedStatus != null) {
-            if (cursor == null) {
-                return feedRepository.findByFeedStatusAndReportStatusNotAndUserIdNotInOrderByCreatedAtDescIdDesc(feedStatus, excludedUserIds, pageable);
-            }
-            return feedRepository.findByIdLessThanAndFeedStatusAndReportStatusNotAndUserIdNotInOrderByCreatedAtDescIdDesc(cursor, feedStatus, excludedUserIds, pageable);
+        if (excludedUserIds == null || excludedUserIds.isEmpty()) {
+            return feedRepository.findFeedsWithCursor(cursor, feedStatus, category, pageable);
         }
-        if (cursor == null) {
-            return feedRepository.findByReportStatusNotAndUserIdNotInOrderByCreatedAtDescIdDesc(excludedUserIds, pageable);
-        }
-        return feedRepository.findByIdLessThanAndReportStatusNotAndUserIdNotInOrderByCreatedAtDescIdDesc(cursor, excludedUserIds, pageable);
+        return feedRepository.findFeedsWithCursorExcludingUsers(cursor, feedStatus, category, excludedUserIds, pageable);
     }
 
     public List<Feed> findByUserIdOrderByCreatedAtDesc(Long userId) {
         return feedRepository.findByUserIdOrderByCreatedAtDesc(userId);
     }
 
-    public List<Feed> findByUserIdWithCursor(Long userId, Long cursor, int size, FeedStatus feedStatus) {
+    public List<Feed> findByUserIdWithCursor(Long userId, Long cursor, int size, FeedStatus feedStatus, FeedCategory category) {
         Pageable pageable = PageRequest.ofSize(size + 1);
-        if (feedStatus != null) {
-            if (cursor == null) {
-                return feedRepository.findByUserIdAndFeedStatusOrderByCreatedAtDescIdDesc(userId, feedStatus, pageable);
-            }
-            return feedRepository.findByUserIdAndIdLessThanAndFeedStatusOrderByCreatedAtDescIdDesc(userId, cursor, feedStatus, pageable);
-        }
-        if (cursor == null) {
-            return feedRepository.findByUserIdOrderByCreatedAtDescIdDesc(userId, pageable);
-        }
-        return feedRepository.findByUserIdAndIdLessThanOrderByCreatedAtDescIdDesc(userId, cursor, pageable);
+        return feedRepository.findMyFeedsWithCursor(userId, cursor, feedStatus, category, pageable);
     }
 
     @Transactional

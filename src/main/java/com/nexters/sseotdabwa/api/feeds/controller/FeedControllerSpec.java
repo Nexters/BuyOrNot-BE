@@ -5,6 +5,7 @@ import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateResponse;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
 import com.nexters.sseotdabwa.common.response.ApiResponse;
 import com.nexters.sseotdabwa.common.response.CursorPageResponse;
+import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 
@@ -64,7 +65,8 @@ public interface FeedControllerSpec {
             @Parameter(hidden = true) User user,
             @Parameter(description = "이전 페이지 마지막 feedId (첫 페이지는 생략)") Long cursor,
             @Parameter(description = "페이지 크기 (기본값 20, 최대 50)") Integer size,
-            @Parameter(description = "피드 상태 필터 (OPEN, CLOSED / 미지정 시 전체)") FeedStatus feedStatus
+            @Parameter(description = "피드 상태 필터 (OPEN, CLOSED / 미지정 시 전체)") FeedStatus feedStatus,
+            @Parameter(description = "카테고리 필터 (미지정 시 전체)") FeedCategory category
     );
 
     @Operation(
