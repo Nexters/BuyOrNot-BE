@@ -87,7 +87,13 @@ public class FeedService {
             throw new GlobalException(FeedErrorCode.FEED_IMAGE_REQUIRED);
         }
 
-        // 5. link 검증 (값이 있는 경우에만)
+        // 5. 이미지 크기 검증 (imageWidth/imageHeight가 null이거나 1 미만인 경우 방지)
+        if (command.images().stream().anyMatch(img -> img.imageWidth() == null || img.imageWidth() < 1
+                || img.imageHeight() == null || img.imageHeight() < 1)) {
+            throw new GlobalException(FeedErrorCode.FEED_IMAGE_INVALID_SIZE);
+        }
+
+        // 6. link 검증 (값이 있는 경우에만)
         String link = command.link();
         if (link != null && !link.isBlank()) {
             if (link.length() > MAX_LINK_LENGTH || !URL_VALIDATOR.isValid(link, null)) {
@@ -95,7 +101,7 @@ public class FeedService {
             }
         }
 
-        // 6. title 길이 검증 (값이 있는 경우에만)
+        // 7. title 길이 검증 (값이 있는 경우에만)
         String title = command.title();
         if (title != null && title.length() > MAX_TITLE_LENGTH) {
             throw new GlobalException(FeedErrorCode.FEED_TITLE_TOO_LONG);

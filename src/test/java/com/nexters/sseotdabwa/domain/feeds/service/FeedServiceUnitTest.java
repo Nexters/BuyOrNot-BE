@@ -141,6 +141,34 @@ class FeedServiceUnitTest {
     }
 
     @Test
+    @DisplayName("피드 생성 실패 - imageWidth 또는 imageHeight가 null이거나 1 미만이면 FEED_IMAGE_INVALID_SIZE")
+    void createFeed_invalidImageSize_throws() {
+        // given
+        User user = User.builder().socialId("x").nickname("n").build();
+
+        FeedCreateCommand commandWithNullWidth = new FeedCreateCommand(
+                user, "내용", 10000L, FeedCategory.FOOD,
+                List.of(new FeedImageCreateInfo("feeds/1.jpg", null, 100)), null, null
+        );
+
+        FeedCreateCommand commandWithZeroHeight = new FeedCreateCommand(
+                user, "내용", 10000L, FeedCategory.FOOD,
+                List.of(new FeedImageCreateInfo("feeds/1.jpg", 100, 0)), null, null
+        );
+
+        // when & then
+        assertThatThrownBy(() -> feedService.createFeed(commandWithNullWidth))
+                .isInstanceOf(GlobalException.class)
+                .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_IMAGE_INVALID_SIZE);
+
+        assertThatThrownBy(() -> feedService.createFeed(commandWithZeroHeight))
+                .isInstanceOf(GlobalException.class)
+                .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_IMAGE_INVALID_SIZE);
+
+        verifyNoInteractions(feedRepository);
+    }
+
+    @Test
     @DisplayName("피드 생성 실패 - 이미지 3개 초과 시 FEED_IMAGE_LIMIT_EXCEEDED")
     void createFeed_imageLimitExceeded_throws() {
         // given
