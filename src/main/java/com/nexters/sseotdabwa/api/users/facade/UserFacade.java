@@ -92,10 +92,10 @@ public class UserFacade {
      * 내 피드 조회 (커서 기반 페이지네이션)
      */
     @Transactional(readOnly = true)
-    public CursorPageResponse<FeedResponse> getMyFeeds(User user, Long cursor, Integer size, FeedStatus feedStatus, FeedCategory category) {
+    public CursorPageResponse<FeedResponse> getMyFeeds(User user, Long cursor, Integer size, FeedStatus feedStatus, List<FeedCategory> categories) {
         int pageSize = (size == null) ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
 
-        List<Feed> feeds = feedService.findByUserIdWithCursor(user.getId(), cursor, pageSize, feedStatus, category);
+        List<Feed> feeds = feedService.findByUserIdWithCursor(user.getId(), cursor, pageSize, feedStatus, categories);
 
         boolean hasNext = feeds.size() > pageSize;
         List<Feed> slicedFeeds = hasNext ? feeds.subList(0, pageSize) : feeds;
@@ -132,10 +132,10 @@ public class UserFacade {
      * 내 피드 조회 V2 (커서 기반 페이지네이션, 다중 이미지 반환)
      */
     @Transactional(readOnly = true)
-    public CursorPageResponse<FeedResponseV2> getMyFeedsV2(User user, Long cursor, Integer size, FeedStatus feedStatus, FeedCategory category) {
+    public CursorPageResponse<FeedResponseV2> getMyFeedsV2(User user, Long cursor, Integer size, FeedStatus feedStatus, List<FeedCategory> categories) {
         int pageSize = (size == null) ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
 
-        List<Feed> feeds = feedService.findByUserIdWithCursor(user.getId(), cursor, pageSize, feedStatus, category);
+        List<Feed> feeds = feedService.findByUserIdWithCursor(user.getId(), cursor, pageSize, feedStatus, categories);
 
         boolean hasNext = feeds.size() > pageSize;
         List<Feed> slicedFeeds = hasNext ? feeds.subList(0, pageSize) : feeds;

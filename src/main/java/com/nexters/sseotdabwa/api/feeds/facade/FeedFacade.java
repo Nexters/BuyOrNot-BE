@@ -1,5 +1,6 @@
 package com.nexters.sseotdabwa.api.feeds.facade;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -107,14 +108,14 @@ public class FeedFacade {
      * 피드 리스트 조회 (V1: 피드당 첫 번째 이미지 단건 반환, 커서 기반 페이지네이션)
      */
     @Transactional(readOnly = true)
-    public CursorPageResponse<FeedResponse> getFeedList(User user, Long cursor, Integer size, FeedStatus feedStatus, FeedCategory category) {
+    public CursorPageResponse<FeedResponse> getFeedList(User user, Long cursor, Integer size, FeedStatus feedStatus, List<FeedCategory> categories) {
         int pageSize = (size == null) ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
 
         List<Long> excludedUserIds = (user != null)
                 ? userBlockService.findBlockedUserIds(user.getId())
                 : Collections.emptyList();
 
-        List<Feed> feeds = feedService.findAllExceptDeletedWithCursor(cursor, pageSize, feedStatus, category, excludedUserIds);
+        List<Feed> feeds = feedService.findAllExceptDeletedWithCursor(cursor, pageSize, feedStatus, categories, excludedUserIds);
 
         boolean hasNext = feeds.size() > pageSize;
         List<Feed> slicedFeeds = hasNext ? feeds.subList(0, pageSize) : feeds;
@@ -210,18 +211,18 @@ public class FeedFacade {
      * 피드 리스트 조회 (V2: 다중 이미지 반환, 커서 기반 페이지네이션)
      */
     @Transactional(readOnly = true)
-    public CursorPageResponse<FeedResponseV2> getFeedListV2(User user, Long cursor, Integer size, FeedStatus feedStatus, FeedCategory category) {
+    public CursorPageResponse<FeedResponseV2> getFeedListV2(User user, Long cursor, Integer size, FeedStatus feedStatus, List<FeedCategory> categories) {
         int pageSize = (size == null) ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
 
         List<Long> excludedUserIds;
         if (user != null) {
-            excludedUserIds = new java.util.ArrayList<>(userBlockService.findBlockedUserIds(user.getId()));
+            excludedUserIds = new ArrayList<>(userBlockService.findBlockedUserIds(user.getId()));
             excludedUserIds.add(user.getId());
         } else {
             excludedUserIds = Collections.emptyList();
         }
 
-        List<Feed> feeds = feedService.findAllExceptDeletedWithCursor(cursor, pageSize, feedStatus, category, excludedUserIds);
+        List<Feed> feeds = feedService.findAllExceptDeletedWithCursor(cursor, pageSize, feedStatus, categories, excludedUserIds);
 
         boolean hasNext = feeds.size() > pageSize;
         List<Feed> slicedFeeds = hasNext ? feeds.subList(0, pageSize) : feeds;

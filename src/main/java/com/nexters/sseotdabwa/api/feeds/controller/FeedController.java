@@ -1,5 +1,7 @@
 package com.nexters.sseotdabwa.api.feeds.controller;
 
+import java.util.List;
+
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequest;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateResponse;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
@@ -41,9 +43,9 @@ public class FeedController implements FeedControllerSpec {
             @RequestParam(required = false) Long cursor,
             @RequestParam(required = false) Integer size,
             @RequestParam(required = false) FeedStatus feedStatus,
-            @RequestParam(required = false) FeedCategory category
+            @RequestParam(name = "category", required = false) List<FeedCategory> categories
     ) {
-        CursorPageResponse<FeedResponse> response = feedFacade.getFeedList(user, cursor, size, feedStatus, category);
+        CursorPageResponse<FeedResponse> response = feedFacade.getFeedList(user, cursor, size, feedStatus, categories);
         return ApiResponse.success(response, HttpStatus.OK);
     }
 

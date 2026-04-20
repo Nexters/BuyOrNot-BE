@@ -90,40 +90,6 @@ class FeedServiceTest {
     }
 
     @Test
-    @DisplayName("삭제된 피드 제외 전체 조회")
-    void findAllExceptDeleted_excludesDeletedFeeds() {
-        // given
-        User user = createUser();
-        Feed normalFeed = createFeed(user);
-        Feed deletedFeed = createFeed(user);
-        deletedFeed.deleteByReport();
-        feedRepository.save(deletedFeed);
-
-        // when
-        List<Feed> result = feedService.findAllExceptDeleted();
-
-        // then
-        assertThat(result).extracting(Feed::getId)
-                .contains(normalFeed.getId())
-                .doesNotContain(deletedFeed.getId());
-    }
-
-    @Test
-    @DisplayName("내 피드 최신순 조회")
-    void findByUserIdOrderByCreatedAtDesc_success() {
-        // given
-        User user = createUser();
-        Feed feed1 = createFeed(user);
-        Feed feed2 = createFeed(user);
-
-        // when
-        List<Feed> result = feedService.findByUserIdOrderByCreatedAtDesc(user.getId());
-
-        // then
-        assertThat(result).hasSize(2);
-    }
-
-    @Test
     @DisplayName("피드 단건 조회 성공")
     void findById_success() {
         // given
@@ -659,7 +625,7 @@ class FeedServiceTest {
     }
 
     @Test
-    @DisplayName("카테고리 필터 - 특정 카테고리만 반환")
+    @DisplayName("카테고리 필터 - 단일 카테고리만 반환")
     void findAllExceptDeletedWithCursor_filterByCategory() {
         // given
         User user = createUser();
@@ -667,12 +633,31 @@ class FeedServiceTest {
         Feed foodFeed = feedRepository.save(Feed.builder().user(user).content("음식").price(1000L).category(FeedCategory.FOOD).build());
 
         // when
-        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, null, FeedCategory.FASHION);
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, null, List.of(FeedCategory.FASHION));
 
         // then
         assertThat(result).extracting(Feed::getId)
                 .contains(fashionFeed.getId())
                 .doesNotContain(foodFeed.getId());
+    }
+
+    @Test
+    @DisplayName("카테고리 필터 - 복수 카테고리 선택 시 해당 카테고리 모두 반환")
+    void findAllExceptDeletedWithCursor_filterByMultipleCategories() {
+        // given
+        User user = createUser();
+        Feed fashionFeed = feedRepository.save(Feed.builder().user(user).content("패션").price(1000L).category(FeedCategory.FASHION).build());
+        Feed foodFeed = feedRepository.save(Feed.builder().user(user).content("음식").price(1000L).category(FeedCategory.FOOD).build());
+        Feed bookFeed = feedRepository.save(Feed.builder().user(user).content("책").price(1000L).category(FeedCategory.BOOK).build());
+
+        // when
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, null, List.of(FeedCategory.FASHION, FeedCategory.FOOD));
+
+        // then
+        assertThat(result).extracting(Feed::getId)
+                .containsExactlyInAnyOrder(fashionFeed.getId(), foodFeed.getId());
+        assertThat(result).extracting(Feed::getId)
+                .doesNotContain(bookFeed.getId());
     }
 
     @Test
@@ -692,7 +677,7 @@ class FeedServiceTest {
     }
 
     @Test
-    @DisplayName("내 피드 카테고리 필터")
+    @DisplayName("내 피드 카테고리 필터 - 단일 카테고리")
     void findByUserIdWithCursor_filterByCategory() {
         // given
         User user = createUser();
@@ -700,12 +685,31 @@ class FeedServiceTest {
         Feed foodFeed = feedRepository.save(Feed.builder().user(user).content("음식").price(1000L).category(FeedCategory.FOOD).build());
 
         // when
-        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), null, 10, null, FeedCategory.FASHION);
+        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), null, 10, null, List.of(FeedCategory.FASHION));
 
         // then
         assertThat(result).extracting(Feed::getId)
                 .contains(fashionFeed.getId())
                 .doesNotContain(foodFeed.getId());
+    }
+
+    @Test
+    @DisplayName("내 피드 카테고리 필터 - 복수 카테고리 선택 시 해당 카테고리 모두 반환")
+    void findByUserIdWithCursor_filterByMultipleCategories() {
+        // given
+        User user = createUser();
+        Feed fashionFeed = feedRepository.save(Feed.builder().user(user).content("패션").price(1000L).category(FeedCategory.FASHION).build());
+        Feed foodFeed = feedRepository.save(Feed.builder().user(user).content("음식").price(1000L).category(FeedCategory.FOOD).build());
+        Feed bookFeed = feedRepository.save(Feed.builder().user(user).content("책").price(1000L).category(FeedCategory.BOOK).build());
+
+        // when
+        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), null, 10, null, List.of(FeedCategory.FASHION, FeedCategory.FOOD));
+
+        // then
+        assertThat(result).extracting(Feed::getId)
+                .containsExactlyInAnyOrder(fashionFeed.getId(), foodFeed.getId());
+        assertThat(result).extracting(Feed::getId)
+                .doesNotContain(bookFeed.getId());
     }
 
     @Test
