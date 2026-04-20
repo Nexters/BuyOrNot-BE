@@ -353,6 +353,54 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.data.content[0].feedId").value(foodFeed.getId()));
     }
 
+    @Test
+    @DisplayName("내가 작성한 피드 조회 - category 복수 선택 필터 적용")
+    void getMyFeeds_filterByMultipleCategories() throws Exception {
+        // given
+        User user = createUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+        Feed fashionFeed = feedRepository.save(Feed.builder().user(user).content("패션").price(1000L).category(FeedCategory.FASHION).build());
+        Feed foodFeed = feedRepository.save(Feed.builder().user(user).content("음식").price(1000L).category(FeedCategory.FOOD).build());
+        Feed bookFeed = feedRepository.save(Feed.builder().user(user).content("책").price(1000L).category(FeedCategory.BOOK).build());
+        feedImageRepository.save(FeedImage.builder().feed(fashionFeed).s3ObjectKey("f1.jpg").imageWidth(10).imageHeight(10).build());
+        feedImageRepository.save(FeedImage.builder().feed(foodFeed).s3ObjectKey("f2.jpg").imageWidth(10).imageHeight(10).build());
+        feedImageRepository.save(FeedImage.builder().feed(bookFeed).s3ObjectKey("f3.jpg").imageWidth(10).imageHeight(10).build());
+
+        // when & then
+        mockMvc.perform(get("/api/v1/users/me/feeds")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .param("category", "FASHION")
+                        .param("category", "FOOD"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.content[*].feedId",
+                        org.hamcrest.Matchers.hasItems(fashionFeed.getId().intValue(), foodFeed.getId().intValue())));
+    }
+
+    @Test
+    @DisplayName("[V2] 내가 작성한 피드 조회 - category 복수 선택 필터 적용")
+    void getMyFeeds_v2_filterByMultipleCategories() throws Exception {
+        // given
+        User user = createUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+        Feed fashionFeed = feedRepository.save(Feed.builder().user(user).content("패션").price(1000L).category(FeedCategory.FASHION).build());
+        Feed foodFeed = feedRepository.save(Feed.builder().user(user).content("음식").price(1000L).category(FeedCategory.FOOD).build());
+        Feed bookFeed = feedRepository.save(Feed.builder().user(user).content("책").price(1000L).category(FeedCategory.BOOK).build());
+        feedImageRepository.save(FeedImage.builder().feed(fashionFeed).s3ObjectKey("f1.jpg").imageWidth(10).imageHeight(10).build());
+        feedImageRepository.save(FeedImage.builder().feed(foodFeed).s3ObjectKey("f2.jpg").imageWidth(10).imageHeight(10).build());
+        feedImageRepository.save(FeedImage.builder().feed(bookFeed).s3ObjectKey("f3.jpg").imageWidth(10).imageHeight(10).build());
+
+        // when & then
+        mockMvc.perform(get("/api/v2/users/me/feeds")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .param("category", "FASHION")
+                        .param("category", "FOOD"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.content[*].feedId",
+                        org.hamcrest.Matchers.hasItems(fashionFeed.getId().intValue(), foodFeed.getId().intValue())));
+    }
+
     private User createUser() {
         return userRepository.save(User.builder()
                 .socialId(UUID.randomUUID().toString())

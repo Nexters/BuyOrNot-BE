@@ -58,9 +58,9 @@ public class UserController implements UserControllerSpec {
             @RequestParam(required = false) Long cursor,
             @RequestParam(required = false) Integer size,
             @RequestParam(required = false) FeedStatus feedStatus,
-            @RequestParam(required = false) FeedCategory category
+            @RequestParam(name = "category", required = false) List<FeedCategory> categories
     ) {
-        CursorPageResponse<FeedResponse> response = userFacade.getMyFeeds(user, cursor, size, feedStatus, category);
+        CursorPageResponse<FeedResponse> response = userFacade.getMyFeeds(user, cursor, size, feedStatus, categories);
         return ApiResponse.success(response, HttpStatus.OK);
     }
 

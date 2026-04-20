@@ -130,30 +130,33 @@ public class FeedService {
                 .orElseThrow(() -> new GlobalException(FeedErrorCode.FEED_NOT_FOUND));
     }
 
-    public List<Feed> findAllExceptDeleted() {
-        return feedRepository.findByReportStatusNotOrderByCreatedAtDesc(ReportStatus.DELETED);
+    public List<Feed> findAllExceptDeletedWithCursor(Long cursor, int size, FeedStatus feedStatus, List<FeedCategory> categories) {
+        return findAllExceptDeletedWithCursor(cursor, size, feedStatus, categories, Collections.emptyList());
     }
 
-    public List<Feed> findAllExceptDeletedWithCursor(Long cursor, int size, FeedStatus feedStatus, FeedCategory category) {
+    public List<Feed> findAllExceptDeletedWithCursor(Long cursor, int size, FeedStatus feedStatus, List<FeedCategory> categories, List<Long> excludedUserIds) {
         Pageable pageable = PageRequest.ofSize(size + 1);
-        return feedRepository.findFeedsWithCursor(cursor, feedStatus, category, pageable);
-    }
+        boolean hasExcluded = excludedUserIds != null && !excludedUserIds.isEmpty();
+        boolean hasCategories = categories != null && !categories.isEmpty();
 
-    public List<Feed> findAllExceptDeletedWithCursor(Long cursor, int size, FeedStatus feedStatus, FeedCategory category, List<Long> excludedUserIds) {
-        Pageable pageable = PageRequest.ofSize(size + 1);
-        if (excludedUserIds == null || excludedUserIds.isEmpty()) {
-            return feedRepository.findFeedsWithCursor(cursor, feedStatus, category, pageable);
+        if (!hasExcluded && !hasCategories) {
+            return feedRepository.findFeedsWithCursor(cursor, feedStatus, pageable);
         }
-        return feedRepository.findFeedsWithCursorExcludingUsers(cursor, feedStatus, category, excludedUserIds, pageable);
+        if (!hasExcluded) {
+            return feedRepository.findFeedsWithCursorByCategories(cursor, feedStatus, categories, pageable);
+        }
+        if (!hasCategories) {
+            return feedRepository.findFeedsWithCursorExcludingUsers(cursor, feedStatus, excludedUserIds, pageable);
+        }
+        return feedRepository.findFeedsWithCursorExcludingUsersByCategories(cursor, feedStatus, categories, excludedUserIds, pageable);
     }
 
-    public List<Feed> findByUserIdOrderByCreatedAtDesc(Long userId) {
-        return feedRepository.findByUserIdOrderByCreatedAtDesc(userId);
-    }
-
-    public List<Feed> findByUserIdWithCursor(Long userId, Long cursor, int size, FeedStatus feedStatus, FeedCategory category) {
+    public List<Feed> findByUserIdWithCursor(Long userId, Long cursor, int size, FeedStatus feedStatus, List<FeedCategory> categories) {
         Pageable pageable = PageRequest.ofSize(size + 1);
-        return feedRepository.findMyFeedsWithCursor(userId, cursor, feedStatus, category, pageable);
+        if (categories == null || categories.isEmpty()) {
+            return feedRepository.findMyFeedsWithCursor(userId, cursor, feedStatus, pageable);
+        }
+        return feedRepository.findMyFeedsWithCursorByCategories(userId, cursor, feedStatus, categories, pageable);
     }
 
     @Transactional

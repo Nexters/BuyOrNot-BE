@@ -28,24 +28,32 @@ public interface FeedRepository extends JpaRepository<Feed, Long> {
 
     void deleteByUserId(Long userId);
 
-    List<Feed> findByReportStatusNotOrderByCreatedAtDesc(ReportStatus reportStatus);
-
-    List<Feed> findByUserIdOrderByCreatedAtDesc(Long userId);
-
     // ===== 커서 기반 피드 목록 조회 (전체 공개 피드) =====
 
     @Query("""
         SELECT f FROM Feed f
         WHERE (:cursorId IS NULL OR f.id < :cursorId)
           AND (:feedStatus IS NULL OR f.feedStatus = :feedStatus)
-          AND (:category IS NULL OR f.category = :category)
           AND f.reportStatus <> com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.DELETED
         ORDER BY f.id DESC
     """)
     List<Feed> findFeedsWithCursor(
             @Param("cursorId") Long cursorId,
             @Param("feedStatus") FeedStatus feedStatus,
-            @Param("category") FeedCategory category,
+            Pageable pageable);
+
+    @Query("""
+        SELECT f FROM Feed f
+        WHERE (:cursorId IS NULL OR f.id < :cursorId)
+          AND (:feedStatus IS NULL OR f.feedStatus = :feedStatus)
+          AND f.category IN :categories
+          AND f.reportStatus <> com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.DELETED
+        ORDER BY f.id DESC
+    """)
+    List<Feed> findFeedsWithCursorByCategories(
+            @Param("cursorId") Long cursorId,
+            @Param("feedStatus") FeedStatus feedStatus,
+            @Param("categories") List<FeedCategory> categories,
             Pageable pageable);
 
     // ===== 커서 기반 피드 목록 조회 (특정 유저 제외) =====
@@ -54,7 +62,6 @@ public interface FeedRepository extends JpaRepository<Feed, Long> {
         SELECT f FROM Feed f
         WHERE (:cursorId IS NULL OR f.id < :cursorId)
           AND (:feedStatus IS NULL OR f.feedStatus = :feedStatus)
-          AND (:category IS NULL OR f.category = :category)
           AND f.reportStatus <> com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.DELETED
           AND f.user.id NOT IN :excludedUserIds
         ORDER BY f.id DESC
@@ -62,7 +69,22 @@ public interface FeedRepository extends JpaRepository<Feed, Long> {
     List<Feed> findFeedsWithCursorExcludingUsers(
             @Param("cursorId") Long cursorId,
             @Param("feedStatus") FeedStatus feedStatus,
-            @Param("category") FeedCategory category,
+            @Param("excludedUserIds") List<Long> excludedUserIds,
+            Pageable pageable);
+
+    @Query("""
+        SELECT f FROM Feed f
+        WHERE (:cursorId IS NULL OR f.id < :cursorId)
+          AND (:feedStatus IS NULL OR f.feedStatus = :feedStatus)
+          AND f.category IN :categories
+          AND f.reportStatus <> com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.DELETED
+          AND f.user.id NOT IN :excludedUserIds
+        ORDER BY f.id DESC
+    """)
+    List<Feed> findFeedsWithCursorExcludingUsersByCategories(
+            @Param("cursorId") Long cursorId,
+            @Param("feedStatus") FeedStatus feedStatus,
+            @Param("categories") List<FeedCategory> categories,
             @Param("excludedUserIds") List<Long> excludedUserIds,
             Pageable pageable);
 
@@ -73,14 +95,27 @@ public interface FeedRepository extends JpaRepository<Feed, Long> {
         WHERE f.user.id = :userId
           AND (:cursorId IS NULL OR f.id < :cursorId)
           AND (:feedStatus IS NULL OR f.feedStatus = :feedStatus)
-          AND (:category IS NULL OR f.category = :category)
         ORDER BY f.id DESC
     """)
     List<Feed> findMyFeedsWithCursor(
             @Param("userId") Long userId,
             @Param("cursorId") Long cursorId,
             @Param("feedStatus") FeedStatus feedStatus,
-            @Param("category") FeedCategory category,
+            Pageable pageable);
+
+    @Query("""
+        SELECT f FROM Feed f
+        WHERE f.user.id = :userId
+          AND (:cursorId IS NULL OR f.id < :cursorId)
+          AND (:feedStatus IS NULL OR f.feedStatus = :feedStatus)
+          AND f.category IN :categories
+        ORDER BY f.id DESC
+    """)
+    List<Feed> findMyFeedsWithCursorByCategories(
+            @Param("userId") Long userId,
+            @Param("cursorId") Long cursorId,
+            @Param("feedStatus") FeedStatus feedStatus,
+            @Param("categories") List<FeedCategory> categories,
             Pageable pageable);
 
     @Modifying

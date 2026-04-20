@@ -1,5 +1,7 @@
 package com.nexters.sseotdabwa.api.users.controller;
 
+import java.util.List;
+
 import com.nexters.sseotdabwa.api.feeds.dto.FeedResponseV2;
 import com.nexters.sseotdabwa.api.users.facade.UserFacade;
 import com.nexters.sseotdabwa.common.response.ApiResponse;
@@ -27,9 +29,9 @@ public class UserControllerV2 implements UserControllerSpecV2 {
             @RequestParam(required = false) Long cursor,
             @RequestParam(required = false) Integer size,
             @RequestParam(required = false) FeedStatus feedStatus,
-            @RequestParam(required = false) FeedCategory category
+            @RequestParam(name = "category", required = false) List<FeedCategory> categories
     ) {
-        CursorPageResponse<FeedResponseV2> response = userFacade.getMyFeedsV2(user, cursor, size, feedStatus, category);
+        CursorPageResponse<FeedResponseV2> response = userFacade.getMyFeedsV2(user, cursor, size, feedStatus, categories);
         return ApiResponse.success(response, HttpStatus.OK);
     }
 }
