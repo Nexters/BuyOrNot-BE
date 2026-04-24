@@ -1,6 +1,7 @@
 package com.nexters.sseotdabwa.api.feeds.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
@@ -8,7 +9,7 @@ import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus;
 import com.nexters.sseotdabwa.domain.votes.enums.VoteChoice;
 
-public record FeedResponse(
+public record FeedResponseV2(
         Long feedId,
         String content,
         Long price,
@@ -17,15 +18,21 @@ public record FeedResponse(
         Long noCount,
         Long totalCount,
         FeedStatus feedStatus,
-        String s3ObjectKey,
-        String viewUrl,
-        Integer imageWidth,
-        Integer imageHeight,
+        List<ImageInfo> images,
         FeedAuthorResponse author,
         LocalDateTime createdAt,
         Boolean hasVoted,
-        VoteChoice myVoteChoice
+        VoteChoice myVoteChoice,
+        String link,
+        String title
 ) {
+
+    public record ImageInfo(
+            String s3ObjectKey,
+            String imageUrl,
+            Integer imageWidth,
+            Integer imageHeight
+    ) {}
 
     public record FeedAuthorResponse(
             Long userId,
@@ -33,8 +40,8 @@ public record FeedResponse(
             String profileImage
     ) {}
 
-    public static FeedResponse of(Feed feed, FeedImage feedImage, String viewUrl) {
-        return new FeedResponse(
+    public static FeedResponseV2 of(Feed feed, List<FeedImage> feedImages, List<String> viewUrls) {
+        return new FeedResponseV2(
                 feed.getId(),
                 feed.getContent(),
                 feed.getPrice(),
@@ -43,10 +50,7 @@ public record FeedResponse(
                 feed.getNoCount(),
                 feed.getYesCount() + feed.getNoCount(),
                 feed.getFeedStatus(),
-                feedImage != null ? feedImage.getS3ObjectKey() : null,
-                viewUrl,
-                feedImage != null ? feedImage.getImageWidth() : null,
-                feedImage != null ? feedImage.getImageHeight() : null,
+                buildImageInfos(feedImages, viewUrls),
                 new FeedAuthorResponse(
                         feed.getUser().getId(),
                         feed.getUser().getNickname(),
@@ -54,12 +58,14 @@ public record FeedResponse(
                 ),
                 feed.getCreatedAt(),
                 null,
-                null
+                null,
+                feed.getLink(),
+                feed.getTitle()
         );
     }
 
-    public static FeedResponse of(Feed feed, FeedImage feedImage, String viewUrl, Boolean hasVoted, VoteChoice myVoteChoice) {
-        return new FeedResponse(
+    public static FeedResponseV2 of(Feed feed, List<FeedImage> feedImages, List<String> viewUrls, Boolean hasVoted, VoteChoice myVoteChoice) {
+        return new FeedResponseV2(
                 feed.getId(),
                 feed.getContent(),
                 feed.getPrice(),
@@ -68,10 +74,7 @@ public record FeedResponse(
                 feed.getNoCount(),
                 feed.getYesCount() + feed.getNoCount(),
                 feed.getFeedStatus(),
-                feedImage != null ? feedImage.getS3ObjectKey() : null,
-                viewUrl,
-                feedImage != null ? feedImage.getImageWidth() : null,
-                feedImage != null ? feedImage.getImageHeight() : null,
+                buildImageInfos(feedImages, viewUrls),
                 new FeedAuthorResponse(
                         feed.getUser().getId(),
                         feed.getUser().getNickname(),
@@ -79,7 +82,19 @@ public record FeedResponse(
                 ),
                 feed.getCreatedAt(),
                 hasVoted,
-                myVoteChoice
+                myVoteChoice,
+                feed.getLink(),
+                feed.getTitle()
         );
+    }
+
+    private static List<ImageInfo> buildImageInfos(List<FeedImage> feedImages, List<String> viewUrls) {
+        List<ImageInfo> result = new java.util.ArrayList<>();
+        for (int i = 0; i < feedImages.size(); i++) {
+            FeedImage img = feedImages.get(i);
+            String url = i < viewUrls.size() ? viewUrls.get(i) : null;
+            result.add(new ImageInfo(img.getS3ObjectKey(), url, img.getImageWidth(), img.getImageHeight()));
+        }
+        return result;
     }
 }

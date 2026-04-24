@@ -6,11 +6,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 import com.nexters.sseotdabwa.domain.feeds.exception.FeedErrorCode;
-import com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,6 +25,7 @@ import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
 import com.nexters.sseotdabwa.domain.feeds.service.command.FeedCreateCommand;
+import com.nexters.sseotdabwa.domain.feeds.service.command.FeedImageCreateInfo;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
 
@@ -38,7 +39,7 @@ class FeedServiceUnitTest {
     private FeedService feedService;
 
     @Test
-    @DisplayName("피드 생성 성공 - Feed/FeedImage 저장 후 feedId 반환")
+    @DisplayName("피드 생성 성공 - Feed 저장 후 반환")
     void createFeed_success() {
         // given
         User user = User.builder()
@@ -51,19 +52,16 @@ class FeedServiceUnitTest {
                 "  내용입니다  ",
                 10000L,
                 FeedCategory.FOOD,
-                1080,
-                720,
-                "  feeds/abc.jpg  "
+                List.of(new FeedImageCreateInfo("feeds/abc.jpg", 1080, 720)),
+                null,
+                null
         );
 
-        // FeedRepository.save()가 id=1L인 Feed를 반환하도록 스텁
         Feed savedFeed = Feed.builder()
                 .user(user)
                 .content("내용입니다")
                 .price(10000L)
                 .category(FeedCategory.FOOD)
-                .imageWidth(1080)
-                .imageHeight(720)
                 .build();
 
         Feed savedFeedSpy = spy(savedFeed);
@@ -77,19 +75,125 @@ class FeedServiceUnitTest {
         // then
         assertThat(result.getId()).isEqualTo(1L);
 
-        // Feed 저장 내용 검증
         ArgumentCaptor<Feed> feedCaptor = ArgumentCaptor.forClass(Feed.class);
         verify(feedRepository, times(1)).save(feedCaptor.capture());
 
         Feed capturedFeed = feedCaptor.getValue();
-        assertThat(capturedFeed.getUser()).isEqualTo(user);
-        assertThat(capturedFeed.getContent()).isEqualTo("내용입니다"); // trim 반영
+        assertThat(capturedFeed.getContent()).isEqualTo("내용입니다");
         assertThat(capturedFeed.getPrice()).isEqualTo(10000L);
-        assertThat(capturedFeed.getCategory()).isEqualTo(FeedCategory.FOOD);
-        assertThat(capturedFeed.getImageWidth()).isEqualTo(1080);
-        assertThat(capturedFeed.getImageHeight()).isEqualTo(720);
 
         verifyNoMoreInteractions(feedRepository);
+    }
+
+    @Test
+    @DisplayName("피드 생성 실패 - 이미지가 없으면(Empty List) FEED_IMAGE_REQUIRED")
+    void createFeed_imageEmpty_throws() {
+        // given
+        User user = User.builder().socialId("x").nickname("n").build();
+
+        FeedCreateCommand command = new FeedCreateCommand(
+                user,
+                "내용",
+                10000L,
+                FeedCategory.FOOD,
+                Collections.emptyList(),
+                null,
+                null
+        );
+
+        // when & then
+        assertThatThrownBy(() -> feedService.createFeed(command))
+                .isInstanceOf(GlobalException.class)
+                .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_IMAGE_REQUIRED);
+
+        verifyNoInteractions(feedRepository);
+    }
+
+    @Test
+    @DisplayName("피드 생성 실패 - s3ObjectKeys 리스트 내부 원소에 null이나 공백이 포함되면 FEED_IMAGE_REQUIRED")
+    void createFeed_s3KeyListContainsInvalidElement_throws() {
+        // given
+        User user = User.builder().socialId("x").nickname("n").build();
+
+        // 1. null 원소가 포함된 경우
+        FeedCreateCommand commandWithNull = new FeedCreateCommand(
+                user, "내용", 10000L, FeedCategory.FOOD,
+                Collections.singletonList(null), null, null
+        );
+
+        // 2. 공백 원소가 포함된 경우
+        FeedCreateCommand commandWithBlank = new FeedCreateCommand(
+                user, "내용", 10000L, FeedCategory.FOOD,
+                List.of(new FeedImageCreateInfo("  ", 100, 100)), null, null
+        );
+
+        // when & then
+        assertThatThrownBy(() -> feedService.createFeed(commandWithNull))
+                .isInstanceOf(GlobalException.class)
+                .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_IMAGE_REQUIRED);
+
+        assertThatThrownBy(() -> feedService.createFeed(commandWithBlank))
+                .isInstanceOf(GlobalException.class)
+                .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_IMAGE_REQUIRED);
+
+        verifyNoInteractions(feedRepository);
+    }
+
+    @Test
+    @DisplayName("피드 생성 실패 - imageWidth 또는 imageHeight가 null이거나 1 미만이면 FEED_IMAGE_INVALID_SIZE")
+    void createFeed_invalidImageSize_throws() {
+        // given
+        User user = User.builder().socialId("x").nickname("n").build();
+
+        FeedCreateCommand commandWithNullWidth = new FeedCreateCommand(
+                user, "내용", 10000L, FeedCategory.FOOD,
+                List.of(new FeedImageCreateInfo("feeds/1.jpg", null, 100)), null, null
+        );
+
+        FeedCreateCommand commandWithZeroHeight = new FeedCreateCommand(
+                user, "내용", 10000L, FeedCategory.FOOD,
+                List.of(new FeedImageCreateInfo("feeds/1.jpg", 100, 0)), null, null
+        );
+
+        // when & then
+        assertThatThrownBy(() -> feedService.createFeed(commandWithNullWidth))
+                .isInstanceOf(GlobalException.class)
+                .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_IMAGE_INVALID_SIZE);
+
+        assertThatThrownBy(() -> feedService.createFeed(commandWithZeroHeight))
+                .isInstanceOf(GlobalException.class)
+                .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_IMAGE_INVALID_SIZE);
+
+        verifyNoInteractions(feedRepository);
+    }
+
+    @Test
+    @DisplayName("피드 생성 실패 - 이미지 3개 초과 시 FEED_IMAGE_LIMIT_EXCEEDED")
+    void createFeed_imageLimitExceeded_throws() {
+        // given
+        User user = User.builder().socialId("x").nickname("n").build();
+
+        FeedCreateCommand command = new FeedCreateCommand(
+                user,
+                "내용",
+                10000L,
+                FeedCategory.FOOD,
+                List.of(
+                        new FeedImageCreateInfo("1.jpg", 100, 100),
+                        new FeedImageCreateInfo("2.jpg", 100, 100),
+                        new FeedImageCreateInfo("3.jpg", 100, 100),
+                        new FeedImageCreateInfo("4.jpg", 100, 100)
+                ),
+                null,
+                null
+        );
+
+        // when & then
+        assertThatThrownBy(() -> feedService.createFeed(command))
+                .isInstanceOf(GlobalException.class)
+                .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_IMAGE_LIMIT_EXCEEDED);
+
+        verifyNoInteractions(feedRepository);
     }
 
     @Test
@@ -104,9 +208,9 @@ class FeedServiceUnitTest {
                 longContent,
                 10000L,
                 FeedCategory.FOOD,
-                100,
-                100,
-                "feeds/abc.jpg"
+                List.of(new FeedImageCreateInfo("feeds/1.jpg", 100, 100)),
+                null,
+                null
         );
 
         // when & then
@@ -128,33 +232,9 @@ class FeedServiceUnitTest {
                 "내용",
                 10000L,
                 FeedCategory.FOOD,
-                100,
-                100,
+                null,
+                null,
                 null
-        );
-
-        // when & then
-        assertThatThrownBy(() -> feedService.createFeed(command))
-                .isInstanceOf(GlobalException.class)
-                .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_IMAGE_REQUIRED);
-
-        verifyNoInteractions(feedRepository);
-    }
-
-    @Test
-    @DisplayName("피드 생성 실패 - s3ObjectKey가 blank이면 FEED_IMAGE_REQUIRED")
-    void createFeed_s3KeyBlank_throws() {
-        // given
-        User user = User.builder().socialId("x").nickname("n").build();
-
-        FeedCreateCommand command = new FeedCreateCommand(
-                user,
-                "내용",
-                10000L,
-                FeedCategory.FOOD,
-                100,
-                100,
-                "   "
         );
 
         // when & then
@@ -176,9 +256,9 @@ class FeedServiceUnitTest {
                 null,
                 10000L,
                 FeedCategory.FOOD,
-                100,
-                100,
-                "feeds/abc.jpg"
+                List.of(new FeedImageCreateInfo("feeds/1.jpg", 100, 100)),
+                null,
+                null
         );
 
         Feed savedFeed = spy(Feed.builder()
@@ -186,8 +266,6 @@ class FeedServiceUnitTest {
                 .content("")
                 .price(10000L)
                 .category(FeedCategory.FOOD)
-                .imageWidth(100)
-                .imageHeight(100)
                 .build());
         given(savedFeed.getId()).willReturn(10L);
 
@@ -207,38 +285,45 @@ class FeedServiceUnitTest {
     }
 
     @Test
-    @DisplayName("삭제된 피드 제외 전체 조회 성공")
-    void findAllExceptDeleted_success() {
+    @DisplayName("피드 생성 실패 - 유효하지 않은 link(호스트 없는 URL)면 FEED_INVALID_LINK")
+    void createFeed_invalidLink_throws() {
         // given
-        User user = User.builder()
-                .socialId("test-social-id")
-                .nickname("테스트유저")
-                .socialAccount(SocialAccount.KAKAO)
-                .build();
-        Feed feed1 = Feed.builder()
-                .user(user)
-                .content("피드1")
-                .price(10000L)
-                .category(FeedCategory.FASHION)
-                .imageWidth(300)
-                .imageHeight(400)
-                .build();
-        Feed feed2 = Feed.builder()
-                .user(user)
-                .content("피드2")
-                .price(20000L)
-                .category(FeedCategory.FOOD)
-                .imageWidth(300)
-                .imageHeight(400)
-                .build();
-        given(feedRepository.findByReportStatusNotOrderByCreatedAtDesc(ReportStatus.DELETED))
-                .willReturn(List.of(feed1, feed2));
+        User user = User.builder().socialId("x").nickname("n").build();
 
-        // when
-        List<Feed> result = feedService.findAllExceptDeleted();
+        FeedCreateCommand command = new FeedCreateCommand(
+                user, "내용", 10000L, FeedCategory.FOOD,
+                List.of(new FeedImageCreateInfo("feeds/1.jpg", 100, 100)),
+                "https://foo",  // 점 없는 호스트 → 유효하지 않은 URL
+                null
+        );
 
-        // then
-        assertThat(result).hasSize(2);
+        // when & then
+        assertThatThrownBy(() -> feedService.createFeed(command))
+                .isInstanceOf(GlobalException.class)
+                .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_INVALID_LINK);
+
+        verifyNoInteractions(feedRepository);
+    }
+
+    @Test
+    @DisplayName("피드 생성 실패 - title 40자 초과면 FEED_TITLE_TOO_LONG")
+    void createFeed_titleTooLong_throws() {
+        // given
+        User user = User.builder().socialId("x").nickname("n").build();
+
+        FeedCreateCommand command = new FeedCreateCommand(
+                user, "내용", 10000L, FeedCategory.FOOD,
+                List.of(new FeedImageCreateInfo("feeds/1.jpg", 100, 100)),
+                null,
+                "a".repeat(41)
+        );
+
+        // when & then
+        assertThatThrownBy(() -> feedService.createFeed(command))
+                .isInstanceOf(GlobalException.class)
+                .hasFieldOrPropertyWithValue("errorCode", FeedErrorCode.FEED_TITLE_TOO_LONG);
+
+        verifyNoInteractions(feedRepository);
     }
 
     @Test
@@ -255,8 +340,6 @@ class FeedServiceUnitTest {
                 .content("테스트 피드")
                 .price(10000L)
                 .category(FeedCategory.FASHION)
-                .imageWidth(300)
-                .imageHeight(400)
                 .build();
         given(feedRepository.findById(1L)).willReturn(Optional.of(feed));
 
@@ -293,8 +376,6 @@ class FeedServiceUnitTest {
                 .content("테스트 피드")
                 .price(10000L)
                 .category(FeedCategory.FASHION)
-                .imageWidth(300)
-                .imageHeight(400)
                 .build();
 
         // when

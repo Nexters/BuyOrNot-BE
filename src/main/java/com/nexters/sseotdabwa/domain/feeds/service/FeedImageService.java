@@ -6,6 +6,7 @@ import java.util.Optional;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedImageRepository;
+import com.nexters.sseotdabwa.domain.feeds.service.command.FeedImageCreateInfo;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,17 +20,18 @@ public class FeedImageService {
 
     private final FeedImageRepository feedImageRepository;
 
-    /**
-     * Feed : FeedImage = 1 : 1 저장
-     */
     @Transactional
-    public void save(Feed feed, String s3ObjectKey) {
-        FeedImage feedImage = FeedImage.builder()
-                .feed(feed)
-                .s3ObjectKey(s3ObjectKey.trim())
-                .build();
+    public void saveAll(Feed feed, List<FeedImageCreateInfo> imageInfos) {
+        List<FeedImage> images = imageInfos.stream()
+                .map(info -> FeedImage.builder()
+                        .feed(feed)
+                        .s3ObjectKey(info.s3ObjectKey().trim())
+                        .imageWidth(info.imageWidth())
+                        .imageHeight(info.imageHeight())
+                        .build())
+                .toList();
 
-        feedImageRepository.save(feedImage);
+        feedImageRepository.saveAll(images);
     }
 
     @Transactional
@@ -37,12 +39,12 @@ public class FeedImageService {
         feedImageRepository.deleteByFeedIn(feeds);
     }
 
-    public Optional<FeedImage> findByFeed(Feed feed) {
-        return feedImageRepository.findByFeed(feed);
+    public List<FeedImage> findByFeed(Feed feed) {
+        return feedImageRepository.findByFeedOrderByIdAsc(feed);
     }
 
     public List<FeedImage> findByFeeds(List<Feed> feeds) {
-        return feedImageRepository.findByFeedIn(feeds);
+        return feedImageRepository.findByFeedInOrderByIdAsc(feeds);
     }
 
     @Transactional

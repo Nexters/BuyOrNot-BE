@@ -6,9 +6,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.nexters.sseotdabwa.domain.feeds.exception.FeedErrorCode;
+import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus;
 import com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
+import com.nexters.sseotdabwa.common.validation.UrlValidator;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
 import com.nexters.sseotdabwa.domain.feeds.service.command.FeedCreateCommand;
@@ -33,6 +35,10 @@ import java.util.List;
 public class FeedService {
 
     private static final int MAX_CONTENT_LENGTH = 100;
+    private static final int MAX_TITLE_LENGTH = 40;
+    private static final int MAX_LINK_LENGTH = 500;
+
+    private static final UrlValidator URL_VALIDATOR = new UrlValidator();
 
     private final FeedRepository feedRepository;
 
@@ -49,8 +55,8 @@ public class FeedService {
                 .content(normalizeContent(command.content()))
                 .price(command.price())
                 .category(command.category())
-                .imageWidth(command.imageWidth())
-                .imageHeight(command.imageHeight())
+                .link(command.link())
+                .title(command.title())
                 .build();
 
         return feedRepository.save(feed);
@@ -61,16 +67,45 @@ public class FeedService {
      * - Bean Validation 이후, 도메인 레벨에서 최종 방어
      */
     private void validate(FeedCreateCommand command) {
-        // content
+        // 1. content 길이 검증
         String content = normalizeContent(command.content());
-
         if (content.length() > MAX_CONTENT_LENGTH) {
             throw new GlobalException(FeedErrorCode.FEED_CONTENT_TOO_LONG);
         }
 
-        // image
-        if (command.s3ObjectKey() == null || command.s3ObjectKey().isBlank()) {
+        // 2. 이미지 리스트 자체 검증 (null 또는 비어있음)
+        if (command.images() == null || command.images().isEmpty()) {
             throw new GlobalException(FeedErrorCode.FEED_IMAGE_REQUIRED);
+        }
+
+        // 3. 이미지 개수 제한 검증 (최대 3장)
+        if (command.images().size() > 3) {
+            throw new GlobalException(FeedErrorCode.FEED_IMAGE_LIMIT_EXCEEDED);
+        }
+
+        // 4. 이미지 원소 내부 검증 (s3ObjectKey가 null이거나 공백만 있는 경우 방지)
+        if (command.images().stream().anyMatch(img -> img == null || img.s3ObjectKey() == null || img.s3ObjectKey().isBlank())) {
+            throw new GlobalException(FeedErrorCode.FEED_IMAGE_REQUIRED);
+        }
+
+        // 5. 이미지 크기 검증 (imageWidth/imageHeight가 null이거나 1 미만인 경우 방지)
+        if (command.images().stream().anyMatch(img -> img.imageWidth() == null || img.imageWidth() < 1
+                || img.imageHeight() == null || img.imageHeight() < 1)) {
+            throw new GlobalException(FeedErrorCode.FEED_IMAGE_INVALID_SIZE);
+        }
+
+        // 6. link 검증 (값이 있는 경우에만)
+        String link = command.link();
+        if (link != null && !link.isBlank()) {
+            if (link.length() > MAX_LINK_LENGTH || !URL_VALIDATOR.isValid(link, null)) {
+                throw new GlobalException(FeedErrorCode.FEED_INVALID_LINK);
+            }
+        }
+
+        // 7. title 길이 검증 (값이 있는 경우에만)
+        String title = command.title();
+        if (title != null && title.length() > MAX_TITLE_LENGTH) {
+            throw new GlobalException(FeedErrorCode.FEED_TITLE_TOO_LONG);
         }
     }
 
@@ -95,57 +130,33 @@ public class FeedService {
                 .orElseThrow(() -> new GlobalException(FeedErrorCode.FEED_NOT_FOUND));
     }
 
-    public List<Feed> findAllExceptDeleted() {
-        return feedRepository.findByReportStatusNotOrderByCreatedAtDesc(ReportStatus.DELETED);
+    public List<Feed> findAllExceptDeletedWithCursor(Long cursor, int size, FeedStatus feedStatus, List<FeedCategory> categories) {
+        return findAllExceptDeletedWithCursor(cursor, size, feedStatus, categories, Collections.emptyList());
     }
 
-    public List<Feed> findAllExceptDeletedWithCursor(Long cursor, int size, FeedStatus feedStatus) {
+    public List<Feed> findAllExceptDeletedWithCursor(Long cursor, int size, FeedStatus feedStatus, List<FeedCategory> categories, List<Long> excludedUserIds) {
         Pageable pageable = PageRequest.ofSize(size + 1);
-        if (feedStatus != null) {
-            if (cursor == null) {
-                return feedRepository.findByFeedStatusAndReportStatusNotOrderByCreatedAtDescIdDesc(feedStatus, ReportStatus.DELETED, pageable);
-            }
-            return feedRepository.findByIdLessThanAndFeedStatusAndReportStatusNotOrderByCreatedAtDescIdDesc(cursor, feedStatus, ReportStatus.DELETED, pageable);
+        boolean hasExcluded = excludedUserIds != null && !excludedUserIds.isEmpty();
+        boolean hasCategories = categories != null && !categories.isEmpty();
+
+        if (!hasExcluded && !hasCategories) {
+            return feedRepository.findFeedsWithCursor(cursor, feedStatus, pageable);
         }
-        if (cursor == null) {
-            return feedRepository.findByReportStatusNotOrderByCreatedAtDescIdDesc(ReportStatus.DELETED, pageable);
+        if (!hasExcluded) {
+            return feedRepository.findFeedsWithCursorByCategories(cursor, feedStatus, categories, pageable);
         }
-        return feedRepository.findByIdLessThanAndReportStatusNotOrderByCreatedAtDescIdDesc(cursor, ReportStatus.DELETED, pageable);
+        if (!hasCategories) {
+            return feedRepository.findFeedsWithCursorExcludingUsers(cursor, feedStatus, excludedUserIds, pageable);
+        }
+        return feedRepository.findFeedsWithCursorExcludingUsersByCategories(cursor, feedStatus, categories, excludedUserIds, pageable);
     }
 
-    public List<Feed> findAllExceptDeletedWithCursor(Long cursor, int size, FeedStatus feedStatus, List<Long> excludedUserIds) {
-        if (excludedUserIds == null || excludedUserIds.isEmpty()) {
-            return findAllExceptDeletedWithCursor(cursor, size, feedStatus);
-        }
+    public List<Feed> findByUserIdWithCursor(Long userId, Long cursor, int size, FeedStatus feedStatus, List<FeedCategory> categories) {
         Pageable pageable = PageRequest.ofSize(size + 1);
-        if (feedStatus != null) {
-            if (cursor == null) {
-                return feedRepository.findByFeedStatusAndReportStatusNotAndUserIdNotInOrderByCreatedAtDescIdDesc(feedStatus, excludedUserIds, pageable);
-            }
-            return feedRepository.findByIdLessThanAndFeedStatusAndReportStatusNotAndUserIdNotInOrderByCreatedAtDescIdDesc(cursor, feedStatus, excludedUserIds, pageable);
+        if (categories == null || categories.isEmpty()) {
+            return feedRepository.findMyFeedsWithCursor(userId, cursor, feedStatus, pageable);
         }
-        if (cursor == null) {
-            return feedRepository.findByReportStatusNotAndUserIdNotInOrderByCreatedAtDescIdDesc(excludedUserIds, pageable);
-        }
-        return feedRepository.findByIdLessThanAndReportStatusNotAndUserIdNotInOrderByCreatedAtDescIdDesc(cursor, excludedUserIds, pageable);
-    }
-
-    public List<Feed> findByUserIdOrderByCreatedAtDesc(Long userId) {
-        return feedRepository.findByUserIdOrderByCreatedAtDesc(userId);
-    }
-
-    public List<Feed> findByUserIdWithCursor(Long userId, Long cursor, int size, FeedStatus feedStatus) {
-        Pageable pageable = PageRequest.ofSize(size + 1);
-        if (feedStatus != null) {
-            if (cursor == null) {
-                return feedRepository.findByUserIdAndFeedStatusOrderByCreatedAtDescIdDesc(userId, feedStatus, pageable);
-            }
-            return feedRepository.findByUserIdAndIdLessThanAndFeedStatusOrderByCreatedAtDescIdDesc(userId, cursor, feedStatus, pageable);
-        }
-        if (cursor == null) {
-            return feedRepository.findByUserIdOrderByCreatedAtDescIdDesc(userId, pageable);
-        }
-        return feedRepository.findByUserIdAndIdLessThanOrderByCreatedAtDescIdDesc(userId, cursor, pageable);
+        return feedRepository.findMyFeedsWithCursorByCategories(userId, cursor, feedStatus, categories, pageable);
     }
 
     @Transactional

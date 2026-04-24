@@ -17,16 +17,24 @@ public class FeedImage extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "feed_id", nullable = false, unique = true)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "feed_id", nullable = false)
     private Feed feed;
 
     @Column(name = "s3_object_key", nullable = false, length = 255)
     private String s3ObjectKey;
 
+    @Column(nullable = false)
+    private Integer imageWidth;
+
+    @Column(nullable = false)
+    private Integer imageHeight;
+
     @Builder
-    public FeedImage(Feed feed, String s3ObjectKey) {
+    public FeedImage(Feed feed, String s3ObjectKey, Integer imageWidth, Integer imageHeight) {
         this.feed = feed;
         this.s3ObjectKey = s3ObjectKey;
+        this.imageWidth = imageWidth;
+        this.imageHeight = imageHeight;
     }
 }

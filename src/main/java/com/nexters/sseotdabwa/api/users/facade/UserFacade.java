@@ -13,12 +13,14 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
+import com.nexters.sseotdabwa.api.feeds.dto.FeedResponseV2;
 import com.nexters.sseotdabwa.api.users.dto.UserResponse;
 import com.nexters.sseotdabwa.api.users.dto.UserWithdrawResponse;
 import com.nexters.sseotdabwa.common.config.AwsProperties;
 import com.nexters.sseotdabwa.common.response.CursorPageResponse;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
+import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedImageService;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedReviewService;
@@ -90,17 +92,22 @@ public class UserFacade {
      * 내 피드 조회 (커서 기반 페이지네이션)
      */
     @Transactional(readOnly = true)
-    public CursorPageResponse<FeedResponse> getMyFeeds(User user, Long cursor, Integer size, FeedStatus feedStatus) {
+    public CursorPageResponse<FeedResponse> getMyFeeds(User user, Long cursor, Integer size, FeedStatus feedStatus, List<FeedCategory> categories) {
         int pageSize = (size == null) ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
 
-        List<Feed> feeds = feedService.findByUserIdWithCursor(user.getId(), cursor, pageSize, feedStatus);
+        List<Feed> feeds = feedService.findByUserIdWithCursor(user.getId(), cursor, pageSize, feedStatus, categories);
 
         boolean hasNext = feeds.size() > pageSize;
         List<Feed> slicedFeeds = hasNext ? feeds.subList(0, pageSize) : feeds;
 
         List<FeedImage> feedImages = feedImageService.findByFeeds(slicedFeeds);
-        Map<Long, FeedImage> imageMap = feedImages.stream()
-                .collect(Collectors.toMap(fi -> fi.getFeed().getId(), fi -> fi));
+        // V1: 피드당 id 오름차순 첫 번째 이미지만 사용
+        Map<Long, FeedImage> firstImageMap = feedImages.stream()
+                .collect(Collectors.toMap(
+                        fi -> fi.getFeed().getId(),
+                        fi -> fi,
+                        (a, b) -> a
+                ));
 
         List<Long> feedIds = slicedFeeds.stream().map(Feed::getId).toList();
         Map<Long, VoteChoice> voteMap = voteLogService.findByUserIdAndFeedIds(user.getId(), feedIds)
@@ -109,10 +116,11 @@ public class UserFacade {
 
         List<FeedResponse> content = slicedFeeds.stream()
                 .map(feed -> {
-                    FeedImage img = imageMap.get(feed.getId());
+                    FeedImage img = firstImageMap.get(feed.getId());
+                    String viewUrl = buildViewUrl(img);
                     VoteChoice myChoice = voteMap.get(feed.getId());
                     boolean hasVoted = myChoice != null;
-                    return FeedResponse.of(feed, img, buildViewUrl(img), hasVoted, myChoice);
+                    return FeedResponse.of(feed, img, viewUrl, hasVoted, myChoice);
                 })
                 .toList();
 
@@ -120,15 +128,53 @@ public class UserFacade {
         return CursorPageResponse.of(content, nextCursor, hasNext);
     }
 
-    private String buildViewUrl(FeedImage feedImage) {
-        if (feedImage == null) {
-            return null;
-        }
-        String domain = awsProperties.cloudfront().domain();
-        if (domain.endsWith("/")) {
-            domain = domain.substring(0, domain.length() - 1);
-        }
-        return domain + "/" + feedImage.getS3ObjectKey();
+    /**
+     * 내 피드 조회 V2 (커서 기반 페이지네이션, 다중 이미지 반환)
+     */
+    @Transactional(readOnly = true)
+    public CursorPageResponse<FeedResponseV2> getMyFeedsV2(User user, Long cursor, Integer size, FeedStatus feedStatus, List<FeedCategory> categories) {
+        int pageSize = (size == null) ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
+
+        List<Feed> feeds = feedService.findByUserIdWithCursor(user.getId(), cursor, pageSize, feedStatus, categories);
+
+        boolean hasNext = feeds.size() > pageSize;
+        List<Feed> slicedFeeds = hasNext ? feeds.subList(0, pageSize) : feeds;
+
+        List<FeedImage> feedImages = feedImageService.findByFeeds(slicedFeeds);
+        Map<Long, List<FeedImage>> imageMap = feedImages.stream()
+                .collect(Collectors.groupingBy(fi -> fi.getFeed().getId()));
+
+        List<Long> feedIds = slicedFeeds.stream().map(Feed::getId).toList();
+        Map<Long, VoteChoice> voteMap = voteLogService.findByUserIdAndFeedIds(user.getId(), feedIds)
+                .stream()
+                .collect(Collectors.toMap(vl -> vl.getFeed().getId(), vl -> vl.getChoice()));
+
+        List<FeedResponseV2> content = slicedFeeds.stream()
+                .map(feed -> {
+                    List<FeedImage> imgs = imageMap.getOrDefault(feed.getId(), List.of());
+                    List<String> imageUrls = buildViewUrls(imgs);
+                    VoteChoice myChoice = voteMap.get(feed.getId());
+                    boolean hasVoted = myChoice != null;
+                    return FeedResponseV2.of(feed, imgs, imageUrls, hasVoted, myChoice);
+                })
+                .toList();
+
+        Long nextCursor = hasNext ? slicedFeeds.get(slicedFeeds.size() - 1).getId() : null;
+        return CursorPageResponse.of(content, nextCursor, hasNext);
+    }
+
+    private String buildViewUrl(FeedImage image) {
+        if (image == null) return null;
+        final String domain = awsProperties.cloudfront().domain().replaceAll("/$", "");
+        return domain + "/" + image.getS3ObjectKey();
+    }
+
+    private List<String> buildViewUrls(List<FeedImage> images) {
+        if (images == null || images.isEmpty()) return List.of();
+        final String domain = awsProperties.cloudfront().domain().replaceAll("/$", "");
+        return images.stream()
+                .map(img -> domain + "/" + img.getS3ObjectKey())
+                .toList();
     }
 
     /**

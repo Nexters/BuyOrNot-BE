@@ -19,7 +19,11 @@ public enum FeedErrorCode implements ErrorCode {
     FEED_NOT_FOUND(HttpStatus.NOT_FOUND, "FEED_003", "피드를 찾을 수 없습니다."),
     FEED_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "FEED_004", "본인의 피드만 삭제할 수 있습니다."),
     FEED_ALREADY_REPORTED(HttpStatus.BAD_REQUEST, "FEED_005", "이미 신고된 피드입니다."),
-    FEED_SELF_REPORT(HttpStatus.BAD_REQUEST, "FEED_006", "본인의 피드는 신고할 수 없습니다.");
+    FEED_SELF_REPORT(HttpStatus.BAD_REQUEST, "FEED_006", "본인의 피드는 신고할 수 없습니다."),
+    FEED_IMAGE_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "FEED_007", "이미지는 최대 3장까지 업로드할 수 있습니다."),
+    FEED_INVALID_LINK(HttpStatus.BAD_REQUEST, "FEED_008", "유효하지 않은 URL입니다. http 또는 https로 시작하는 URL을 입력해주세요."),
+    FEED_TITLE_TOO_LONG(HttpStatus.BAD_REQUEST, "FEED_009", "제목은 40자 이하로 입력해주세요."),
+    FEED_IMAGE_INVALID_SIZE(HttpStatus.BAD_REQUEST, "FEED_010", "이미지 크기(width/height)는 1 이상이어야 합니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

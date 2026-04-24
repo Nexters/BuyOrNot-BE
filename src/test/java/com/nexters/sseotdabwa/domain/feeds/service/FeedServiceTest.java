@@ -4,6 +4,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import com.nexters.sseotdabwa.domain.feeds.service.command.FeedCreateCommand;
+import com.nexters.sseotdabwa.domain.feeds.service.command.FeedImageCreateInfo;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -84,40 +87,6 @@ class FeedServiceTest {
 
         // then
         assertThat(feeds).isEmpty();
-    }
-
-    @Test
-    @DisplayName("삭제된 피드 제외 전체 조회")
-    void findAllExceptDeleted_excludesDeletedFeeds() {
-        // given
-        User user = createUser();
-        Feed normalFeed = createFeed(user);
-        Feed deletedFeed = createFeed(user);
-        deletedFeed.deleteByReport();
-        feedRepository.save(deletedFeed);
-
-        // when
-        List<Feed> result = feedService.findAllExceptDeleted();
-
-        // then
-        assertThat(result).extracting(Feed::getId)
-                .contains(normalFeed.getId())
-                .doesNotContain(deletedFeed.getId());
-    }
-
-    @Test
-    @DisplayName("내 피드 최신순 조회")
-    void findByUserIdOrderByCreatedAtDesc_success() {
-        // given
-        User user = createUser();
-        Feed feed1 = createFeed(user);
-        Feed feed2 = createFeed(user);
-
-        // when
-        List<Feed> result = feedService.findByUserIdOrderByCreatedAtDesc(user.getId());
-
-        // then
-        assertThat(result).hasSize(2);
     }
 
     @Test
@@ -270,7 +239,7 @@ class FeedServiceTest {
         Feed feed3 = createFeed(user);
 
         // when
-        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 2, null);
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 2, null, null);
 
         // then
         assertThat(result).hasSize(3); // size+1 = 3건 조회
@@ -287,7 +256,7 @@ class FeedServiceTest {
         Feed feed3 = createFeed(user);
 
         // when - feed3의 ID를 커서로 지정하면 feed3보다 작은 ID만
-        List<Feed> result = feedService.findAllExceptDeletedWithCursor(feed3.getId(), 2, null);
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(feed3.getId(), 2, null, null);
 
         // then
         assertThat(result).hasSize(2);
@@ -303,7 +272,7 @@ class FeedServiceTest {
         Feed feed1 = createFeed(user);
 
         // when - size=5 요청했지만 1건만 존재
-        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 5, null);
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 5, null, null);
 
         // then
         assertThat(result).hasSize(1);
@@ -320,7 +289,7 @@ class FeedServiceTest {
         feedRepository.save(deletedFeed);
 
         // when
-        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, null);
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, null, null);
 
         // then
         assertThat(result).extracting(Feed::getId)
@@ -332,7 +301,7 @@ class FeedServiceTest {
     @DisplayName("커서 페이지네이션 - 피드 없을 때 빈 리스트")
     void findAllExceptDeletedWithCursor_emptyResult() {
         // when
-        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, null);
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, null, null);
 
         // then
         assertThat(result).isEmpty();
@@ -349,7 +318,7 @@ class FeedServiceTest {
         feedRepository.save(closedFeed);
 
         // when
-        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, FeedStatus.OPEN);
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, FeedStatus.OPEN, null);
 
         // then
         assertThat(result).extracting(Feed::getId)
@@ -368,7 +337,7 @@ class FeedServiceTest {
         feedRepository.save(closedFeed);
 
         // when
-        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, FeedStatus.CLOSED);
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, FeedStatus.CLOSED, null);
 
         // then
         assertThat(result).extracting(Feed::getId)
@@ -387,7 +356,7 @@ class FeedServiceTest {
         feedRepository.save(closedFeed);
 
         // when
-        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, null);
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, null, null);
 
         // then
         assertThat(result).extracting(Feed::getId)
@@ -404,7 +373,7 @@ class FeedServiceTest {
         Feed open3 = createFeed(user);
 
         // when - open3의 ID를 커서로, OPEN 필터
-        List<Feed> result = feedService.findAllExceptDeletedWithCursor(open3.getId(), 10, FeedStatus.OPEN);
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(open3.getId(), 10, FeedStatus.OPEN, null);
 
         // then
         assertThat(result).hasSize(2);
@@ -426,7 +395,7 @@ class FeedServiceTest {
         Feed feed3 = createFeed(user);
 
         // when
-        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), null, 2, null);
+        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), null, 2, null, null);
 
         // then
         assertThat(result).hasSize(3); // size+1 = 3건 조회
@@ -443,7 +412,7 @@ class FeedServiceTest {
         Feed feed3 = createFeed(user);
 
         // when - feed3의 ID를 커서로 지정하면 feed3보다 작은 ID만
-        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), feed3.getId(), 2, null);
+        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), feed3.getId(), 2, null, null);
 
         // then
         assertThat(result).hasSize(2);
@@ -459,7 +428,7 @@ class FeedServiceTest {
         Feed feed1 = createFeed(user);
 
         // when - size=5 요청했지만 1건만 존재
-        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), null, 5, null);
+        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), null, 5, null, null);
 
         // then
         assertThat(result).hasSize(1);
@@ -475,7 +444,7 @@ class FeedServiceTest {
         Feed otherFeed = createFeed(otherUser);
 
         // when
-        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), null, 10, null);
+        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), null, 10, null, null);
 
         // then
         assertThat(result).extracting(Feed::getId)
@@ -490,7 +459,7 @@ class FeedServiceTest {
         User user = createUser();
 
         // when
-        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), null, 10, null);
+        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), null, 10, null, null);
 
         // then
         assertThat(result).isEmpty();
@@ -507,7 +476,7 @@ class FeedServiceTest {
         feedRepository.save(closedFeed);
 
         // when
-        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), null, 10, FeedStatus.OPEN);
+        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), null, 10, FeedStatus.OPEN, null);
 
         // then
         assertThat(result).extracting(Feed::getId)
@@ -526,7 +495,7 @@ class FeedServiceTest {
         feedRepository.save(closedFeed);
 
         // when
-        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), null, 10, FeedStatus.CLOSED);
+        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), null, 10, FeedStatus.CLOSED, null);
 
         // then
         assertThat(result).extracting(Feed::getId)
@@ -544,7 +513,7 @@ class FeedServiceTest {
         Feed open3 = createFeed(user);
 
         // when - open3의 ID를 커서로, OPEN 필터
-        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), open3.getId(), 10, FeedStatus.OPEN);
+        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), open3.getId(), 10, FeedStatus.OPEN, null);
 
         // then
         assertThat(result).hasSize(2);
@@ -566,7 +535,7 @@ class FeedServiceTest {
         Feed blockedFeed = createFeed(blockedUser);
 
         // when
-        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, null, List.of(blockedUser.getId()));
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, null, null, List.of(blockedUser.getId()));
 
         // then
         assertThat(result).extracting(Feed::getId)
@@ -584,7 +553,7 @@ class FeedServiceTest {
         Feed feed2 = createFeed(other);
 
         // when
-        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, null, List.of());
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, null, null, List.of());
 
         // then
         assertThat(result).extracting(Feed::getId)
@@ -604,7 +573,7 @@ class FeedServiceTest {
         Feed feed3 = createFeed(user);
 
         // when - feed3을 커서로, blockedUser 차단
-        List<Feed> result = feedService.findAllExceptDeletedWithCursor(feed3.getId(), 10, null, List.of(blockedUser.getId()));
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(feed3.getId(), 10, null, null, List.of(blockedUser.getId()));
 
         // then
         assertThat(result).extracting(Feed::getId)
@@ -623,7 +592,7 @@ class FeedServiceTest {
         Feed blockedOpenFeed = createFeed(blockedUser);
 
         // when
-        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, FeedStatus.OPEN, List.of(blockedUser.getId()));
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, FeedStatus.OPEN, null, List.of(blockedUser.getId()));
 
         // then
         assertThat(result).extracting(Feed::getId)
@@ -643,7 +612,7 @@ class FeedServiceTest {
         Feed open3 = createFeed(user);
 
         // when - open3을 커서로, OPEN 필터, blockedUser 차단
-        List<Feed> result = feedService.findAllExceptDeletedWithCursor(open3.getId(), 10, FeedStatus.OPEN, List.of(blockedUser.getId()));
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(open3.getId(), 10, FeedStatus.OPEN, null, List.of(blockedUser.getId()));
 
         // then
         assertThat(result).extracting(Feed::getId)
@@ -655,14 +624,143 @@ class FeedServiceTest {
         });
     }
 
+    @Test
+    @DisplayName("카테고리 필터 - 단일 카테고리만 반환")
+    void findAllExceptDeletedWithCursor_filterByCategory() {
+        // given
+        User user = createUser();
+        Feed fashionFeed = feedRepository.save(Feed.builder().user(user).content("패션").price(1000L).category(FeedCategory.FASHION).build());
+        Feed foodFeed = feedRepository.save(Feed.builder().user(user).content("음식").price(1000L).category(FeedCategory.FOOD).build());
+
+        // when
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, null, List.of(FeedCategory.FASHION));
+
+        // then
+        assertThat(result).extracting(Feed::getId)
+                .contains(fashionFeed.getId())
+                .doesNotContain(foodFeed.getId());
+    }
+
+    @Test
+    @DisplayName("카테고리 필터 - 복수 카테고리 선택 시 해당 카테고리 모두 반환")
+    void findAllExceptDeletedWithCursor_filterByMultipleCategories() {
+        // given
+        User user = createUser();
+        Feed fashionFeed = feedRepository.save(Feed.builder().user(user).content("패션").price(1000L).category(FeedCategory.FASHION).build());
+        Feed foodFeed = feedRepository.save(Feed.builder().user(user).content("음식").price(1000L).category(FeedCategory.FOOD).build());
+        Feed bookFeed = feedRepository.save(Feed.builder().user(user).content("책").price(1000L).category(FeedCategory.BOOK).build());
+
+        // when
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, null, List.of(FeedCategory.FASHION, FeedCategory.FOOD));
+
+        // then
+        assertThat(result).extracting(Feed::getId)
+                .containsExactlyInAnyOrder(fashionFeed.getId(), foodFeed.getId());
+        assertThat(result).extracting(Feed::getId)
+                .doesNotContain(bookFeed.getId());
+    }
+
+    @Test
+    @DisplayName("카테고리 필터 - null이면 전체 카테고리 반환")
+    void findAllExceptDeletedWithCursor_nullCategory_returnsAll() {
+        // given
+        User user = createUser();
+        Feed fashionFeed = feedRepository.save(Feed.builder().user(user).content("패션").price(1000L).category(FeedCategory.FASHION).build());
+        Feed foodFeed = feedRepository.save(Feed.builder().user(user).content("음식").price(1000L).category(FeedCategory.FOOD).build());
+
+        // when
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, null, null);
+
+        // then
+        assertThat(result).extracting(Feed::getId)
+                .containsExactlyInAnyOrder(fashionFeed.getId(), foodFeed.getId());
+    }
+
+    @Test
+    @DisplayName("내 피드 카테고리 필터 - 단일 카테고리")
+    void findByUserIdWithCursor_filterByCategory() {
+        // given
+        User user = createUser();
+        Feed fashionFeed = feedRepository.save(Feed.builder().user(user).content("패션").price(1000L).category(FeedCategory.FASHION).build());
+        Feed foodFeed = feedRepository.save(Feed.builder().user(user).content("음식").price(1000L).category(FeedCategory.FOOD).build());
+
+        // when
+        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), null, 10, null, List.of(FeedCategory.FASHION));
+
+        // then
+        assertThat(result).extracting(Feed::getId)
+                .contains(fashionFeed.getId())
+                .doesNotContain(foodFeed.getId());
+    }
+
+    @Test
+    @DisplayName("내 피드 카테고리 필터 - 복수 카테고리 선택 시 해당 카테고리 모두 반환")
+    void findByUserIdWithCursor_filterByMultipleCategories() {
+        // given
+        User user = createUser();
+        Feed fashionFeed = feedRepository.save(Feed.builder().user(user).content("패션").price(1000L).category(FeedCategory.FASHION).build());
+        Feed foodFeed = feedRepository.save(Feed.builder().user(user).content("음식").price(1000L).category(FeedCategory.FOOD).build());
+        Feed bookFeed = feedRepository.save(Feed.builder().user(user).content("책").price(1000L).category(FeedCategory.BOOK).build());
+
+        // when
+        List<Feed> result = feedService.findByUserIdWithCursor(user.getId(), null, 10, null, List.of(FeedCategory.FASHION, FeedCategory.FOOD));
+
+        // then
+        assertThat(result).extracting(Feed::getId)
+                .containsExactlyInAnyOrder(fashionFeed.getId(), foodFeed.getId());
+        assertThat(result).extracting(Feed::getId)
+                .doesNotContain(bookFeed.getId());
+    }
+
+    @Test
+    @DisplayName("다중 이미지를 포함한 피드 생성 성공")
+    void createFeed_with_multiple_images_success() {
+        // given
+        User user = createUser();
+        List<String> images = List.of("img1.jpg", "img2.jpg", "img3.jpg");
+        FeedCreateCommand command = new FeedCreateCommand(
+                user, "내용", 5000L, FeedCategory.ELECTRONICS,
+                images.stream().map(k -> new FeedImageCreateInfo(k, 100, 100)).toList(),
+                null, null
+        );
+
+        // when
+        Feed savedFeed = feedService.createFeed(command);
+
+        // then
+        assertThat(savedFeed.getId()).isNotNull();
+        assertThat(savedFeed.getContent()).isEqualTo("내용");
+        // 이미지 엔티티 저장은 FeedFacade가 담당하므로 여기서는 Feed 엔티티 필드만 확인
+    }
+
+    @Test
+    @DisplayName("이미지 3개 초과 생성 시 실패")
+    void createFeed_too_many_images_fail() {
+        // given
+        User user = createUser();
+        List<String> images = List.of("1.jpg", "2.jpg", "3.jpg", "4.jpg");
+        FeedCreateCommand command = new FeedCreateCommand(
+                user, "내용", 5000L, FeedCategory.FASHION,
+                images.stream().map(k -> new FeedImageCreateInfo(k, 100, 100)).toList(),
+                null, null
+        );
+
+        // when & then
+        assertThatThrownBy(() -> feedService.createFeed(command))
+                .isInstanceOf(GlobalException.class);
+    }
+
     private Feed createFeed(User user) {
-        return feedRepository.save(Feed.builder()
-                .user(user)
-                .content("테스트 피드")
-                .price(10000L)
-                .category(FeedCategory.FASHION)
-                .imageWidth(300)
-                .imageHeight(400)
-                .build());
+        // FeedService의 createFeed를 직접 호출하여 도메인 로직(검증 등)을 함께 테스트
+        FeedCreateCommand command = new FeedCreateCommand(
+                user,
+                "테스트 피드 내용",
+                10000L,
+                FeedCategory.FASHION,
+                List.of(new FeedImageCreateInfo("feeds/test-image.jpg", 300, 400)),
+                null,
+                null
+        );
+        return feedService.createFeed(command);
     }
 }

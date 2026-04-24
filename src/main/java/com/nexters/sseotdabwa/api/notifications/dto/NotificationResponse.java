@@ -16,14 +16,16 @@ public record NotificationResponse(
 
         Integer resultPercent,
         String resultLabel,
-        String viewUrl
+        String viewUrl,
+        String feedTitle
 ) {
     public static NotificationResponse of(
             Notification n,
             LocalDateTime voteClosedAt,
             Integer resultPercent,
             String resultLabel,
-            String viewUrl
+            String viewUrl,
+            String feedTitle
     ) {
         return new NotificationResponse(
                 n.getId(),
@@ -35,7 +37,8 @@ public record NotificationResponse(
                 voteClosedAt,
                 resultPercent,
                 resultLabel,
-                viewUrl
+                viewUrl,
+                feedTitle
         );
     }
 }
