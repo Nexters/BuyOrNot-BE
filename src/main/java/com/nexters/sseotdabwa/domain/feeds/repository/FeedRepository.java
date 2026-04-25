@@ -34,7 +34,10 @@ public interface FeedRepository extends JpaRepository<Feed, Long> {
         SELECT f FROM Feed f
         WHERE (:cursorId IS NULL OR f.id < :cursorId)
           AND (:feedStatus IS NULL OR f.feedStatus = :feedStatus)
-          AND f.reportStatus <> com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.DELETED
+          AND f.reportStatus NOT IN (
+              com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.DELETED,
+              com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.REPORTED
+          )
         ORDER BY f.id DESC
     """)
     List<Feed> findFeedsWithCursor(
@@ -47,7 +50,10 @@ public interface FeedRepository extends JpaRepository<Feed, Long> {
         WHERE (:cursorId IS NULL OR f.id < :cursorId)
           AND (:feedStatus IS NULL OR f.feedStatus = :feedStatus)
           AND f.category IN :categories
-          AND f.reportStatus <> com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.DELETED
+          AND f.reportStatus NOT IN (
+              com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.DELETED,
+              com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.REPORTED
+          )
         ORDER BY f.id DESC
     """)
     List<Feed> findFeedsWithCursorByCategories(
@@ -62,7 +68,10 @@ public interface FeedRepository extends JpaRepository<Feed, Long> {
         SELECT f FROM Feed f
         WHERE (:cursorId IS NULL OR f.id < :cursorId)
           AND (:feedStatus IS NULL OR f.feedStatus = :feedStatus)
-          AND f.reportStatus <> com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.DELETED
+          AND f.reportStatus NOT IN (
+              com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.DELETED,
+              com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.REPORTED
+          )
           AND f.user.id NOT IN :excludedUserIds
         ORDER BY f.id DESC
     """)
@@ -77,7 +86,10 @@ public interface FeedRepository extends JpaRepository<Feed, Long> {
         WHERE (:cursorId IS NULL OR f.id < :cursorId)
           AND (:feedStatus IS NULL OR f.feedStatus = :feedStatus)
           AND f.category IN :categories
-          AND f.reportStatus <> com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.DELETED
+          AND f.reportStatus NOT IN (
+              com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.DELETED,
+              com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.REPORTED
+          )
           AND f.user.id NOT IN :excludedUserIds
         ORDER BY f.id DESC
     """)
@@ -126,7 +138,7 @@ public interface FeedRepository extends JpaRepository<Feed, Long> {
      * 마감 대상 feedId 조회
      * - OPEN
      * - createdAt <= cutoff
-     * - reportStatus NOT IN (DELETED, REPORTED)
+     * - reportStatus NOT IN (DELETED)
      */
     @Query("""
         select f.id

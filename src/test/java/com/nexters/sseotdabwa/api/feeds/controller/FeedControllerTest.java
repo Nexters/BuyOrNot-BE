@@ -1086,6 +1086,46 @@ class FeedControllerTest {
                         org.hamcrest.Matchers.hasItems(fashionFeed.getId().intValue(), foodFeed.getId().intValue())));
     }
 
+    // ===== 신고된 피드 필터링 =====
+
+    @Test
+    @DisplayName("피드 리스트 조회 - 신고된(REPORTED) 피드 미표시")
+    void getFeedList_reportedFeedNotShown() throws Exception {
+        // given
+        User user = createUser();
+        Feed normalFeed = createFeedWithImage(user);
+        Feed reportedFeed = createFeedWithImage(user);
+        reportedFeed.report();
+        feedRepository.save(reportedFeed);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[*].feedId",
+                        org.hamcrest.Matchers.hasItem(normalFeed.getId().intValue())))
+                .andExpect(jsonPath("$.data.content[*].feedId",
+                        org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem(reportedFeed.getId().intValue()))));
+    }
+
+    @Test
+    @DisplayName("[V2] 피드 리스트 조회 - 신고된(REPORTED) 피드 미표시")
+    void getFeedList_v2_reportedFeedNotShown() throws Exception {
+        // given
+        User user = createUser();
+        Feed normalFeed = createFeedWithImage(user);
+        Feed reportedFeed = createFeedWithImage(user);
+        reportedFeed.report();
+        feedRepository.save(reportedFeed);
+
+        // when & then
+        mockMvc.perform(get("/api/v2/feeds"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[*].feedId",
+                        org.hamcrest.Matchers.hasItem(normalFeed.getId().intValue())))
+                .andExpect(jsonPath("$.data.content[*].feedId",
+                        org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem(reportedFeed.getId().intValue()))));
+    }
+
     // ===== Helper Methods =====
 
     private User createUser() {
