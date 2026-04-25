@@ -184,7 +184,7 @@ public class FeedService {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime cutoff = now.minusHours(48);
 
-        List<ReportStatus> excluded = Arrays.asList(ReportStatus.DELETED, ReportStatus.REPORTED);
+        List<ReportStatus> excluded = Arrays.asList(ReportStatus.DELETED);
 
         List<Long> feedIds = feedRepository.findExpiredOpenFeedIds(cutoff, excluded);
         if (feedIds.isEmpty()) {
