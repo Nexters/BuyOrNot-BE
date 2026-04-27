@@ -3,6 +3,7 @@ package com.nexters.sseotdabwa.api.notifications.controller;
 import java.util.List;
 
 import com.nexters.sseotdabwa.api.notifications.dto.NotificationResponse;
+import com.nexters.sseotdabwa.api.notifications.dto.UnreadCountResponse;
 import com.nexters.sseotdabwa.common.response.ApiResponse;
 import com.nexters.sseotdabwa.domain.notifications.enums.NotificationType;
 import com.nexters.sseotdabwa.domain.users.entity.User;
@@ -15,6 +16,14 @@ import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Notifications", description = "알림 API")
 public interface NotificationControllerSpec {
+
+    @Operation(
+            summary = "미확인 알림 수 조회",
+            description = "읽지 않은 알림 수를 반환합니다.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @GetMapping("/unread-count")
+    ApiResponse<UnreadCountResponse> getUnreadCount(@Parameter(hidden = true) User user);
 
     @Operation(
             summary = "알림 리스트 조회",

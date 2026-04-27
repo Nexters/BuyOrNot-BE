@@ -49,5 +49,14 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
             Pageable pageable
     );
 
+    @Query("""
+        select count(n)
+        from Notification n
+        where n.user.id = :userId
+          and n.isRead = false
+          and n.createdAt >= :cutoff
+    """)
+    long countUnreadSince(@Param("userId") Long userId, @Param("cutoff") LocalDateTime cutoff);
+
     void deleteByFeedId(Long feedId);
 }
