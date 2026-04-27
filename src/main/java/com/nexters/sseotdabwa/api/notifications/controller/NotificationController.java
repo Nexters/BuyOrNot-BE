@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import com.nexters.sseotdabwa.api.notifications.dto.NotificationResponse;
+import com.nexters.sseotdabwa.api.notifications.dto.UnreadCountResponse;
 import com.nexters.sseotdabwa.api.notifications.facade.NotificationFacade;
 import com.nexters.sseotdabwa.common.response.ApiResponse;
 import com.nexters.sseotdabwa.common.security.CurrentUser;
@@ -20,6 +21,12 @@ import lombok.RequiredArgsConstructor;
 public class NotificationController implements NotificationControllerSpec {
 
     private final NotificationFacade notificationFacade;
+
+    @Override
+    @GetMapping("/unread-count")
+    public ApiResponse<UnreadCountResponse> getUnreadCount(@CurrentUser User user) {
+        return ApiResponse.success(new UnreadCountResponse(notificationFacade.getUnreadCount(user)), HttpStatus.OK);
+    }
 
     @Override
     @GetMapping

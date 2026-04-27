@@ -121,6 +121,96 @@ class NotificationControllerTest {
                 .andExpect(jsonPath("$.errorCode").value("NOTI_001"));
     }
 
+    // ===== 미확인 알림 수 조회 =====
+
+    @Test
+    @DisplayName("미확인 알림 수 조회 성공 - 읽지 않은 알림 수 반환")
+    void getUnreadCount_success() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+        Feed feed = createFeed(user);
+
+        notificationRepository.save(Notification.builder()
+                .user(user).feed(feed).type(NotificationType.MY_FEED_CLOSED)
+                .title("투표 종료!").body("body").build());
+        notificationRepository.save(Notification.builder()
+                .user(user).feed(feed).type(NotificationType.PARTICIPATED_FEED_CLOSED)
+                .title("투표 종료!").body("body").build());
+
+        // when & then
+        mockMvc.perform(get("/api/v1/notifications/unread-count")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.unreadCount").value(2));
+    }
+
+    @Test
+    @DisplayName("미확인 알림 수 조회 - 알림 없으면 0 반환")
+    void getUnreadCount_noNotifications_returnsZero() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+
+        // when & then
+        mockMvc.perform(get("/api/v1/notifications/unread-count")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.unreadCount").value(0));
+    }
+
+    @Test
+    @DisplayName("미확인 알림 수 조회 - 읽은 알림은 카운트에서 제외")
+    void getUnreadCount_excludesReadNotifications() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+        Feed feed = createFeed(user);
+
+        Notification unread = notificationRepository.save(Notification.builder()
+                .user(user).feed(feed).type(NotificationType.MY_FEED_CLOSED)
+                .title("투표 종료!").body("body").build());
+
+        Notification read = notificationRepository.save(Notification.builder()
+                .user(user).feed(feed).type(NotificationType.PARTICIPATED_FEED_CLOSED)
+                .title("투표 종료!").body("body").build());
+        read.markAsRead();
+        notificationRepository.save(read);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/notifications/unread-count")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.unreadCount").value(1));
+    }
+
+    @Test
+    @DisplayName("미확인 알림 수 조회 - 비로그인 시 401")
+    void getUnreadCount_unauthorized_401() throws Exception {
+        mockMvc.perform(get("/api/v1/notifications/unread-count"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("미확인 알림 수 조회 - 다른 유저의 알림은 카운트에서 제외")
+    void getUnreadCount_excludesOtherUsersNotifications() throws Exception {
+        // given
+        User user = createUser();
+        User otherUser = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+        Feed feed = createFeed(user);
+
+        notificationRepository.save(Notification.builder()
+                .user(otherUser).feed(feed).type(NotificationType.MY_FEED_CLOSED)
+                .title("투표 종료!").body("body").build());
+
+        // when & then
+        mockMvc.perform(get("/api/v1/notifications/unread-count")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.unreadCount").value(0));
+    }
+
     private User createUser() {
         return userRepository.save(User.builder()
                 .socialId(UUID.randomUUID().toString())

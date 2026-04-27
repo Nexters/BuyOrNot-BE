@@ -10,6 +10,7 @@ import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedImageRepository;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
 
+import com.nexters.sseotdabwa.domain.notifications.entity.Notification;
 import com.nexters.sseotdabwa.domain.notifications.enums.NotificationType;
 import com.nexters.sseotdabwa.domain.notifications.push.FcmSender;
 import com.nexters.sseotdabwa.domain.notifications.repository.NotificationRepository;
@@ -162,6 +163,65 @@ class NotificationFacadeTest {
         // then
         assertThat(notificationRepository.count()).isEqualTo(1);
         verify(fcmSender, never()).send(anyString(), anyString(), anyString(), anyMap());
+    }
+
+    // ===== getUnreadCount =====
+
+    @Test
+    @DisplayName("미확인 알림 수 반환 - 읽지 않은 알림만 카운트")
+    void getUnreadCount_returnsOnlyUnread() {
+        // given
+        User user = createUser("user");
+        Feed feed = createFeed(user);
+
+        notificationRepository.save(Notification.builder()
+                .user(user).feed(feed).type(NotificationType.MY_FEED_CLOSED)
+                .title("제목").body("내용").build());
+
+        Notification read = notificationRepository.save(Notification.builder()
+                .user(user).feed(feed).type(NotificationType.PARTICIPATED_FEED_CLOSED)
+                .title("제목").body("내용").build());
+        read.markAsRead();
+        notificationRepository.save(read);
+
+        // when
+        long count = notificationFacade.getUnreadCount(user);
+
+        // then
+        assertThat(count).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("미확인 알림 수 반환 - 알림 없으면 0")
+    void getUnreadCount_returnsZeroWhenNone() {
+        // given
+        User user = createUser("user");
+
+        // when
+        long count = notificationFacade.getUnreadCount(user);
+
+        // then
+        assertThat(count).isZero();
+    }
+
+    @Test
+    @DisplayName("미확인 알림 수 반환 - 전부 읽은 경우 0")
+    void getUnreadCount_returnsZeroWhenAllRead() {
+        // given
+        User user = createUser("user");
+        Feed feed = createFeed(user);
+
+        Notification n = notificationRepository.save(Notification.builder()
+                .user(user).feed(feed).type(NotificationType.MY_FEED_CLOSED)
+                .title("제목").body("내용").build());
+        n.markAsRead();
+        notificationRepository.save(n);
+
+        // when
+        long count = notificationFacade.getUnreadCount(user);
+
+        // then
+        assertThat(count).isZero();
     }
 
     // ---------------- helpers ----------------
