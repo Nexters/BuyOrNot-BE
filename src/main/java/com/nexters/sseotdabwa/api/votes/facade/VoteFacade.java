@@ -47,7 +47,7 @@ public class VoteFacade {
         VoteCreateCommand command = new VoteCreateCommand(user, feed, choice, VoteType.USER);
         voteLogService.createVoteLog(command);
 
-        return VoteResponse.of(feed, choice);
+        return VoteResponse.of(feed, choice, user.getProfileImage());
     }
 
     @Transactional
@@ -68,6 +68,6 @@ public class VoteFacade {
         VoteCreateCommand command = new VoteCreateCommand(null, feed, choice, VoteType.SYSTEM);
         voteLogService.createVoteLog(command);
 
-        return VoteResponse.of(feed, choice);
+        return VoteResponse.of(feed, choice, null);
     }
 }
