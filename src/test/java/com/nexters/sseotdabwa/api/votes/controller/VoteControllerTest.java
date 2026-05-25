@@ -59,7 +59,7 @@ class VoteControllerTest {
     void vote_success_201() throws Exception {
         // given
         User owner = createUser();
-        User voter = createUser();
+        User voter = createUserWithProfile("https://cdn.example.com/profile1.png");
         Feed feed = createFeed(owner);
         String token = jwtTokenService.createAccessToken(voter.getId());
         VoteRequest request = new VoteRequest(VoteChoice.YES);
@@ -75,7 +75,8 @@ class VoteControllerTest {
                 .andExpect(jsonPath("$.data.choice").value("YES"))
                 .andExpect(jsonPath("$.data.yesCount").value(1))
                 .andExpect(jsonPath("$.data.noCount").value(0))
-                .andExpect(jsonPath("$.data.totalCount").value(1));
+                .andExpect(jsonPath("$.data.totalCount").value(1))
+                .andExpect(jsonPath("$.data.myProfileImage").value("https://cdn.example.com/profile1.png"));
     }
 
     @Test
@@ -151,7 +152,8 @@ class VoteControllerTest {
                 .andExpect(jsonPath("$.data.choice").value("NO"))
                 .andExpect(jsonPath("$.data.yesCount").value(0))
                 .andExpect(jsonPath("$.data.noCount").value(1))
-                .andExpect(jsonPath("$.data.totalCount").value(1));
+                .andExpect(jsonPath("$.data.totalCount").value(1))
+                .andExpect(jsonPath("$.data.myProfileImage").doesNotExist());
     }
 
     @Test
@@ -179,6 +181,15 @@ class VoteControllerTest {
                 .socialId(UUID.randomUUID().toString())
                 .nickname("테스트_" + UUID.randomUUID().toString().substring(0, 8))
                 .socialAccount(SocialAccount.KAKAO)
+                .build());
+    }
+
+    private User createUserWithProfile(String profileImage) {
+        return userRepository.save(User.builder()
+                .socialId(UUID.randomUUID().toString())
+                .nickname("테스트_" + UUID.randomUUID().toString().substring(0, 8))
+                .socialAccount(SocialAccount.KAKAO)
+                .profileImage(profileImage)
                 .build());
     }
 
