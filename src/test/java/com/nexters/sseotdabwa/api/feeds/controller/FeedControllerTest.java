@@ -378,7 +378,7 @@ class FeedControllerTest {
         feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img1.jpg").imageWidth(100).imageHeight(100).build());
         feedImageRepository.save(FeedImage.builder().feed(feed).s3ObjectKey("img2.jpg").imageWidth(200).imageHeight(200).build());
 
-        // when & then - 로그인 시 본인 피드 제외, 타인 피드는 조회됨
+        // when & then - 로그인 시 본인 피드 포함, 타인 피드도 조회됨
         mockMvc.perform(get("/api/v2/feeds")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
@@ -967,11 +967,11 @@ class FeedControllerTest {
                 .andExpect(jsonPath("$.data.title").value("살까 말까"));
     }
 
-    // ===== 피드 리스트 V2 본인 피드 제외 =====
+    // ===== 피드 리스트 V2 본인 피드 노출 =====
 
     @Test
-    @DisplayName("[V2] 피드 리스트 조회 - 로그인 시 본인 피드 자동 제외")
-    void getFeedList_v2_loggedIn_excludesMyFeeds() throws Exception {
+    @DisplayName("[V2] 피드 리스트 조회 - 로그인 시 본인 피드 포함 노출")
+    void getFeedList_v2_loggedIn_includesMyFeeds() throws Exception {
         // given
         User me = createUser();
         User other = createUser();
@@ -985,7 +985,7 @@ class FeedControllerTest {
                         .header("Authorization", "Bearer " + myToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[*].feedId",
-                        org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem(myFeed.getId().intValue()))))
+                        org.hamcrest.Matchers.hasItem(myFeed.getId().intValue())))
                 .andExpect(jsonPath("$.data.content[*].feedId",
                         org.hamcrest.Matchers.hasItem(otherFeed.getId().intValue())));
     }
@@ -1004,6 +1004,53 @@ class FeedControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[*].feedId",
                         org.hamcrest.Matchers.hasItems(feed1.getId().intValue(), feed2.getId().intValue())));
+    }
+
+    @Test
+    @DisplayName("[V2] 피드 리스트 조회 - 차단한 사용자의 피드 미표시")
+    void getFeedList_v2_blockedUserFeedNotShown() throws Exception {
+        // given
+        User viewer = createUser();
+        User blocked = createUser();
+        String viewerToken = jwtTokenService.createAccessToken(viewer.getId());
+
+        createFeedWithImage(viewer);
+        Feed blockedFeed = createFeedWithImage(blocked);
+        userBlockRepository.save(UserBlock.builder().user(viewer).blockedUser(blocked).build());
+
+        // when & then
+        mockMvc.perform(get("/api/v2/feeds")
+                        .header("Authorization", "Bearer " + viewerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[*].feedId",
+                        org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem(blockedFeed.getId().intValue()))));
+    }
+
+    @Test
+    @DisplayName("[V2] 피드 리스트 조회 - 카테고리 필터 + 차단 유저 동시 적용")
+    void getFeedList_v2_categoryFilter_withBlockedUser() throws Exception {
+        // given
+        User viewer = createUser();
+        User blocked = createUser();
+        String viewerToken = jwtTokenService.createAccessToken(viewer.getId());
+
+        Feed fashionFeed = feedRepository.save(Feed.builder().user(viewer).content("패션").price(1000L).category(FeedCategory.FASHION).build());
+        feedImageRepository.save(FeedImage.builder().feed(fashionFeed).s3ObjectKey("fashion.jpg").imageWidth(100).imageHeight(100).build());
+
+        Feed blockedFashionFeed = feedRepository.save(Feed.builder().user(blocked).content("차단패션").price(2000L).category(FeedCategory.FASHION).build());
+        feedImageRepository.save(FeedImage.builder().feed(blockedFashionFeed).s3ObjectKey("blocked.jpg").imageWidth(100).imageHeight(100).build());
+
+        userBlockRepository.save(UserBlock.builder().user(viewer).blockedUser(blocked).build());
+
+        // when & then
+        mockMvc.perform(get("/api/v2/feeds")
+                        .header("Authorization", "Bearer " + viewerToken)
+                        .param("category", "FASHION"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[*].feedId",
+                        org.hamcrest.Matchers.hasItem(fashionFeed.getId().intValue())))
+                .andExpect(jsonPath("$.data.content[*].feedId",
+                        org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem(blockedFashionFeed.getId().intValue()))));
     }
 
     @Test
