@@ -214,13 +214,9 @@ public class FeedFacade {
     public CursorPageResponse<FeedResponseV2> getFeedListV2(User user, Long cursor, Integer size, FeedStatus feedStatus, List<FeedCategory> categories) {
         int pageSize = (size == null) ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
 
-        List<Long> excludedUserIds;
-        if (user != null) {
-            excludedUserIds = new ArrayList<>(userBlockService.findBlockedUserIds(user.getId()));
-            excludedUserIds.add(user.getId());
-        } else {
-            excludedUserIds = Collections.emptyList();
-        }
+        List<Long> excludedUserIds = (user != null)
+                ? userBlockService.findBlockedUserIds(user.getId())
+                : Collections.emptyList();
 
         List<Feed> feeds = feedService.findAllExceptDeletedWithCursor(cursor, pageSize, feedStatus, categories, excludedUserIds);
 

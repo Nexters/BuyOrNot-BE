@@ -194,6 +194,26 @@ class FeedServiceTest {
     }
 
     @Test
+    @DisplayName("REPORTED 피드 → 48시간 초과 시 CLOSED 전환 + feedId 반환")
+    void closeExpiredFeedsAndReturnIds_closesReportedExpiredFeeds() {
+        // given
+        User user = createUser();
+        Feed feed = createFeed(user);
+        feed.report();
+        feedRepository.save(feed);
+        setCreatedAt(feed.getId(), LocalDateTime.now().minusHours(49));
+
+        // when
+        List<Long> closedIds = feedService.closeExpiredFeedsAndReturnIds();
+        entityManager.clear();
+
+        // then
+        assertThat(closedIds).contains(feed.getId());
+        Feed updated = feedRepository.findById(feed.getId()).orElseThrow();
+        assertThat(updated.getFeedStatus()).isEqualTo(FeedStatus.CLOSED);
+    }
+
+    @Test
     @DisplayName("이미 CLOSED 피드 → 영향 없음 + 반환 리스트 비어있음")
     void closeExpiredFeedsAndReturnIds_ignoresAlreadyClosedFeeds() {
         // given
@@ -276,6 +296,25 @@ class FeedServiceTest {
 
         // then
         assertThat(result).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("커서 페이지네이션 - REPORTED 상태 피드 제외")
+    void findAllExceptDeletedWithCursor_excludesReported() {
+        // given
+        User user = createUser();
+        Feed normalFeed = createFeed(user);
+        Feed reportedFeed = createFeed(user);
+        reportedFeed.report();
+        feedRepository.save(reportedFeed);
+
+        // when
+        List<Feed> result = feedService.findAllExceptDeletedWithCursor(null, 10, null, null);
+
+        // then
+        assertThat(result).extracting(Feed::getId)
+                .contains(normalFeed.getId())
+                .doesNotContain(reportedFeed.getId());
     }
 
     @Test

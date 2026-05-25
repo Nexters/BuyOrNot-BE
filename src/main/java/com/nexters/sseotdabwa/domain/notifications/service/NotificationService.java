@@ -103,6 +103,11 @@ public class NotificationService {
         }
     }
 
+    public long countUnread(Long userId) {
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(RECENT_DAYS);
+        return notificationRepository.countUnreadSince(userId, cutoff);
+    }
+
     @Transactional
     public void deleteByFeed(Feed feed) {
         notificationRepository.deleteByFeedId(feed.getId());

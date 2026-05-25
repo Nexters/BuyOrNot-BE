@@ -51,6 +51,11 @@ public class NotificationFacade {
     private final FcmSender fcmSender;
     private final AwsProperties awsProperties;
 
+    @Transactional(readOnly = true)
+    public long getUnreadCount(User user) {
+        return notificationService.countUnread(user.getId());
+    }
+
     /**
      * 최근 30일 알림 조회
      */

@@ -48,7 +48,7 @@ class VoteFacadeTest {
     void vote_yes_success() {
         // given
         User owner = createUser();
-        User voter = createUser();
+        User voter = createUserWithProfile("https://cdn.example.com/profile1.png");
         Feed feed = createFeed(owner);
         VoteRequest request = new VoteRequest(VoteChoice.YES);
 
@@ -61,6 +61,7 @@ class VoteFacadeTest {
         assertThat(response.yesCount()).isEqualTo(1L);
         assertThat(response.noCount()).isEqualTo(0L);
         assertThat(response.totalCount()).isEqualTo(1L);
+        assertThat(response.myProfileImage()).isEqualTo("https://cdn.example.com/profile1.png");
     }
 
     @Test
@@ -149,6 +150,7 @@ class VoteFacadeTest {
         assertThat(response.yesCount()).isEqualTo(1L);
         assertThat(response.noCount()).isEqualTo(0L);
         assertThat(response.totalCount()).isEqualTo(1L);
+        assertThat(response.myProfileImage()).isNull();
     }
 
     @Test
@@ -224,6 +226,15 @@ class VoteFacadeTest {
                 .socialId(UUID.randomUUID().toString())
                 .nickname("테스트_" + UUID.randomUUID().toString().substring(0, 8))
                 .socialAccount(SocialAccount.KAKAO)
+                .build());
+    }
+
+    private User createUserWithProfile(String profileImage) {
+        return userRepository.save(User.builder()
+                .socialId(UUID.randomUUID().toString())
+                .nickname("테스트_" + UUID.randomUUID().toString().substring(0, 8))
+                .socialAccount(SocialAccount.KAKAO)
+                .profileImage(profileImage)
                 .build());
     }
 
