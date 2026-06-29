@@ -1,6 +1,7 @@
 package com.nexters.sseotdabwa.domain.notifications.scheduler;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 
@@ -23,6 +24,7 @@ public class MarketingPushScheduler {
     private static final String MARKETING_TITLE = "살까, 말까 고민되는 거 있어요?";
     private static final String MARKETING_BODY = "고민되는 아이템을 업로드해보세요!";
     private static final int RECENT_DAYS = 7;
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final UserService userService;
     private final FcmSender fcmSender;
@@ -40,7 +42,7 @@ public class MarketingPushScheduler {
     }
 
     private void sendMarketingPush() {
-        LocalDateTime cutoff = LocalDateTime.now().minusDays(RECENT_DAYS);
+        LocalDateTime cutoff = LocalDateTime.now(KST).minusDays(RECENT_DAYS);
         List<User> targets = userService.findMarketingTargets(cutoff);
 
         if (targets.isEmpty()) {

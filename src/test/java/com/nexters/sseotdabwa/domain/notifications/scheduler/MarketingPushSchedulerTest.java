@@ -49,7 +49,7 @@ class MarketingPushSchedulerTest {
                 eq("fcm_token_target"),
                 eq("살까, 말까 고민되는 거 있어요?"),
                 eq("고민되는 아이템을 업로드해보세요!"),
-                anyMap()
+                argThat(map -> "MARKETING_NO_VOTE".equals(map.get("type")))
         );
     }
 

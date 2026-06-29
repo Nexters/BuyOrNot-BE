@@ -30,7 +30,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
         WHERE u.lastOpenedAt >= :cutoff
           AND u.pushEnabled = true
           AND u.fcmToken IS NOT NULL
-          AND u.fcmToken <> ''
+          AND TRIM(u.fcmToken) <> ''
           AND NOT EXISTS (
               SELECT f FROM Feed f WHERE f.user = u
           )
