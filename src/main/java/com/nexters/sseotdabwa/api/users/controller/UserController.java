@@ -103,4 +103,11 @@ public class UserController implements UserControllerSpec {
         userFacade.unblockUser(user, userId);
         return ApiResponse.success(HttpStatus.OK);
     }
+
+    @Override
+    @PostMapping("/app-open")
+    public ApiResponse<Void> recordAppOpen(@CurrentUser User user) {
+        userFacade.recordAppOpen(user);
+        return ApiResponse.success(HttpStatus.OK);
+    }
 }

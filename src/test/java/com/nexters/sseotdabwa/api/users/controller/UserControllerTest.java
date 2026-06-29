@@ -597,4 +597,30 @@ class UserControllerTest {
         mockMvc.perform(post("/api/v1/users/blocks/{userId}", target.getId()))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    @DisplayName("앱 오픈 기록 성공 - lastOpenedAt 갱신")
+    void recordAppOpen_success_updatesLastOpenedAt() throws Exception {
+        // given
+        User user = createUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+
+        // when
+        mockMvc.perform(post("/api/v1/users/app-open")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("200"));
+
+        // then
+        User updated = userRepository.findById(user.getId()).orElseThrow();
+        assertThat(updated.getLastOpenedAt()).isNotNull();
+        assertThat(updated.getLastOpenedAt()).isAfter(LocalDateTime.now().minusMinutes(1));
+    }
+
+    @Test
+    @DisplayName("앱 오픈 기록 실패 - 비로그인 401")
+    void recordAppOpen_unauthorized_returns401() throws Exception {
+        mockMvc.perform(post("/api/v1/users/app-open"))
+                .andExpect(status().isUnauthorized());
+    }
 }
