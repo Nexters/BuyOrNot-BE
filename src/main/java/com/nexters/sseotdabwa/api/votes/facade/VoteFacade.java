@@ -1,5 +1,6 @@
 package com.nexters.sseotdabwa.api.votes.facade;
 
+import com.nexters.sseotdabwa.api.notifications.facade.NotificationFacade;
 import com.nexters.sseotdabwa.api.votes.dto.VoteRequest;
 import com.nexters.sseotdabwa.api.votes.dto.VoteResponse;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
@@ -13,15 +14,18 @@ import com.nexters.sseotdabwa.domain.votes.service.VoteLogService;
 import com.nexters.sseotdabwa.domain.votes.service.command.VoteCreateCommand;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class VoteFacade {
 
     private final FeedService feedService;
     private final VoteLogService voteLogService;
+    private final NotificationFacade notificationFacade;
 
     @Transactional
     public VoteResponse vote(User user, Long feedId, VoteRequest request) {
@@ -46,6 +50,12 @@ public class VoteFacade {
 
         VoteCreateCommand command = new VoteCreateCommand(user, feed, choice, VoteType.USER);
         voteLogService.createVoteLog(command);
+
+        try {
+            notificationFacade.onVoteCreated(feed);
+        } catch (Exception e) {
+            log.warn("마일스톤 알림 실패 (best-effort). feedId={}", feedId, e);
+        }
 
         return VoteResponse.of(feed, choice, user.getProfileImage());
     }

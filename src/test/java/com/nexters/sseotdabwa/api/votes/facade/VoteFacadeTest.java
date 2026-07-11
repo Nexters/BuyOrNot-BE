@@ -3,10 +3,12 @@ package com.nexters.sseotdabwa.api.votes.facade;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.nexters.sseotdabwa.api.votes.dto.VoteRequest;
@@ -15,10 +17,13 @@ import com.nexters.sseotdabwa.common.exception.GlobalException;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
+import com.nexters.sseotdabwa.domain.notifications.enums.NotificationType;
+import com.nexters.sseotdabwa.domain.notifications.repository.NotificationRepository;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
 import com.nexters.sseotdabwa.domain.users.repository.UserRepository;
 import com.nexters.sseotdabwa.domain.votes.enums.VoteChoice;
+import com.nexters.sseotdabwa.domain.votes.repository.VoteLogRepository;
 
 import jakarta.persistence.EntityManager;
 
@@ -39,7 +44,23 @@ class VoteFacadeTest {
     private FeedRepository feedRepository;
 
     @Autowired
+    private NotificationRepository notificationRepository;
+
+    @Autowired
+    private VoteLogRepository voteLogRepository;
+
+    @Autowired
     private EntityManager entityManager;
+
+    @AfterEach
+    void cleanup() {
+        if (!TestTransaction.isActive()) {
+            notificationRepository.deleteAll();
+            voteLogRepository.deleteAll();
+            feedRepository.deleteAll();
+            userRepository.deleteAll();
+        }
+    }
 
     // ===== 회원 투표 =====
 
@@ -184,6 +205,63 @@ class VoteFacadeTest {
         assertThatThrownBy(() -> voteFacade.guestVote(feed.getId(), request))
                 .isInstanceOf(GlobalException.class)
                 .hasMessage("마감된 피드에는 투표할 수 없습니다.");
+    }
+
+    // ===== 마일스톤 알림 =====
+
+    @Test
+    @DisplayName("회원 투표 1번째 - MY_FEED_VOTED_1 알림 생성")
+    void vote_first_creates_voted1_notification() {
+        // given - REQUIRES_NEW가 참조할 수 있도록 선커밋
+        User owner = createUser();
+        User voter = createUser();
+        Feed feed = createFeed(owner);
+        TestTransaction.flagForCommit();
+        TestTransaction.end();
+
+        // when
+        voteFacade.vote(voter, feed.getId(), new VoteRequest(VoteChoice.YES));
+
+        // then
+        assertThat(notificationRepository.existsByUserIdAndFeedIdAndType(
+                owner.getId(), feed.getId(), NotificationType.MY_FEED_VOTED_1)).isTrue();
+    }
+
+    @Test
+    @DisplayName("회원 투표 10번째 - MY_FEED_VOTED_10 알림 생성")
+    void vote_tenth_creates_voted10_notification() {
+        // given - REQUIRES_NEW가 참조할 수 있도록 선커밋
+        User owner = createUser();
+        Feed feed = createFeed(owner);
+        TestTransaction.flagForCommit();
+        TestTransaction.end();
+
+        // 9명 투표 (게스트로 카운트만 채움)
+        for (int i = 0; i < 9; i++) {
+            voteFacade.guestVote(feed.getId(), new VoteRequest(VoteChoice.YES));
+        }
+
+        // when - 10번째 투표 (회원)
+        User voter = createUser();
+        voteFacade.vote(voter, feed.getId(), new VoteRequest(VoteChoice.YES));
+
+        // then
+        assertThat(notificationRepository.existsByUserIdAndFeedIdAndType(
+                owner.getId(), feed.getId(), NotificationType.MY_FEED_VOTED_10)).isTrue();
+    }
+
+    @Test
+    @DisplayName("게스트 투표는 알림을 생성하지 않는다")
+    void guestVote_does_not_create_notification() {
+        // given
+        User owner = createUser();
+        Feed feed = createFeed(owner);
+
+        // when
+        voteFacade.guestVote(feed.getId(), new VoteRequest(VoteChoice.YES));
+
+        // then
+        assertThat(notificationRepository.count()).isZero();
     }
 
     // ===== 48시간 만료 검증 =====
