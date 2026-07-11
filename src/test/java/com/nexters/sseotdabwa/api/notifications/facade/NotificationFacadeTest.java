@@ -224,6 +224,122 @@ class NotificationFacadeTest {
         assertThat(count).isZero();
     }
 
+    // ===== onVoteCreated =====
+
+    @Test
+    @DisplayName("1번째 투표 시 MY_FEED_VOTED_1 알림 생성")
+    void onVoteCreated_creates_voted1_notification_on_first_vote() throws Exception {
+        // given
+        User author = createUser("author");
+        Feed feed = createFeedWithTitle(author, "크록스0123456");
+
+        // yesCount = 1 세팅
+        feed.incrementYes();
+
+        // when
+        notificationFacade.onVoteCreated(feed);
+
+        // then
+        assertThat(notificationRepository.existsByUserIdAndFeedIdAndType(
+                author.getId(), feed.getId(), NotificationType.MY_FEED_VOTED_1)).isTrue();
+    }
+
+    @Test
+    @DisplayName("10번째 투표 시 MY_FEED_VOTED_10 알림 생성")
+    void onVoteCreated_creates_voted10_notification_on_tenth_vote() throws Exception {
+        // given
+        User author = createUser("author");
+        Feed feed = createFeedWithTitle(author, "크록스0123456");
+
+        // yesCount = 10 세팅
+        for (int i = 0; i < 10; i++) feed.incrementYes();
+
+        // when
+        notificationFacade.onVoteCreated(feed);
+
+        // then
+        assertThat(notificationRepository.existsByUserIdAndFeedIdAndType(
+                author.getId(), feed.getId(), NotificationType.MY_FEED_VOTED_10)).isTrue();
+    }
+
+    @Test
+    @DisplayName("1명, 10명 외 투표 수에서는 알림 생성 안 함")
+    void onVoteCreated_does_not_create_notification_for_other_counts() {
+        // given
+        User author = createUser("author");
+        Feed feed = createFeedWithTitle(author, "테스트피드");
+
+        for (int i = 0; i < 5; i++) feed.incrementYes();
+
+        // when
+        notificationFacade.onVoteCreated(feed);
+
+        // then
+        assertThat(notificationRepository.count()).isZero();
+    }
+
+    @Test
+    @DisplayName("같은 마일스톤 알림은 중복 생성 안 함")
+    void onVoteCreated_does_not_duplicate_same_milestone() {
+        // given
+        User author = createUser("author");
+        Feed feed = createFeedWithTitle(author, "테스트피드");
+        feed.incrementYes();
+
+        notificationFacade.onVoteCreated(feed);
+
+        // when - 같은 조건으로 재호출
+        notificationFacade.onVoteCreated(feed);
+
+        // then
+        assertThat(notificationRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("투표 종료 알림 title에 피드 제목이 포함된다")
+    void onFeedsClosed_title_includes_feed_title() {
+        // given
+        User author = createUser("author");
+        author.updateFcmToken("fcm_token_test");
+        userRepository.save(author);
+
+        Feed feed = createFeedWithTitle(author, "크록스0123456");
+        createFeedImage(feed);
+
+        // when
+        notificationFacade.onFeedsClosed(List.of(feed.getId()));
+
+        // then
+        Notification notification = notificationRepository
+                .findAll().stream()
+                .filter(n -> n.getType() == NotificationType.MY_FEED_CLOSED)
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(notification.getTitle()).isEqualTo("'크록스0123456' 투표 종료!");
+    }
+
+    @Test
+    @DisplayName("피드 제목이 10자 초과면 truncate 처리된다")
+    void onFeedsClosed_title_truncates_long_feed_title() {
+        // given
+        User author = createUser("author");
+        Feed feed = createFeedWithTitle(author, "12345678901234567890");
+        createFeedImage(feed);
+
+        // when
+        notificationFacade.onFeedsClosed(List.of(feed.getId()));
+
+        // then
+        Notification notification = notificationRepository
+                .findAll().stream()
+                .filter(n -> n.getType() == NotificationType.MY_FEED_CLOSED)
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(notification.getTitle()).isEqualTo("'1234567890..' 투표 종료!");
+    }
+
     // ---------------- helpers ----------------
 
     private User createUser(String prefix) {
@@ -240,6 +356,16 @@ class NotificationFacadeTest {
                 .content("테스트 피드")
                 .price(10000L)
                 .category(FeedCategory.FASHION)
+                .build());
+    }
+
+    private Feed createFeedWithTitle(User user, String title) {
+        return feedRepository.save(Feed.builder()
+                .user(user)
+                .content("테스트 피드")
+                .price(10000L)
+                .category(FeedCategory.FASHION)
+                .title(title)
                 .build());
     }
 

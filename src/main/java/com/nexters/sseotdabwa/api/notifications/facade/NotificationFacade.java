@@ -39,8 +39,10 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class NotificationFacade {
 
-    private static final String FEED_CLOSED_TITLE = "투표 종료!";
     private static final String FEED_CLOSED_BODY = "토봉이가 결과를 들고 기다리고 있어요.";
+    private static final String VOTED_1_BODY = "첫 투표가 도착했어요.";
+    private static final String VOTED_10_BODY = "벌써 10명이나 투표에 참여했어요!";
+    private static final int FEED_TITLE_MAX_LENGTH = 10;
 
     private final NotificationService notificationService;
     private final FeedService feedService;
@@ -153,12 +155,43 @@ public class NotificationFacade {
         }
     }
 
+    /**
+     * 투표 발생 시 작성자에게 마일스톤 알림 (1명, 10명)
+     * - guest 투표는 호출하지 않음 (VoteFacade에서 필터링)
+     */
+    @Transactional
+    public void onVoteCreated(Feed feed) {
+        long total = (feed.getYesCount() == null ? 0L : feed.getYesCount())
+                   + (feed.getNoCount() == null ? 0L : feed.getNoCount());
+
+        if (total != 1L && total != 10L) return;
+
+        User author = feed.getUser();
+        NotificationType type;
+        String title;
+        String body;
+
+        if (total == 1L) {
+            type = NotificationType.MY_FEED_VOTED_1;
+            title = buildVotedTitle(feed.getTitle(), 1);
+            body = VOTED_1_BODY;
+        } else {
+            type = NotificationType.MY_FEED_VOTED_10;
+            title = buildVotedTitle(feed.getTitle(), 10);
+            body = VOTED_10_BODY;
+        }
+
+        Notification notification = notificationService.createIfAbsent(author, feed, type, title, body);
+        pushBestEffort(author, notification, feed, type);
+    }
+
     private void notifyFeedClosed(Feed feed) {
         User author = feed.getUser();
+        String closedTitle = buildClosedTitle(feed.getTitle());
 
         // 1) 작성자 알림
         Notification authorNoti = notificationService.createIfAbsent(
-                author, feed, NotificationType.MY_FEED_CLOSED, FEED_CLOSED_TITLE, FEED_CLOSED_BODY
+                author, feed, NotificationType.MY_FEED_CLOSED, closedTitle, FEED_CLOSED_BODY
         );
         pushBestEffort(author, authorNoti, feed, NotificationType.MY_FEED_CLOSED);
 
@@ -176,7 +209,7 @@ public class NotificationFacade {
 
         for (User u : participants) {
             Notification saved = notificationService.createIfAbsent(
-                    u, feed, NotificationType.PARTICIPATED_FEED_CLOSED, FEED_CLOSED_TITLE, FEED_CLOSED_BODY
+                    u, feed, NotificationType.PARTICIPATED_FEED_CLOSED, closedTitle, FEED_CLOSED_BODY
             );
             pushBestEffort(u, saved, feed, NotificationType.PARTICIPATED_FEED_CLOSED);
         }
@@ -197,7 +230,7 @@ public class NotificationFacade {
             data.put("feedId", String.valueOf(feed.getId()));
             data.put("type", type.name());
 
-            fcmSender.send(user.getFcmToken(), FEED_CLOSED_TITLE, FEED_CLOSED_BODY, data);
+            fcmSender.send(user.getFcmToken(), notification.getTitle(), notification.getBody(), data);
 //            log.info("FCM 전송 성공 userId={}, token={}", user.getId(), user.getFcmToken());
         } catch (Exception e) {
             log.warn("FCM 전송 실패 (best-effort). userId={}, feedId={}, type={}",
@@ -236,6 +269,21 @@ public class NotificationFacade {
         String label = yesWin ? "YES" : "NO";
 
         return new NotificationResultCommand(percent, label);
+    }
+
+    private String truncateTitle(String title) {
+        if (!StringUtils.hasText(title)) return "";
+        return title.length() > FEED_TITLE_MAX_LENGTH
+                ? title.substring(0, FEED_TITLE_MAX_LENGTH) + ".."
+                : title;
+    }
+
+    private String buildVotedTitle(String feedTitle, int count) {
+        return "'" + truncateTitle(feedTitle) + "' 투표 " + count + "명 참여!";
+    }
+
+    private String buildClosedTitle(String feedTitle) {
+        return "'" + truncateTitle(feedTitle) + "' 투표 종료!";
     }
 
     /**

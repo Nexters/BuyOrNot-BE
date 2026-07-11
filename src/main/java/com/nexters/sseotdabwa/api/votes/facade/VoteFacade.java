@@ -1,5 +1,6 @@
 package com.nexters.sseotdabwa.api.votes.facade;
 
+import com.nexters.sseotdabwa.api.notifications.facade.NotificationFacade;
 import com.nexters.sseotdabwa.api.votes.dto.VoteRequest;
 import com.nexters.sseotdabwa.api.votes.dto.VoteResponse;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
@@ -22,6 +23,7 @@ public class VoteFacade {
 
     private final FeedService feedService;
     private final VoteLogService voteLogService;
+    private final NotificationFacade notificationFacade;
 
     @Transactional
     public VoteResponse vote(User user, Long feedId, VoteRequest request) {
@@ -46,6 +48,8 @@ public class VoteFacade {
 
         VoteCreateCommand command = new VoteCreateCommand(user, feed, choice, VoteType.USER);
         voteLogService.createVoteLog(command);
+
+        notificationFacade.onVoteCreated(feed);
 
         return VoteResponse.of(feed, choice, user.getProfileImage());
     }
