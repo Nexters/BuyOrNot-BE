@@ -12,6 +12,8 @@ import com.nexters.sseotdabwa.api.notifications.exception.NotificationErrorCode;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import com.nexters.sseotdabwa.api.notifications.dto.NotificationResponse;
 import com.nexters.sseotdabwa.common.config.AwsProperties;
@@ -26,6 +28,7 @@ import com.nexters.sseotdabwa.domain.notifications.service.NotificationService;
 import com.nexters.sseotdabwa.domain.notifications.service.command.NotificationResultCommand;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.service.UserService;
+import com.nexters.sseotdabwa.domain.votes.event.VoteCreatedEvent;
 import com.nexters.sseotdabwa.domain.votes.service.VoteLogService;
 
 import lombok.RequiredArgsConstructor;
@@ -157,9 +160,17 @@ public class NotificationFacade {
     }
 
     /**
+     * vote() 커밋 후 이벤트로 호출 — feed X-Lock 해제 후 실행되므로 FK 락 충돌 없음
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void handleVoteCreated(VoteCreatedEvent event) {
+        onVoteCreated(event.feed());
+    }
+
+    /**
      * 투표 발생 시 작성자에게 마일스톤 알림 (1명, 10명)
      * - guest 투표는 호출하지 않음 (VoteFacade에서 필터링)
-     * - REQUIRES_NEW: vote() 트랜잭션과 분리해 알림 실패가 투표 커밋에 영향을 주지 않도록
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onVoteCreated(Feed feed) {
