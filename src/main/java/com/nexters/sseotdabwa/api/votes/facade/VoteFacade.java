@@ -14,9 +14,11 @@ import com.nexters.sseotdabwa.domain.votes.service.VoteLogService;
 import com.nexters.sseotdabwa.domain.votes.service.command.VoteCreateCommand;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class VoteFacade {
@@ -49,7 +51,11 @@ public class VoteFacade {
         VoteCreateCommand command = new VoteCreateCommand(user, feed, choice, VoteType.USER);
         voteLogService.createVoteLog(command);
 
-        notificationFacade.onVoteCreated(feed);
+        try {
+            notificationFacade.onVoteCreated(feed);
+        } catch (Exception e) {
+            log.warn("마일스톤 알림 실패 (best-effort). feedId={}", feedId, e);
+        }
 
         return VoteResponse.of(feed, choice, user.getProfileImage());
     }

@@ -10,6 +10,7 @@ import com.nexters.sseotdabwa.common.exception.GlobalException;
 import com.nexters.sseotdabwa.api.notifications.exception.NotificationErrorCode;
 
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.nexters.sseotdabwa.api.notifications.dto.NotificationResponse;
@@ -158,8 +159,9 @@ public class NotificationFacade {
     /**
      * 투표 발생 시 작성자에게 마일스톤 알림 (1명, 10명)
      * - guest 투표는 호출하지 않음 (VoteFacade에서 필터링)
+     * - REQUIRES_NEW: vote() 트랜잭션과 분리해 알림 실패가 투표 커밋에 영향을 주지 않도록
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onVoteCreated(Feed feed) {
         long total = (feed.getYesCount() == null ? 0L : feed.getYesCount())
                    + (feed.getNoCount() == null ? 0L : feed.getNoCount());

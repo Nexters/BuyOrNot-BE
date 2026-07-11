@@ -24,12 +24,14 @@ import com.nexters.sseotdabwa.domain.votes.enums.VoteChoice;
 import com.nexters.sseotdabwa.domain.votes.enums.VoteType;
 import com.nexters.sseotdabwa.domain.votes.repository.VoteLogRepository;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -50,6 +52,17 @@ class NotificationFacadeTest {
 
     @MockBean
     private FcmSender fcmSender;
+
+    @AfterEach
+    void cleanup() {
+        if (!TestTransaction.isActive()) {
+            notificationRepository.deleteAll();
+            voteLogRepository.deleteAll();
+            feedImageRepository.deleteAll();
+            feedRepository.deleteAll();
+            userRepository.deleteAll();
+        }
+    }
 
     @Test
     @DisplayName("피드 마감 처리 시 작성자/참여자 알림이 생성된다")
@@ -229,12 +242,13 @@ class NotificationFacadeTest {
     @Test
     @DisplayName("1번째 투표 시 MY_FEED_VOTED_1 알림 생성")
     void onVoteCreated_creates_voted1_notification_on_first_vote() throws Exception {
-        // given
+        // given - REQUIRES_NEW가 참조할 수 있도록 선커밋
         User author = createUser("author");
         Feed feed = createFeedWithTitle(author, "크록스0123456");
-
-        // yesCount = 1 세팅
         feed.incrementYes();
+        feedRepository.save(feed);
+        TestTransaction.flagForCommit();
+        TestTransaction.end();
 
         // when
         notificationFacade.onVoteCreated(feed);
@@ -247,12 +261,13 @@ class NotificationFacadeTest {
     @Test
     @DisplayName("10번째 투표 시 MY_FEED_VOTED_10 알림 생성")
     void onVoteCreated_creates_voted10_notification_on_tenth_vote() throws Exception {
-        // given
+        // given - REQUIRES_NEW가 참조할 수 있도록 선커밋
         User author = createUser("author");
         Feed feed = createFeedWithTitle(author, "크록스0123456");
-
-        // yesCount = 10 세팅
         for (int i = 0; i < 10; i++) feed.incrementYes();
+        feedRepository.save(feed);
+        TestTransaction.flagForCommit();
+        TestTransaction.end();
 
         // when
         notificationFacade.onVoteCreated(feed);
@@ -281,10 +296,13 @@ class NotificationFacadeTest {
     @Test
     @DisplayName("같은 마일스톤 알림은 중복 생성 안 함")
     void onVoteCreated_does_not_duplicate_same_milestone() {
-        // given
+        // given - REQUIRES_NEW가 참조할 수 있도록 선커밋
         User author = createUser("author");
         Feed feed = createFeedWithTitle(author, "테스트피드");
         feed.incrementYes();
+        feedRepository.save(feed);
+        TestTransaction.flagForCommit();
+        TestTransaction.end();
 
         notificationFacade.onVoteCreated(feed);
 
