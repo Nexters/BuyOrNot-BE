@@ -1,5 +1,7 @@
 package com.nexters.sseotdabwa.domain.users.entity;
 
+import java.time.LocalDateTime;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -53,6 +55,9 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private boolean pushEnabled;
 
+    @Column
+    private LocalDateTime lastOpenedAt;
+
     @Builder
     public User(String socialId, String nickname, SocialAccount socialAccount,
             String profileImage, String email) {
@@ -79,6 +84,10 @@ public class User extends BaseEntity {
 
     public void updateFcmToken(String fcmToken) {
         this.fcmToken = (fcmToken == null) ? null : fcmToken.trim();
+    }
+
+    public void updateLastOpenedAt() {
+        this.lastOpenedAt = LocalDateTime.now();
     }
 
     public boolean canReceivePush() {

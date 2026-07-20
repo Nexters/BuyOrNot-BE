@@ -212,4 +212,12 @@ public class UserFacade {
     public void unblockUser(User user, Long userId) {
         userBlockService.unblock(user, userId);
     }
+
+    /**
+     * 앱 오픈 시각 기록 (마케팅 푸시 발송 대상 선정에 사용)
+     */
+    @Transactional
+    public void recordAppOpen(User user) {
+        userService.updateLastOpenedAt(user.getId());
+    }
 }

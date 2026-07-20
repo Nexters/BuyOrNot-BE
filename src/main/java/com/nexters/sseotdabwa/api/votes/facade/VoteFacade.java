@@ -8,20 +8,25 @@ import com.nexters.sseotdabwa.domain.feeds.service.FeedService;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.votes.enums.VoteChoice;
 import com.nexters.sseotdabwa.domain.votes.enums.VoteType;
+import com.nexters.sseotdabwa.domain.votes.event.VoteCreatedEvent;
 import com.nexters.sseotdabwa.domain.votes.exception.VoteErrorCode;
 import com.nexters.sseotdabwa.domain.votes.service.VoteLogService;
 import com.nexters.sseotdabwa.domain.votes.service.command.VoteCreateCommand;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class VoteFacade {
 
     private final FeedService feedService;
     private final VoteLogService voteLogService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public VoteResponse vote(User user, Long feedId, VoteRequest request) {
@@ -46,6 +51,8 @@ public class VoteFacade {
 
         VoteCreateCommand command = new VoteCreateCommand(user, feed, choice, VoteType.USER);
         voteLogService.createVoteLog(command);
+
+        eventPublisher.publishEvent(new VoteCreatedEvent(feed));
 
         return VoteResponse.of(feed, choice, user.getProfileImage());
     }

@@ -1,5 +1,6 @@
 package com.nexters.sseotdabwa.domain.users.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -146,5 +147,15 @@ public class UserService {
             return List.of();
         }
         return userRepository.findByIdIn(userIds);
+    }
+
+    @Transactional
+    public void updateLastOpenedAt(Long userId) {
+        User user = findById(userId);
+        user.updateLastOpenedAt();
+    }
+
+    public List<User> findMarketingTargets(LocalDateTime cutoff) {
+        return userRepository.findMarketingTargets(cutoff);
     }
 }

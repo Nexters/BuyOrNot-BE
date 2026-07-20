@@ -136,4 +136,15 @@ public interface UserControllerSpec {
             @Parameter(hidden = true) User user,
             @Parameter(description = "차단 해제할 사용자 ID") Long userId
     );
+
+    @Operation(
+            summary = "앱 오픈 기록",
+            description = "앱 실행 시 호출하여 마지막 오픈 시각을 기록합니다. 마케팅 푸시 발송 대상 선정에 사용됩니다.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "기록 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
+    })
+    ApiResponse<Void> recordAppOpen(@Parameter(hidden = true) User user);
 }
