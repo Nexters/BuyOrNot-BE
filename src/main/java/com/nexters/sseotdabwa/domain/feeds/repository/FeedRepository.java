@@ -164,4 +164,18 @@ public interface FeedRepository extends JpaRepository<Feed, Long> {
           and f.feedStatus = com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus.OPEN
     """)
     int closeFeedsByIds(@Param("feedIds") List<Long> feedIds, @Param("now") LocalDateTime now);
+
+    /**
+     * 마지막 피드 등록일이 [rangeStart, rangeEnd) 범위에 속하는 유저 id 목록
+     * - 재참여 유도 푸시(N일 미활동) 발송 대상 조회에 사용
+     */
+    @Query("""
+        select f.user.id
+        from Feed f
+        group by f.user.id
+        having max(f.createdAt) >= :rangeStart and max(f.createdAt) < :rangeEnd
+    """)
+    List<Long> findUserIdsByLastFeedCreatedAtBetween(
+            @Param("rangeStart") LocalDateTime rangeStart,
+            @Param("rangeEnd") LocalDateTime rangeEnd);
 }
