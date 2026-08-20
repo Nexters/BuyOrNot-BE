@@ -202,4 +202,12 @@ public class FeedService {
         }
         return feedRepository.findAllById(feedIds);
     }
+
+    /**
+     * 마지막 피드 등록일이 [rangeStart, rangeEnd) 범위에 속하는 유저 id 목록
+     * - 재참여 유도 푸시(N일 미활동) 발송 대상 조회에 사용
+     */
+    public List<Long> findUserIdsByLastFeedCreatedAtBetween(LocalDateTime rangeStart, LocalDateTime rangeEnd) {
+        return feedRepository.findUserIdsByLastFeedCreatedAtBetween(rangeStart, rangeEnd);
+    }
 }
