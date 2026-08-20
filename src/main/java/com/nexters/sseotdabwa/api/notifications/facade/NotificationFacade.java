@@ -240,7 +240,7 @@ public class NotificationFacade {
 
         try {
             Map<String, String> data = new HashMap<>();
-            data.put("screen", "NOTIFICATIONS");
+            data.put("screen", "FEED_DETAIL");
             data.put("notificationId", String.valueOf(notification.getId()));
             data.put("feedId", String.valueOf(feed.getId()));
             data.put("type", type.name());

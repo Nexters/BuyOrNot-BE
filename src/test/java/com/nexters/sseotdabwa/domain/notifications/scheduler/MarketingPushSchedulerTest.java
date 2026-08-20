@@ -65,7 +65,7 @@ class MarketingPushSchedulerTest {
                 eq("fcm_token_target"),
                 eq("장바구니에 넣어놓고 고민만 하고 있죠?"),
                 eq("고민되는 아이템을 업로드해보세요!"),
-                argThat(map -> "MARKETING_NO_VOTE".equals(map.get("type")))
+                argThat(map -> "MARKETING_NO_VOTE".equals(map.get("type")) && "HOME".equals(map.get("screen")))
         );
 
         // 발송 성공 로그도 기록된다

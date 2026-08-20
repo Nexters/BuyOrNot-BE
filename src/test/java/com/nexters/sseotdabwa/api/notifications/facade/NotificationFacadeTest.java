@@ -126,12 +126,12 @@ class NotificationFacadeTest {
         notificationFacade.onFeedsClosed(List.of(feed.getId()));
 
         // then
-        // 최소 1회 이상 전송 시도
+        // 최소 1회 이상 전송 시도, 딥링크 힌트는 피드 상세 화면
         verify(fcmSender, atLeastOnce()).send(
                 eq("fcm_token_test"),
                 anyString(),  // title
                 anyString(),  // body
-                anyMap()      // data payload
+                argThat(map -> "FEED_DETAIL".equals(map.get("screen")))
         );
 
         // 발송 성공 로그도 기록된다
