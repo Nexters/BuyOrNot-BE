@@ -11,9 +11,11 @@ import com.nexters.sseotdabwa.domain.feeds.repository.FeedImageRepository;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
 
 import com.nexters.sseotdabwa.domain.notifications.entity.Notification;
+import com.nexters.sseotdabwa.domain.notifications.entity.PushLog;
 import com.nexters.sseotdabwa.domain.notifications.enums.NotificationType;
 import com.nexters.sseotdabwa.domain.notifications.push.FcmSender;
 import com.nexters.sseotdabwa.domain.notifications.repository.NotificationRepository;
+import com.nexters.sseotdabwa.domain.notifications.repository.PushLogRepository;
 
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
@@ -49,6 +51,7 @@ class NotificationFacadeTest {
     @Autowired private FeedImageRepository feedImageRepository;
     @Autowired private VoteLogRepository voteLogRepository;
     @Autowired private NotificationRepository notificationRepository;
+    @Autowired private PushLogRepository pushLogRepository;
 
     @MockBean
     private FcmSender fcmSender;
@@ -56,6 +59,7 @@ class NotificationFacadeTest {
     @AfterEach
     void cleanup() {
         if (!TestTransaction.isActive()) {
+            pushLogRepository.deleteAll();
             notificationRepository.deleteAll();
             voteLogRepository.deleteAll();
             feedImageRepository.deleteAll();
@@ -129,6 +133,38 @@ class NotificationFacadeTest {
                 anyString(),  // body
                 anyMap()      // data payload
         );
+
+        // 발송 성공 로그도 기록된다
+        List<PushLog> logs = pushLogRepository.findAll();
+        assertThat(logs).isNotEmpty();
+        assertThat(logs).allMatch(PushLog::isSuccess);
+    }
+
+    @Test
+    @DisplayName("FCM 전송이 실패해도 알림은 저장되고, 발송 실패 로그가 남는다")
+    void onFeedsClosed_recordsFailedPushLog_whenFcmThrows() {
+        // given
+        User author = createUser("author");
+        author.updateFcmToken("fcm_token_test");
+        userRepository.save(author);
+
+        Feed feed = createFeed(author);
+        createFeedImage(feed);
+
+        doThrow(new RuntimeException("FCM server error"))
+                .when(fcmSender).send(anyString(), anyString(), anyString(), anyMap());
+
+        // when
+        notificationFacade.onFeedsClosed(List.of(feed.getId()));
+
+        // then
+        // best-effort이므로 알림 저장은 정상적으로 이루어진다
+        assertThat(notificationRepository.count()).isEqualTo(1);
+
+        List<PushLog> logs = pushLogRepository.findAll();
+        assertThat(logs).isNotEmpty();
+        assertThat(logs).allMatch(l -> !l.isSuccess());
+        assertThat(logs).allMatch(l -> "FCM server error".equals(l.getErrorMessage()));
     }
 
     @Test
@@ -157,6 +193,9 @@ class NotificationFacadeTest {
 
         // 전송은 안됨
         verify(fcmSender, never()).send(anyString(), anyString(), anyString(), anyMap());
+
+        // 전송 시도 자체가 없으므로 발송 로그도 없음
+        assertThat(pushLogRepository.findAll()).isEmpty();
     }
 
     @Test
@@ -356,6 +395,50 @@ class NotificationFacadeTest {
                 .orElseThrow();
 
         assertThat(notification.getTitle()).isEqualTo("'1234567890..' 투표 종료!");
+    }
+
+    // ===== sendTestPushOnly =====
+
+    @Test
+    @DisplayName("테스트 푸시 성공 시 발송 성공 로그가 남는다")
+    void sendTestPushOnly_recordsSuccessLog() {
+        // given
+        User user = createUser("tester");
+        user.updateFcmToken("fcm_token_test");
+        userRepository.save(user);
+
+        // when
+        notificationFacade.sendTestPushOnly(user, "테스트 제목", "테스트 본문");
+
+        // then
+        verify(fcmSender, times(1)).send(eq("fcm_token_test"), eq("테스트 제목"), eq("테스트 본문"), anyMap());
+
+        List<PushLog> logs = pushLogRepository.findAll();
+        assertThat(logs).hasSize(1);
+        assertThat(logs.get(0).isSuccess()).isTrue();
+        assertThat(logs.get(0).getFeedId()).isNull();
+        assertThat(logs.get(0).getType()).isNull();
+    }
+
+    @Test
+    @DisplayName("테스트 푸시 실패 시 발송 실패 로그가 남는다")
+    void sendTestPushOnly_recordsFailureLog_whenFcmThrows() {
+        // given
+        User user = createUser("tester");
+        user.updateFcmToken("fcm_token_test");
+        userRepository.save(user);
+
+        doThrow(new RuntimeException("invalid token"))
+                .when(fcmSender).send(anyString(), anyString(), anyString(), anyMap());
+
+        // when
+        notificationFacade.sendTestPushOnly(user, "테스트 제목", "테스트 본문");
+
+        // then
+        List<PushLog> logs = pushLogRepository.findAll();
+        assertThat(logs).hasSize(1);
+        assertThat(logs.get(0).isSuccess()).isFalse();
+        assertThat(logs.get(0).getErrorMessage()).isEqualTo("invalid token");
     }
 
     // ---------------- helpers ----------------

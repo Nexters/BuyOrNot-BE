@@ -2,12 +2,16 @@ package com.nexters.sseotdabwa.domain.notifications.scheduler;
 
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
+import com.nexters.sseotdabwa.domain.notifications.entity.PushLog;
+import com.nexters.sseotdabwa.domain.notifications.enums.NotificationType;
 import com.nexters.sseotdabwa.domain.notifications.push.FcmSender;
+import com.nexters.sseotdabwa.domain.notifications.repository.PushLogRepository;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
 import com.nexters.sseotdabwa.domain.users.repository.UserRepository;
@@ -20,6 +24,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.transaction.annotation.Transactional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -30,6 +35,7 @@ class MarketingPushSchedulerTest {
     @Autowired private MarketingPushScheduler marketingPushScheduler;
     @Autowired private UserRepository userRepository;
     @Autowired private FeedRepository feedRepository;
+    @Autowired private PushLogRepository pushLogRepository;
 
     @MockBean private FcmSender fcmSender;
 
@@ -51,6 +57,33 @@ class MarketingPushSchedulerTest {
                 eq("고민되는 아이템을 업로드해보세요!"),
                 argThat(map -> "MARKETING_NO_VOTE".equals(map.get("type")))
         );
+
+        // 발송 성공 로그도 기록된다
+        List<PushLog> logs = pushLogRepository.findAll();
+        assertThat(logs).hasSize(1);
+        assertThat(logs.get(0).isSuccess()).isTrue();
+        assertThat(logs.get(0).getType()).isEqualTo(NotificationType.MARKETING_NO_VOTE);
+    }
+
+    @Test
+    @DisplayName("FCM 전송이 실패하면 발송 실패 로그가 남는다")
+    void sendMarketingPush_recordsFailureLog_whenFcmThrows() throws Exception {
+        // given
+        User target = createUserWithToken("target");
+        setLastOpenedAt(target, LocalDateTime.now().minusDays(3));
+        userRepository.save(target);
+
+        doThrow(new RuntimeException("FCM server error"))
+                .when(fcmSender).send(anyString(), anyString(), anyString(), anyMap());
+
+        // when
+        marketingPushScheduler.sendMarketingPushWednesday();
+
+        // then
+        List<PushLog> logs = pushLogRepository.findAll();
+        assertThat(logs).hasSize(1);
+        assertThat(logs.get(0).isSuccess()).isFalse();
+        assertThat(logs.get(0).getErrorMessage()).isEqualTo("FCM server error");
     }
 
     @Test

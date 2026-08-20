@@ -25,6 +25,7 @@ import com.nexters.sseotdabwa.domain.notifications.entity.Notification;
 import com.nexters.sseotdabwa.domain.notifications.enums.NotificationType;
 import com.nexters.sseotdabwa.domain.notifications.push.FcmSender;
 import com.nexters.sseotdabwa.domain.notifications.service.NotificationService;
+import com.nexters.sseotdabwa.domain.notifications.service.PushLogService;
 import com.nexters.sseotdabwa.domain.notifications.service.command.NotificationResultCommand;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.service.UserService;
@@ -49,6 +50,7 @@ public class NotificationFacade {
     private static final int FEED_TITLE_MAX_LENGTH = 10;
 
     private final NotificationService notificationService;
+    private final PushLogService pushLogService;
     private final FeedService feedService;
     private final FeedImageService feedImageService;
     private final VoteLogService voteLogService;
@@ -245,9 +247,11 @@ public class NotificationFacade {
 
             fcmSender.send(user.getFcmToken(), notification.getTitle(), notification.getBody(), data);
 //            log.info("FCM 전송 성공 userId={}, token={}", user.getId(), user.getFcmToken());
+            pushLogService.record(user.getId(), feed.getId(), type, notification.getTitle(), notification.getBody(), true, null);
         } catch (Exception e) {
             log.warn("FCM 전송 실패 (best-effort). userId={}, feedId={}, type={}",
                     user.getId(), feed.getId(), type, e);
+            pushLogService.record(user.getId(), feed.getId(), type, notification.getTitle(), notification.getBody(), false, e.getMessage());
         }
     }
 
@@ -315,7 +319,6 @@ public class NotificationFacade {
         return d + "/" + key;
     }
 
-    @Transactional(readOnly = true)
     public void sendTestPushOnly(User user, String title, String body) {
 
         if (!user.canReceivePush()) {
@@ -333,9 +336,11 @@ public class NotificationFacade {
             fcmSender.send(user.getFcmToken(), title, body, data);
 
             log.info("테스트 FCM 전송 성공 userId={}", user.getId());
+            pushLogService.record(user.getId(), null, null, title, body, true, null);
 
         } catch (Exception e) {
             log.warn("테스트 FCM 전송 실패 userId={}", user.getId(), e);
+            pushLogService.record(user.getId(), null, null, title, body, false, e.getMessage());
         }
     }
 }
