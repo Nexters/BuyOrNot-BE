@@ -7,6 +7,7 @@ import java.util.Map;
 
 import com.nexters.sseotdabwa.domain.notifications.enums.NotificationType;
 import com.nexters.sseotdabwa.domain.notifications.push.FcmSender;
+import com.nexters.sseotdabwa.domain.notifications.service.PushLogService;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.service.UserService;
 
@@ -28,6 +29,7 @@ public class MarketingPushScheduler {
 
     private final UserService userService;
     private final FcmSender fcmSender;
+    private final PushLogService pushLogService;
 
     // 매주 수요일 13:00 (KST)
     @Scheduled(cron = "0 0 13 * * WED", zone = "Asia/Seoul")
@@ -58,8 +60,12 @@ public class MarketingPushScheduler {
                 Map<String, String> data = Map.of("type", NotificationType.MARKETING_NO_VOTE.name());
                 fcmSender.send(user.getFcmToken(), MARKETING_TITLE, MARKETING_BODY, data);
                 successCount++;
+                pushLogService.record(user.getId(), null, NotificationType.MARKETING_NO_VOTE,
+                        MARKETING_TITLE, MARKETING_BODY, true, null);
             } catch (Exception e) {
                 log.warn("[마케팅 푸시] FCM 전송 실패. userId={}", user.getId(), e);
+                pushLogService.record(user.getId(), null, NotificationType.MARKETING_NO_VOTE,
+                        MARKETING_TITLE, MARKETING_BODY, false, e.getMessage());
             }
         }
 
