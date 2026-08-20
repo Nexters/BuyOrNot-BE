@@ -37,6 +37,7 @@ public class MarketingPushScheduler {
     private static final String ONBOARDING_BODY = "이제 고민되는 거 하나만 올리면 시작이에요!";
 
     private static final String FEED_CREATE_SCREEN = "FEED_CREATE";
+    private static final String HOME_SCREEN = "HOME";
 
     private static final int RECENT_DAYS = 7;
     private static final int INACTIVE_3D_DAYS = 3;
@@ -81,7 +82,7 @@ public class MarketingPushScheduler {
         LocalDateTime rangeEnd = rangeStart.plusDays(1);
 
         List<User> targets = userService.findOnboardingTargets(rangeStart, rangeEnd);
-        sendToTargets(targets, NotificationType.MARKETING_ONBOARDING_INACTIVE, ONBOARDING_TITLE, ONBOARDING_BODY, "[온보딩 유도 푸시]");
+        sendToTargets(targets, NotificationType.MARKETING_ONBOARDING_INACTIVE, ONBOARDING_TITLE, ONBOARDING_BODY, "[온보딩 유도 푸시]", FEED_CREATE_SCREEN);
     }
 
     private void sendMarketingPush() {
@@ -89,7 +90,7 @@ public class MarketingPushScheduler {
         LocalDateTime signupCutoff = LocalDateTime.now(KST).minusDays(ONBOARDING_DAYS);
 
         List<User> targets = userService.findMarketingTargets(cutoff, signupCutoff);
-        sendToTargets(targets, NotificationType.MARKETING_NO_VOTE, MARKETING_TITLE, MARKETING_BODY, "[마케팅 푸시]");
+        sendToTargets(targets, NotificationType.MARKETING_NO_VOTE, MARKETING_TITLE, MARKETING_BODY, "[마케팅 푸시]", HOME_SCREEN);
     }
 
     /**
@@ -109,10 +110,10 @@ public class MarketingPushScheduler {
                 .filter(User::canReceivePush)
                 .toList();
 
-        sendToTargets(targets, type, title, body, "[재참여 유도 푸시]");
+        sendToTargets(targets, type, title, body, "[재참여 유도 푸시]", FEED_CREATE_SCREEN);
     }
 
-    private void sendToTargets(List<User> targets, NotificationType type, String title, String body, String logPrefix) {
+    private void sendToTargets(List<User> targets, NotificationType type, String title, String body, String logPrefix, String screen) {
         if (targets.isEmpty()) {
             log.info("{} 발송 대상 없음. type={}", logPrefix, type);
             return;
@@ -123,7 +124,7 @@ public class MarketingPushScheduler {
         int successCount = 0;
         for (User user : targets) {
             try {
-                Map<String, String> data = Map.of("type", type.name(), "screen", FEED_CREATE_SCREEN);
+                Map<String, String> data = Map.of("type", type.name(), "screen", screen);
                 fcmSender.send(user.getFcmToken(), title, body, data);
                 successCount++;
                 pushLogService.record(user.getId(), null, type, title, body, true, null);
