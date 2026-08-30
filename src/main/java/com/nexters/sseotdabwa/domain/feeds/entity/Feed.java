@@ -27,9 +27,21 @@ public class Feed extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "user_id", nullable = true)
     private User user;
+
+    /**
+     * 비회원(게스트) 작성 피드의 표시용 닉네임. 회원 작성 피드는 null.
+     */
+    @Column(name = "guest_nickname", length = 40)
+    private String guestNickname;
+
+    /**
+     * 비회원(게스트) 작성 피드 삭제 시 본인 확인용 비밀번호 해시. 회원 작성 피드는 null.
+     */
+    @Column(name = "guest_password_hash")
+    private String guestPasswordHash;
 
     @Lob
     @Column(name = "content", nullable = false)
@@ -63,13 +75,16 @@ public class Feed extends BaseEntity {
     private String title;
 
     @Builder
-    public Feed(User user, String content, Long price, FeedCategory category, String link, String title) {
+    public Feed(User user, String content, Long price, FeedCategory category, String link, String title,
+                String guestNickname, String guestPasswordHash) {
         this.user = user;
         this.content = content;
         this.price = price;
         this.category = category;
         this.link = link;
         this.title = title;
+        this.guestNickname = guestNickname;
+        this.guestPasswordHash = guestPasswordHash;
         this.reportStatus = ReportStatus.NONE;
         this.feedStatus = FeedStatus.OPEN;
         this.yesCount = 0L;
@@ -114,7 +129,11 @@ public class Feed extends BaseEntity {
     }
 
     public boolean isOwner(User user) {
-        return this.user.getId().equals(user.getId());
+        return this.user != null && this.user.getId().equals(user.getId());
+    }
+
+    public boolean isGuestPost() {
+        return this.user == null;
     }
 
     public LocalDateTime getVoteClosedAt() {

@@ -51,11 +51,7 @@ public record FeedResponseV2(
                 feed.getYesCount() + feed.getNoCount(),
                 feed.getFeedStatus(),
                 buildImageInfos(feedImages, viewUrls),
-                new FeedAuthorResponse(
-                        feed.getUser().getId(),
-                        feed.getUser().getNickname(),
-                        feed.getUser().getProfileImage()
-                ),
+                buildAuthorResponse(feed),
                 feed.getCreatedAt(),
                 null,
                 null,
@@ -75,16 +71,23 @@ public record FeedResponseV2(
                 feed.getYesCount() + feed.getNoCount(),
                 feed.getFeedStatus(),
                 buildImageInfos(feedImages, viewUrls),
-                new FeedAuthorResponse(
-                        feed.getUser().getId(),
-                        feed.getUser().getNickname(),
-                        feed.getUser().getProfileImage()
-                ),
+                buildAuthorResponse(feed),
                 feed.getCreatedAt(),
                 hasVoted,
                 myVoteChoice,
                 feed.getLink(),
                 feed.getTitle()
+        );
+    }
+
+    private static FeedAuthorResponse buildAuthorResponse(Feed feed) {
+        if (feed.isGuestPost()) {
+            return new FeedAuthorResponse(null, feed.getGuestNickname(), null);
+        }
+        return new FeedAuthorResponse(
+                feed.getUser().getId(),
+                feed.getUser().getNickname(),
+                feed.getUser().getProfileImage()
         );
     }
 

@@ -3,7 +3,9 @@ package com.nexters.sseotdabwa.api.feeds.controller;
 import java.util.List;
 
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequest;
+import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequestGuest;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateResponse;
+import com.nexters.sseotdabwa.api.feeds.dto.FeedGuestDeleteRequest;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
 import com.nexters.sseotdabwa.common.response.ApiResponse;
 import com.nexters.sseotdabwa.common.response.CursorPageResponse;
@@ -50,6 +52,30 @@ public interface FeedControllerSpec {
     ApiResponse<FeedCreateResponse> createFeed(
             @Parameter(hidden = true) User user,
             @Valid @RequestBody FeedCreateRequest request
+    );
+
+    @Operation(
+            summary = "게스트(비회원) 피드 등록",
+            description = """
+                    비회원이 피드(투표)를 등록합니다.
+
+                    - 인증 불필요
+                    - guestNickname: `/api/v1/guest/nickname`으로 발급받은 닉네임. 실제 발급된 조합이 아니면 서버가 새로 발급해서 대체합니다.
+                    - guestPassword: 이후 삭제 시 본인 확인에 사용되는 비밀번호 (해시로 저장)
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "201",
+                    description = "게스트 피드 등록 성공"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "요청 값 검증 실패 (필수값 누락/정책 위반)"
+            )
+    })
+    ApiResponse<FeedCreateResponse> createGuestFeed(
+            @Valid @RequestBody FeedCreateRequestGuest request
     );
 
     @Operation(
@@ -117,6 +143,29 @@ public interface FeedControllerSpec {
     ApiResponse<Void> deleteFeed(
             @Parameter(hidden = true) User user,
             @PathVariable Long feedId
+    );
+
+    @Operation(
+            summary = "게스트(비회원) 피드 삭제",
+            description = "비회원이 작성한 피드를 등록 시 설정한 비밀번호로 삭제합니다."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "게스트 피드 삭제 성공"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "비밀번호 불일치 또는 회원이 작성한 피드"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "피드를 찾을 수 없음"
+            )
+    })
+    ApiResponse<Void> deleteGuestFeed(
+            @PathVariable Long feedId,
+            @Valid @RequestBody FeedGuestDeleteRequest request
     );
 
     @Operation(

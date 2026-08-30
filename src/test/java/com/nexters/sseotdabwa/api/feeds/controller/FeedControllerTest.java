@@ -18,7 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequest;
+import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequestGuest;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequestV2;
+import com.nexters.sseotdabwa.api.feeds.dto.FeedGuestDeleteRequest;
 import com.nexters.sseotdabwa.domain.auth.service.JwtTokenService;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
@@ -30,10 +32,12 @@ import com.nexters.sseotdabwa.domain.users.entity.UserBlock;
 import com.nexters.sseotdabwa.domain.users.enums.SocialAccount;
 import com.nexters.sseotdabwa.domain.users.repository.UserBlockRepository;
 import com.nexters.sseotdabwa.domain.users.repository.UserRepository;
+import com.nexters.sseotdabwa.domain.users.service.RandomNicknameGenerator;
 import com.nexters.sseotdabwa.domain.votes.entity.VoteLog;
 import com.nexters.sseotdabwa.domain.votes.enums.VoteChoice;
 import com.nexters.sseotdabwa.domain.votes.enums.VoteType;
 import com.nexters.sseotdabwa.domain.votes.repository.VoteLogRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -63,6 +67,12 @@ class FeedControllerTest {
 
     @Autowired
     private UserBlockRepository userBlockRepository;
+
+    @Autowired
+    private RandomNicknameGenerator randomNicknameGenerator;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     // ===== 피드 등록 V1 =====
 
@@ -1173,6 +1183,146 @@ class FeedControllerTest {
                         org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem(reportedFeed.getId().intValue()))));
     }
 
+    // ===== 게스트(비회원) 피드 등록/삭제 =====
+
+    @Test
+    @DisplayName("게스트 피드 등록 성공 - 인증 없이 201, 닉네임/비밀번호 저장")
+    void createGuestFeed_success() throws Exception {
+        // given
+        String nickname = randomNicknameGenerator.generate();
+        FeedCreateRequestGuest request = new FeedCreateRequestGuest(
+                FeedCategory.FOOD,
+                8000L,
+                "게스트가 올린 피드",
+                List.of(new FeedCreateRequestGuest.ImageRequest("feeds/guest1.jpg", 1080, 1350)),
+                null,
+                null,
+                nickname,
+                "guestpw1"
+        );
+
+        // when & then
+        String responseBody = mockMvc.perform(post("/api/v1/feeds/guest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.feedId").exists())
+                .andReturn().getResponse().getContentAsString();
+
+        Long feedId = objectMapper.readTree(responseBody).path("data").path("feedId").asLong();
+        Feed saved = feedRepository.findById(feedId).orElseThrow();
+        org.assertj.core.api.Assertions.assertThat(saved.getUser()).isNull();
+        org.assertj.core.api.Assertions.assertThat(saved.getGuestNickname()).isEqualTo(nickname);
+        org.assertj.core.api.Assertions.assertThat(saved.getGuestPasswordHash()).isNotEqualTo("guestpw1");
+        org.assertj.core.api.Assertions.assertThat(passwordEncoder.matches("guestpw1", saved.getGuestPasswordHash())).isTrue();
+    }
+
+    @Test
+    @DisplayName("게스트 피드 등록 - 조작된(임의) 닉네임을 보내면 서버가 새로 발급해서 대체")
+    void createGuestFeed_invalidNickname_replacedByServer() throws Exception {
+        // given
+        FeedCreateRequestGuest request = new FeedCreateRequestGuest(
+                FeedCategory.FOOD,
+                8000L,
+                "닉네임 조작 시도",
+                List.of(new FeedCreateRequestGuest.ImageRequest("feeds/guest2.jpg", 1080, 1350)),
+                null,
+                null,
+                "욕설이나비방텍스트",
+                "guestpw1"
+        );
+
+        // when & then
+        String responseBody = mockMvc.perform(post("/api/v1/feeds/guest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        Long feedId = objectMapper.readTree(responseBody).path("data").path("feedId").asLong();
+        Feed saved = feedRepository.findById(feedId).orElseThrow();
+        org.assertj.core.api.Assertions.assertThat(saved.getGuestNickname()).isNotEqualTo("욕설이나비방텍스트");
+        org.assertj.core.api.Assertions.assertThat(randomNicknameGenerator.isValid(saved.getGuestNickname())).isTrue();
+    }
+
+    @Test
+    @DisplayName("게스트 피드 등록 실패 - 비밀번호 없으면 400")
+    void createGuestFeed_missingPassword_400() throws Exception {
+        // given
+        FeedCreateRequestGuest request = new FeedCreateRequestGuest(
+                FeedCategory.FOOD,
+                8000L,
+                "비밀번호 없음",
+                List.of(new FeedCreateRequestGuest.ImageRequest("feeds/guest3.jpg", 1080, 1350)),
+                null,
+                null,
+                randomNicknameGenerator.generate(),
+                ""
+        );
+
+        // when & then
+        mockMvc.perform(post("/api/v1/feeds/guest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("게스트 피드 삭제 성공 - 올바른 비밀번호면 200, DB에서 삭제됨")
+    void deleteGuestFeed_success() throws Exception {
+        // given
+        Feed feed = createGuestFeedWithImage("guestpw1");
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/feeds/" + feed.getId() + "/guest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new FeedGuestDeleteRequest("guestpw1"))))
+                .andExpect(status().isOk());
+
+        org.assertj.core.api.Assertions.assertThat(feedRepository.existsById(feed.getId())).isFalse();
+    }
+
+    @Test
+    @DisplayName("게스트 피드 삭제 실패 - 비밀번호 불일치 403")
+    void deleteGuestFeed_wrongPassword_403() throws Exception {
+        // given
+        Feed feed = createGuestFeedWithImage("guestpw1");
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/feeds/" + feed.getId() + "/guest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new FeedGuestDeleteRequest("wrongpw"))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("FEED_011"));
+
+        org.assertj.core.api.Assertions.assertThat(feedRepository.existsById(feed.getId())).isTrue();
+    }
+
+    @Test
+    @DisplayName("게스트 피드 삭제 실패 - 회원이 작성한 피드는 403")
+    void deleteGuestFeed_memberFeed_forbidden_403() throws Exception {
+        // given
+        User owner = createUser();
+        Feed feed = createFeedWithImage(owner);
+
+        // when & then
+        mockMvc.perform(delete("/api/v1/feeds/" + feed.getId() + "/guest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new FeedGuestDeleteRequest("anypw"))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("FEED_012"));
+    }
+
+    @Test
+    @DisplayName("게스트 피드 삭제 실패 - 존재하지 않는 피드 404")
+    void deleteGuestFeed_notFound_404() throws Exception {
+        mockMvc.perform(delete("/api/v1/feeds/999999/guest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new FeedGuestDeleteRequest("anypw"))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("FEED_003"));
+    }
+
     // ===== Helper Methods =====
 
     private User createUser() {
@@ -1194,6 +1344,25 @@ class FeedControllerTest {
         feedImageRepository.save(FeedImage.builder()
                 .feed(feed)
                 .s3ObjectKey("feeds/test_" + UUID.randomUUID() + ".jpg")
+                .imageWidth(1080)
+                .imageHeight(1350)
+                .build());
+
+        return feed;
+    }
+
+    private Feed createGuestFeedWithImage(String rawPassword) {
+        Feed feed = feedRepository.save(Feed.builder()
+                .content("게스트 테스트 피드")
+                .price(10000L)
+                .category(FeedCategory.FASHION)
+                .guestNickname(randomNicknameGenerator.generate())
+                .guestPasswordHash(passwordEncoder.encode(rawPassword))
+                .build());
+
+        feedImageRepository.save(FeedImage.builder()
+                .feed(feed)
+                .s3ObjectKey("feeds/guest_test_" + UUID.randomUUID() + ".jpg")
                 .imageWidth(1080)
                 .imageHeight(1350)
                 .build());

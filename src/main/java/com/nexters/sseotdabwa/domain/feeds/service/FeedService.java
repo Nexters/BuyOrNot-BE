@@ -57,6 +57,8 @@ public class FeedService {
                 .category(command.category())
                 .link(command.link())
                 .title(command.title())
+                .guestNickname(command.guestNickname())
+                .guestPasswordHash(command.guestPasswordHash())
                 .build();
 
         return feedRepository.save(feed);
