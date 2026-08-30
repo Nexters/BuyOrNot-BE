@@ -77,7 +77,9 @@ public record FeedResponse(
 
     private static FeedAuthorResponse buildAuthorResponse(Feed feed) {
         if (feed.isGuestPost()) {
-            return new FeedAuthorResponse(null, feed.getGuestNickname(), null);
+            // 클라이언트가 userId/profileImage를 non-nullable로 파싱하므로 null 대신 안전한 기본값 사용
+            String profileImage = feed.getGuestProfileImage() != null ? feed.getGuestProfileImage() : "";
+            return new FeedAuthorResponse(0L, feed.getGuestNickname(), profileImage);
         }
         return new FeedAuthorResponse(
                 feed.getUser().getId(),

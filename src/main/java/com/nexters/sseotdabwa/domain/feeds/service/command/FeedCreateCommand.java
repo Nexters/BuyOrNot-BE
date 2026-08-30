@@ -14,10 +14,11 @@ public record FeedCreateCommand(
         String link,
         String title,
         String guestNickname,
-        String guestPasswordHash
+        String guestPasswordHash,
+        String guestProfileImage
 ) {
     public FeedCreateCommand(User user, String content, Long price, FeedCategory category,
                               List<FeedImageCreateInfo> images, String link, String title) {
-        this(user, content, price, category, images, link, title, null, null);
+        this(user, content, price, category, images, link, title, null, null, null);
     }
 }

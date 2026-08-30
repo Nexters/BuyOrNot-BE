@@ -43,6 +43,12 @@ public class Feed extends BaseEntity {
     @Column(name = "guest_password_hash")
     private String guestPasswordHash;
 
+    /**
+     * 비회원(게스트) 작성 피드의 표시용 프로필 이미지 URL. 작성 시점에 한 번 랜덤 부여되어 고정됨. 회원 작성 피드는 null.
+     */
+    @Column(name = "guest_profile_image")
+    private String guestProfileImage;
+
     @Lob
     @Column(name = "content", nullable = false)
     private String content;
@@ -76,7 +82,7 @@ public class Feed extends BaseEntity {
 
     @Builder
     public Feed(User user, String content, Long price, FeedCategory category, String link, String title,
-                String guestNickname, String guestPasswordHash) {
+                String guestNickname, String guestPasswordHash, String guestProfileImage) {
         this.user = user;
         this.content = content;
         this.price = price;
@@ -85,6 +91,7 @@ public class Feed extends BaseEntity {
         this.title = title;
         this.guestNickname = guestNickname;
         this.guestPasswordHash = guestPasswordHash;
+        this.guestProfileImage = guestProfileImage;
         this.reportStatus = ReportStatus.NONE;
         this.feedStatus = FeedStatus.OPEN;
         this.yesCount = 0L;

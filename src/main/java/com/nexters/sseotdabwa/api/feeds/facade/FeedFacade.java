@@ -29,6 +29,7 @@ import com.nexters.sseotdabwa.domain.feeds.service.command.FeedImageCreateInfo;
 import com.nexters.sseotdabwa.domain.notifications.service.NotificationService;
 import com.nexters.sseotdabwa.domain.storage.service.S3StorageService;
 import com.nexters.sseotdabwa.domain.users.entity.User;
+import com.nexters.sseotdabwa.domain.users.enums.DefaultProfileImage;
 import com.nexters.sseotdabwa.domain.users.service.RandomNicknameGenerator;
 import com.nexters.sseotdabwa.domain.users.service.UserBlockService;
 import com.nexters.sseotdabwa.domain.votes.entity.VoteLog;
@@ -217,7 +218,8 @@ public class FeedFacade {
                 request.link(),
                 request.title(),
                 nickname,
-                passwordEncoder.encode(request.guestPassword())
+                passwordEncoder.encode(request.guestPassword()),
+                randomGuestProfileImageUrl()
         );
 
         Feed savedFeed = feedService.createFeed(command);
@@ -379,5 +381,14 @@ public class FeedFacade {
         return images.stream()
                 .map(img -> domain + "/" + img.getS3ObjectKey())
                 .toList();
+    }
+
+    /**
+     * 게스트 피드 작성 시 한 번만 부여되는 랜덤 기본 프로필 이미지 URL
+     * - 회원가입 시 랜덤 기본 프로필 이미지를 부여하는 방식과 동일 (CloudFront 도메인 + 파일명)
+     */
+    private String randomGuestProfileImageUrl() {
+        final String domain = awsProperties.cloudfront().domain().replaceAll("/$", "");
+        return domain + "/" + DefaultProfileImage.randomFileName();
     }
 }
