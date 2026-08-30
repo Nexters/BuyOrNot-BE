@@ -112,4 +112,14 @@ public class NotificationService {
     public void deleteByFeed(Feed feed) {
         notificationRepository.deleteByFeedId(feed.getId());
     }
+
+    @Transactional
+    public void deleteByFeeds(List<Feed> feeds) {
+        notificationRepository.deleteByFeedIn(feeds);
+    }
+
+    @Transactional
+    public void deleteByUserId(Long userId) {
+        notificationRepository.deleteByUserId(userId);
+    }
 }
