@@ -24,7 +24,7 @@ spec:
 
       containers:
         - name: buyornot-be
-          image: buyornot22/sseotdabwa-be:2026-07-20T21-25-52
+          image: buyornot22/sseotdabwa-be:2026-08-30T14-19-04
           ports:
             - containerPort: 8080
 
