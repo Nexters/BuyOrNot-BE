@@ -7,8 +7,10 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequest;
+import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequestGuest;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequestV2;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateResponse;
+import com.nexters.sseotdabwa.api.feeds.dto.FeedGuestDeleteRequest;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedResponseV2;
 import com.nexters.sseotdabwa.common.config.AwsProperties;
@@ -27,6 +29,7 @@ import com.nexters.sseotdabwa.domain.feeds.service.command.FeedImageCreateInfo;
 import com.nexters.sseotdabwa.domain.notifications.service.NotificationService;
 import com.nexters.sseotdabwa.domain.storage.service.S3StorageService;
 import com.nexters.sseotdabwa.domain.users.entity.User;
+import com.nexters.sseotdabwa.domain.users.service.RandomNicknameGenerator;
 import com.nexters.sseotdabwa.domain.users.service.UserBlockService;
 import com.nexters.sseotdabwa.domain.votes.entity.VoteLog;
 import com.nexters.sseotdabwa.domain.votes.enums.VoteChoice;
@@ -34,6 +37,7 @@ import com.nexters.sseotdabwa.domain.votes.service.VoteLogService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,6 +61,8 @@ public class FeedFacade {
     private final NotificationService notificationService;
     private final UserBlockService userBlockService;
     private final AwsProperties awsProperties;
+    private final RandomNicknameGenerator randomNicknameGenerator;
+    private final PasswordEncoder passwordEncoder;
 
     // ========================
     // V1
@@ -188,6 +194,39 @@ public class FeedFacade {
     }
 
     /**
+     * 게스트(비회원) 피드 생성
+     * - 닉네임은 실제 단어 목록 조합인지 검증 후, 아니면 서버가 새로 발급해서 대체 (API 조작 방지)
+     * - 비밀번호는 해시로 저장, 이후 삭제 시 본인 확인에 사용
+     */
+    @Transactional
+    public FeedCreateResponse createGuestFeed(FeedCreateRequestGuest request) {
+        String nickname = randomNicknameGenerator.isValid(request.guestNickname())
+                ? request.guestNickname()
+                : randomNicknameGenerator.generate();
+
+        List<FeedImageCreateInfo> imageInfos = request.images().stream()
+                .map(img -> new FeedImageCreateInfo(img.s3ObjectKey(), img.imageWidth(), img.imageHeight()))
+                .toList();
+
+        FeedCreateCommand command = new FeedCreateCommand(
+                null,
+                request.content(),
+                request.price(),
+                request.category(),
+                imageInfos,
+                request.link(),
+                request.title(),
+                nickname,
+                passwordEncoder.encode(request.guestPassword())
+        );
+
+        Feed savedFeed = feedService.createFeed(command);
+        feedImageService.saveAll(savedFeed, command.images());
+
+        return new FeedCreateResponse(savedFeed.getId());
+    }
+
+    /**
      * 피드 단건 조회 (V2: 다중 이미지 반환)
      */
     @Transactional(readOnly = true)
@@ -270,6 +309,30 @@ public class FeedFacade {
             throw new GlobalException(FeedErrorCode.FEED_DELETE_FORBIDDEN);
         }
 
+        deleteFeedAndRelatedData(feed);
+    }
+
+    /**
+     * 게스트(비회원) 피드 삭제
+     * - 회원 소유 피드는 대상이 아니며, 비밀번호가 일치해야 삭제 진행
+     */
+    @Transactional
+    public void deleteGuestFeed(Long feedId, FeedGuestDeleteRequest request) {
+        Feed feed = feedService.findById(feedId);
+        if (!feed.isGuestPost()) {
+            throw new GlobalException(FeedErrorCode.FEED_NOT_GUEST_POST);
+        }
+        if (!passwordEncoder.matches(request.password(), feed.getGuestPasswordHash())) {
+            throw new GlobalException(FeedErrorCode.FEED_GUEST_PASSWORD_MISMATCH);
+        }
+
+        deleteFeedAndRelatedData(feed);
+    }
+
+    /**
+     * 피드 삭제(물리 삭제) + 연관 데이터(알림/투표기록/이미지/리뷰) 삭제 + S3 이미지 삭제
+     */
+    private void deleteFeedAndRelatedData(Feed feed) {
         List<String> s3Keys = feedImageService.findByFeed(feed).stream()
                 .map(FeedImage::getS3ObjectKey)
                 .toList();

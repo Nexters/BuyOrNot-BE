@@ -63,6 +63,37 @@ class RandomNicknameGeneratorTest {
         assertThat(number).isBetween(0, 9999);
     }
 
+    @Test
+    @DisplayName("isValid - generate()로 만든 닉네임은 항상 유효하다고 판단")
+    void isValid_generatedNickname_returnsTrue() {
+        // when & then
+        for (int i = 0; i < 20; i++) {
+            assertThat(generator.isValid(generator.generate())).isTrue();
+        }
+    }
+
+    @Test
+    @DisplayName("isValid - 임의의 문자열은 유효하지 않음")
+    void isValid_arbitraryString_returnsFalse() {
+        assertThat(generator.isValid("아무말대잔치_1234")).isFalse();
+        assertThat(generator.isValid("욕설텍스트")).isFalse();
+    }
+
+    @Test
+    @DisplayName("isValid - null이면 유효하지 않음")
+    void isValid_null_returnsFalse() {
+        assertThat(generator.isValid(null)).isFalse();
+    }
+
+    @Test
+    @DisplayName("isValid - 숫자 자리가 4자리가 아니면 유효하지 않음")
+    void isValid_wrongNumberLength_returnsFalse() {
+        String adjective = NicknameAdjective.values()[0].getDisplayName();
+        String noun = NicknameNoun.values()[0].getDisplayName();
+        assertThat(generator.isValid(adjective + noun + "_123")).isFalse();
+        assertThat(generator.isValid(adjective + noun + "_12345")).isFalse();
+    }
+
     @RepeatedTest(10)
     @DisplayName("랜덤 닉네임 생성 - 여러 번 호출해도 유효한 형식 유지")
     void generate_multipleCallsReturnValidFormat() {

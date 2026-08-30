@@ -12,6 +12,12 @@ public record FeedCreateCommand(
         FeedCategory category,
         List<FeedImageCreateInfo> images,
         String link,
-        String title
+        String title,
+        String guestNickname,
+        String guestPasswordHash
 ) {
+    public FeedCreateCommand(User user, String content, Long price, FeedCategory category,
+                              List<FeedImageCreateInfo> images, String link, String title) {
+        this(user, content, price, category, images, link, title, null, null);
+    }
 }

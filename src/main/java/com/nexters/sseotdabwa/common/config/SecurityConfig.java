@@ -9,6 +9,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -57,6 +59,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/feeds", "/api/v1/feeds/", "/api/v1/feeds/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v2/feeds", "/api/v2/feeds/", "/api/v2/feeds/*").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/feeds/*/votes/guest").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/guest/nickname").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/feeds/guest").permitAll()
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/feeds/*/guest").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/pre-launch/emails").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         // 그 외 모든 요청은 인증 필요
@@ -67,6 +72,11 @@ public class SecurityConfig {
                         UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 
     @Bean

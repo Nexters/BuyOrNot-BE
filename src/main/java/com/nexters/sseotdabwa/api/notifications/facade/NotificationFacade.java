@@ -182,6 +182,10 @@ public class NotificationFacade {
         if (total != 1L && total != 10L) return;
 
         User author = feed.getUser();
+        if (author == null) {
+            return; // 게스트 작성 피드는 알림 받을 작성자가 없음
+        }
+
         NotificationType type;
         String title;
         String body;
@@ -204,16 +208,19 @@ public class NotificationFacade {
         User author = feed.getUser();
         String closedTitle = buildClosedTitle(feed.getTitle());
 
-        // 1) 작성자 알림
-        Notification authorNoti = notificationService.createIfAbsent(
-                author, feed, NotificationType.MY_FEED_CLOSED, closedTitle, FEED_CLOSED_BODY
-        );
-        pushBestEffort(author, authorNoti, feed, NotificationType.MY_FEED_CLOSED);
+        // 1) 작성자 알림 (게스트 작성 피드는 알림 받을 작성자가 없어 스킵)
+        if (author != null) {
+            Notification authorNoti = notificationService.createIfAbsent(
+                    author, feed, NotificationType.MY_FEED_CLOSED, closedTitle, FEED_CLOSED_BODY
+            );
+            pushBestEffort(author, authorNoti, feed, NotificationType.MY_FEED_CLOSED);
+        }
 
         // 2) 참여자 알림 (guest 제외, 작성자 제외)
         List<Long> participantIds = voteLogService.findDistinctUserIdsVotedByFeedId(feed.getId());
+        Long authorId = author != null ? author.getId() : null;
         participantIds = participantIds.stream()
-                .filter(uid -> !uid.equals(author.getId()))
+                .filter(uid -> !uid.equals(authorId))
                 .toList();
 
         if (participantIds.isEmpty()) {

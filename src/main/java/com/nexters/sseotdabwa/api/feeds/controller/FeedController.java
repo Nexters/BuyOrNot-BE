@@ -3,7 +3,9 @@ package com.nexters.sseotdabwa.api.feeds.controller;
 import java.util.List;
 
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequest;
+import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequestGuest;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateResponse;
+import com.nexters.sseotdabwa.api.feeds.dto.FeedGuestDeleteRequest;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
 import com.nexters.sseotdabwa.api.feeds.facade.FeedFacade;
 import com.nexters.sseotdabwa.common.response.ApiResponse;
@@ -37,6 +39,16 @@ public class FeedController implements FeedControllerSpec {
     }
 
     @Override
+    @PostMapping("/guest")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<FeedCreateResponse> createGuestFeed(
+            @Valid @RequestBody FeedCreateRequestGuest request
+    ) {
+        FeedCreateResponse response = feedFacade.createGuestFeed(request);
+        return ApiResponse.success(response, HttpStatus.CREATED);
+    }
+
+    @Override
     @GetMapping
     public ApiResponse<CursorPageResponse<FeedResponse>> getFeedList(
             @CurrentUser User user,
@@ -63,6 +75,16 @@ public class FeedController implements FeedControllerSpec {
     @DeleteMapping("/{feedId}")
     public ApiResponse<Void> deleteFeed(@CurrentUser User user, @PathVariable Long feedId) {
         feedFacade.deleteFeed(user, feedId);
+        return ApiResponse.success(HttpStatus.OK);
+    }
+
+    @Override
+    @DeleteMapping("/{feedId}/guest")
+    public ApiResponse<Void> deleteGuestFeed(
+            @PathVariable Long feedId,
+            @Valid @RequestBody FeedGuestDeleteRequest request
+    ) {
+        feedFacade.deleteGuestFeed(feedId, request);
         return ApiResponse.success(HttpStatus.OK);
     }
 
