@@ -155,7 +155,11 @@ public class UserService {
         user.updateLastOpenedAt();
     }
 
-    public List<User> findMarketingTargets(LocalDateTime cutoff) {
-        return userRepository.findMarketingTargets(cutoff);
+    public List<User> findMarketingTargets(LocalDateTime cutoff, LocalDateTime signupCutoff) {
+        return userRepository.findMarketingTargets(cutoff, signupCutoff);
+    }
+
+    public List<User> findOnboardingTargets(LocalDateTime rangeStart, LocalDateTime rangeEnd) {
+        return userRepository.findOnboardingTargets(rangeStart, rangeEnd);
     }
 }
