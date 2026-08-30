@@ -8,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.notifications.entity.Notification;
 import com.nexters.sseotdabwa.domain.notifications.enums.NotificationType;
 
@@ -59,4 +60,8 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     long countUnreadSince(@Param("userId") Long userId, @Param("cutoff") LocalDateTime cutoff);
 
     void deleteByFeedId(Long feedId);
+
+    void deleteByFeedIn(List<Feed> feeds);
+
+    void deleteByUserId(Long userId);
 }
