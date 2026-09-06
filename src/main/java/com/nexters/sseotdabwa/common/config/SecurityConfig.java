@@ -62,6 +62,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/guest/nickname").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/feeds/guest").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/feeds/*/guest").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/uploads/presigned-put").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/pre-launch/emails").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         // 그 외 모든 요청은 인증 필요
