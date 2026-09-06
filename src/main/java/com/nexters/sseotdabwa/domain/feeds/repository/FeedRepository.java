@@ -72,7 +72,7 @@ public interface FeedRepository extends JpaRepository<Feed, Long> {
               com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.DELETED,
               com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.REPORTED
           )
-          AND f.user.id NOT IN :excludedUserIds
+          AND (f.user.id IS NULL OR f.user.id NOT IN :excludedUserIds)
         ORDER BY f.id DESC
     """)
     List<Feed> findFeedsWithCursorExcludingUsers(
@@ -90,7 +90,7 @@ public interface FeedRepository extends JpaRepository<Feed, Long> {
               com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.DELETED,
               com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.REPORTED
           )
-          AND f.user.id NOT IN :excludedUserIds
+          AND (f.user.id IS NULL OR f.user.id NOT IN :excludedUserIds)
         ORDER BY f.id DESC
     """)
     List<Feed> findFeedsWithCursorExcludingUsersByCategories(
@@ -172,6 +172,7 @@ public interface FeedRepository extends JpaRepository<Feed, Long> {
     @Query("""
         select f.user.id
         from Feed f
+        where f.user.id is not null
         group by f.user.id
         having max(f.createdAt) >= :rangeStart and max(f.createdAt) < :rangeEnd
     """)

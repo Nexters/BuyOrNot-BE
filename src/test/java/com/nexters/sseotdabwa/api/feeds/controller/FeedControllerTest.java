@@ -816,6 +816,25 @@ class FeedControllerTest {
     }
 
     @Test
+    @DisplayName("차단 유저가 있어도 게스트 작성 피드는 계속 보임 (user.id NULL이 NOT IN 필터에 잘못 걸리지 않는지 확인)")
+    void getFeedList_withBlockedUser_guestFeedStillShown() throws Exception {
+        // given
+        User viewer = createUser();
+        User blocked = createUser();
+        String viewerToken = jwtTokenService.createAccessToken(viewer.getId());
+
+        userBlockRepository.save(UserBlock.builder().user(viewer).blockedUser(blocked).build());
+        Feed guestFeed = createGuestFeedWithImage("guestpw1");
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds")
+                        .header("Authorization", "Bearer " + viewerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[*].feedId",
+                        org.hamcrest.Matchers.hasItem(guestFeed.getId().intValue())));
+    }
+
+    @Test
     @DisplayName("비로그인 사용자 피드 리스트 조회 - 전체 피드 표시")
     void getFeedList_guestSeesAllFeeds() throws Exception {
         // given
