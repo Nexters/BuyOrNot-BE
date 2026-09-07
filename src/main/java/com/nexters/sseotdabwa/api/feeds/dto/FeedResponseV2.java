@@ -51,11 +51,7 @@ public record FeedResponseV2(
                 feed.getYesCount() + feed.getNoCount(),
                 feed.getFeedStatus(),
                 buildImageInfos(feedImages, viewUrls),
-                new FeedAuthorResponse(
-                        feed.getUser().getId(),
-                        feed.getUser().getNickname(),
-                        feed.getUser().getProfileImage()
-                ),
+                buildAuthorResponse(feed),
                 feed.getCreatedAt(),
                 null,
                 null,
@@ -75,16 +71,25 @@ public record FeedResponseV2(
                 feed.getYesCount() + feed.getNoCount(),
                 feed.getFeedStatus(),
                 buildImageInfos(feedImages, viewUrls),
-                new FeedAuthorResponse(
-                        feed.getUser().getId(),
-                        feed.getUser().getNickname(),
-                        feed.getUser().getProfileImage()
-                ),
+                buildAuthorResponse(feed),
                 feed.getCreatedAt(),
                 hasVoted,
                 myVoteChoice,
                 feed.getLink(),
                 feed.getTitle()
+        );
+    }
+
+    private static FeedAuthorResponse buildAuthorResponse(Feed feed) {
+        if (feed.isGuestPost()) {
+            // 클라이언트가 userId/profileImage를 non-nullable로 파싱하므로 null 대신 안전한 기본값 사용
+            String profileImage = feed.getGuestProfileImage() != null ? feed.getGuestProfileImage() : "";
+            return new FeedAuthorResponse(0L, feed.getGuestNickname(), profileImage);
+        }
+        return new FeedAuthorResponse(
+                feed.getUser().getId(),
+                feed.getUser().getNickname(),
+                feed.getUser().getProfileImage()
         );
     }
 

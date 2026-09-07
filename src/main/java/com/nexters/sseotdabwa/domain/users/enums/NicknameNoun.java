@@ -6,32 +6,32 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 /**
- * 랜덤 닉네임 생성에 사용되는 명사(동물) 목록
+ * 랜덤 닉네임 생성에 사용되는 명사(소비 페르소나) 목록
  * - 형식: {형용사}{명사}_{4자리숫자}
  */
 @Getter
 @RequiredArgsConstructor
 public enum NicknameNoun {
-    OTTER("수달"),
-    RABBIT("토끼"),
-    PENGUIN("펭귄"),
-    PANDA("판다"),
-    SEAL("물범"),
-    QUOKKA("쿼카"),
-    FOX("여우"),
-    DUCK("오리"),
-    SPARROW("참새"),
-    SEA_LION("물개"),
-    HIPPO("하마"),
-    CAMEL("낙타"),
-    GIRAFFE("기린"),
-    DEER("사슴"),
-    BEAVER("비버"),
-    LLAMA("라마"),
-    CHEETAH("치타"),
-    WHALE("고래"),
-    MAGPIE("까치"),
-    GOOSE("거위");
+    SHOPPING_GHOST("지름신"),
+    THRIFTY_HOMEMAKER("알뜰살림꾼"),
+    STINGY_GIRL("짠순이"),
+    STINGY_GUY("짠돌이"),
+    SHOPPING_ADDICT("쇼핑덕후"),
+    DEAL_SCORER("득템러"),
+    EARLY_BIRD("얼리버드"),
+    NIGHT_SHOPPER("야행성쇼퍼"),
+    SEARCH_KING("검색왕"),
+    COMPARE_KING("비교왕"),
+    REVIEW_MASTER("후기장인"),
+    SMALL_JOY_SEEKER("소확행러"),
+    OVERTHINK_KING("고민왕"),
+    SALE_HUNTER("세일헌터"),
+    VALUE_KING("가성비왕"),
+    LUXURY_HUNTER("명품헌터"),
+    SPENDING_GENIUS("소비천재"),
+    SPENDING_FAIRY("지출요정"),
+    NOTIFICATION_BOT("지출천재"),
+    NO_SPEND_CHALLENGER("무지출챌린저");
 
     private final String displayName;
 

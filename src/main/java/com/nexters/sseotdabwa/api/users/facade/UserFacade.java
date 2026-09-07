@@ -26,6 +26,7 @@ import com.nexters.sseotdabwa.domain.feeds.service.FeedImageService;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedReviewService;
 import com.nexters.sseotdabwa.domain.auth.service.RefreshTokenService;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedService;
+import com.nexters.sseotdabwa.domain.notifications.service.NotificationService;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.service.UserService;
 import com.nexters.sseotdabwa.domain.votes.enums.VoteChoice;
@@ -50,6 +51,7 @@ public class UserFacade {
     private final RefreshTokenService refreshTokenService;
     private final UserService userService;
     private final UserBlockService userBlockService;
+    private final NotificationService notificationService;
     private final AwsProperties awsProperties;
 
     /**
@@ -61,11 +63,13 @@ public class UserFacade {
 
     /**
      * 회원 탈퇴
-     * - 유저의 Feed에 달린 VoteLog 삭제
-     * - 유저가 다른 Feed에 투표한 VoteLog 삭제
+     * - 유저의 Feed에 걸린 Notification, VoteLog 삭제
+     * - 유저가 다른 Feed에 투표해서 받은 Notification, 투표한 VoteLog 삭제
      * - 유저의 Feed에 연결된 FeedImage, FeedReview 삭제
      * - 유저의 Feed 삭제
      * - User 레코드 삭제
+     *
+     * notifications.user_id/feed_id는 FK(NO ACTION)라 feeds/users 삭제 전에 반드시 먼저 정리해야 함.
      */
     @Transactional
     public UserWithdrawResponse withdraw(User user) {
@@ -74,11 +78,13 @@ public class UserFacade {
         List<Feed> feeds = feedService.findByUserId(user.getId());
 
         if (!feeds.isEmpty()) {
+            notificationService.deleteByFeeds(feeds);
             voteLogService.deleteByFeeds(feeds);
             feedImageService.deleteByFeeds(feeds);
             feedReviewService.deleteByFeeds(feeds);
         }
 
+        notificationService.deleteByUserId(user.getId());
         voteLogService.deleteByUserId(user.getId());
         feedService.deleteByUserId(user.getId());
         refreshTokenService.deleteByUserId(user.getId());

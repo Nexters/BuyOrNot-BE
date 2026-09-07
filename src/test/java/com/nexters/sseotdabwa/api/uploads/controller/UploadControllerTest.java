@@ -47,7 +47,7 @@ class UploadControllerTest {
     private UploadFacade uploadFacade;
 
     @Test
-    @DisplayName("Presigned PUT 발급 성공 - 인증 사용자만 가능")
+    @DisplayName("Presigned PUT 발급 성공 - 인증된 회원")
     void createPresignedPut_success() throws Exception {
         // given: 로그인 사용자 + JWT
         User user = userRepository.save(User.builder()
@@ -84,9 +84,16 @@ class UploadControllerTest {
     }
 
     @Test
-    @DisplayName("Presigned PUT 발급 실패 - Authorization 없으면 401")
-    void createPresignedPut_unauthorized() throws Exception {
-        // given
+    @DisplayName("Presigned PUT 발급 성공 - 비회원(게스트)도 인증 없이 가능 (게스트 피드 이미지 업로드용)")
+    void createPresignedPut_guestSuccess() throws Exception {
+        // given: Authorization 헤더 없음
+        given(uploadFacade.createPresignedPut(any()))
+                .willReturn(new com.nexters.sseotdabwa.api.uploads.dto.PresignedPutResponse(
+                        "https://s3.example.com/presigned-put-url",
+                        "feeds/uuid_test.jpg",
+                        "https://d123.cloudfront.net/feeds/uuid_test.jpg"
+                ));
+
         CreatePresignedPutRequest request = new CreatePresignedPutRequest(
                 "test.jpg",
                 "image/jpeg"
@@ -96,6 +103,7 @@ class UploadControllerTest {
         mockMvc.perform(post("/api/v1/uploads/presigned-put")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.uploadUrl").exists());
     }
 }
