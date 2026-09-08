@@ -87,6 +87,7 @@ public class SecurityConfig {
                 "http://localhost:3000",
                 "http://localhost:5173",
                 "https://dev.buy-or-not.com",
+                "https://dev-web.buy-or-not.com",
                 "https://buy-or-not.com",
                 "https://api.buy-or-not.com"
         ));
