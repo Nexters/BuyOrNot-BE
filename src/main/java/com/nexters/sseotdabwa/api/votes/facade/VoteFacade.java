@@ -11,6 +11,7 @@ import com.nexters.sseotdabwa.domain.votes.enums.VoteType;
 import com.nexters.sseotdabwa.domain.votes.event.VoteCreatedEvent;
 import com.nexters.sseotdabwa.domain.votes.exception.VoteErrorCode;
 import com.nexters.sseotdabwa.domain.votes.service.VoteLogService;
+import com.nexters.sseotdabwa.domain.votes.service.VoteTokenService;
 import com.nexters.sseotdabwa.domain.votes.service.command.VoteCreateCommand;
 
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class VoteFacade {
 
     private final FeedService feedService;
     private final VoteLogService voteLogService;
+    private final VoteTokenService voteTokenService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
@@ -75,6 +77,7 @@ public class VoteFacade {
         VoteCreateCommand command = new VoteCreateCommand(null, feed, choice, VoteType.SYSTEM);
         voteLogService.createVoteLog(command);
 
-        return VoteResponse.of(feed, choice, null);
+        String voteToken = voteTokenService.createGuestVoteToken(feed);
+        return VoteResponse.ofGuest(feed, choice, voteToken);
     }
 }

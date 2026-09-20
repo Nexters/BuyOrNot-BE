@@ -83,6 +83,7 @@ class VoteFacadeTest {
         assertThat(response.noCount()).isEqualTo(0L);
         assertThat(response.totalCount()).isEqualTo(1L);
         assertThat(response.myProfileImage()).isEqualTo("https://cdn.example.com/profile1.png");
+        assertThat(response.voteToken()).isNull();
     }
 
     @Test
@@ -172,6 +173,7 @@ class VoteFacadeTest {
         assertThat(response.noCount()).isEqualTo(0L);
         assertThat(response.totalCount()).isEqualTo(1L);
         assertThat(response.myProfileImage()).isNull();
+        assertThat(response.voteToken()).isNotNull();
     }
 
     @Test

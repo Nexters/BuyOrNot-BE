@@ -18,6 +18,7 @@ import com.nexters.sseotdabwa.api.users.dto.UserResponse;
 import com.nexters.sseotdabwa.api.users.dto.UserWithdrawResponse;
 import com.nexters.sseotdabwa.common.config.AwsProperties;
 import com.nexters.sseotdabwa.common.response.CursorPageResponse;
+import com.nexters.sseotdabwa.domain.comments.service.CommentService;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
@@ -47,6 +48,7 @@ public class UserFacade {
     private final FeedService feedService;
     private final FeedImageService feedImageService;
     private final FeedReviewService feedReviewService;
+    private final CommentService commentService;
     private final VoteLogService voteLogService;
     private final RefreshTokenService refreshTokenService;
     private final UserService userService;
@@ -63,13 +65,13 @@ public class UserFacade {
 
     /**
      * 회원 탈퇴
-     * - 유저의 Feed에 걸린 Notification, VoteLog 삭제
-     * - 유저가 다른 Feed에 투표해서 받은 Notification, 투표한 VoteLog 삭제
+     * - 유저의 Feed에 걸린 Notification, VoteLog, Comment(댓글) 삭제
+     * - 유저가 다른 Feed에 투표해서 받은 Notification, 투표한 VoteLog, 작성한 Comment 삭제
      * - 유저의 Feed에 연결된 FeedImage, FeedReview 삭제
      * - 유저의 Feed 삭제
      * - User 레코드 삭제
      *
-     * notifications.user_id/feed_id는 FK(NO ACTION)라 feeds/users 삭제 전에 반드시 먼저 정리해야 함.
+     * notifications.user_id/feed_id, feed_comments.user_id/feed_id는 FK(NO ACTION)라 feeds/users 삭제 전에 반드시 먼저 정리해야 함.
      */
     @Transactional
     public UserWithdrawResponse withdraw(User user) {
@@ -80,12 +82,14 @@ public class UserFacade {
         if (!feeds.isEmpty()) {
             notificationService.deleteByFeeds(feeds);
             voteLogService.deleteByFeeds(feeds);
+            commentService.deleteByFeeds(feeds);
             feedImageService.deleteByFeeds(feeds);
             feedReviewService.deleteByFeeds(feeds);
         }
 
         notificationService.deleteByUserId(user.getId());
         voteLogService.deleteByUserId(user.getId());
+        commentService.deleteByUserId(user.getId());
         feedService.deleteByUserId(user.getId());
         refreshTokenService.deleteByUserId(user.getId());
         userBlockService.deleteAllBlocksOfUser(user.getId());
