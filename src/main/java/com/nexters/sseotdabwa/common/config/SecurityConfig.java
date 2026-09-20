@@ -59,6 +59,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/feeds", "/api/v1/feeds/", "/api/v1/feeds/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v2/feeds", "/api/v2/feeds/", "/api/v2/feeds/*").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/feeds/*/votes/guest").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/feeds/*/comments").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/feeds/*/comments/guest").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/guest/nickname").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/feeds/guest").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/feeds/*/guest").permitAll()

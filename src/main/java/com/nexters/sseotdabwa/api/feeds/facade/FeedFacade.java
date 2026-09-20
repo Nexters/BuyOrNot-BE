@@ -16,6 +16,7 @@ import com.nexters.sseotdabwa.api.feeds.dto.FeedResponseV2;
 import com.nexters.sseotdabwa.common.config.AwsProperties;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
 import com.nexters.sseotdabwa.common.response.CursorPageResponse;
+import com.nexters.sseotdabwa.domain.comments.service.CommentService;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
@@ -57,6 +58,7 @@ public class FeedFacade {
     private final FeedService feedService;
     private final FeedImageService feedImageService;
     private final FeedReviewService feedReviewService;
+    private final CommentService commentService;
     private final VoteLogService voteLogService;
     private final S3StorageService s3StorageService;
     private final NotificationService notificationService;
@@ -341,6 +343,7 @@ public class FeedFacade {
 
         notificationService.deleteByFeed(feed);
         voteLogService.deleteByFeed(feed);
+        commentService.deleteByFeed(feed);
         feedImageService.deleteByFeed(feed);
         feedReviewService.deleteByFeed(feed);
         feedService.delete(feed);
