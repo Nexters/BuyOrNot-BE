@@ -17,13 +17,38 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     @Query("""
         SELECT c FROM Comment c
         WHERE c.feed.id = :feedId
+          AND c.reportStatus <> com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.REPORTED
           AND (:cursorId IS NULL OR c.id > :cursorId)
         ORDER BY c.id ASC
     """)
-    List<Comment> findByFeedIdWithCursor(
+    List<Comment> findByFeedIdWithCursorAsc(
             @Param("feedId") Long feedId,
             @Param("cursorId") Long cursorId,
             Pageable pageable);
+
+    @Query("""
+        SELECT c FROM Comment c
+        WHERE c.feed.id = :feedId
+          AND c.reportStatus <> com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.REPORTED
+          AND (:cursorId IS NULL OR c.id < :cursorId)
+        ORDER BY c.id DESC
+    """)
+    List<Comment> findByFeedIdWithCursorDesc(
+            @Param("feedId") Long feedId,
+            @Param("cursorId") Long cursorId,
+            Pageable pageable);
+
+    /**
+     * 피드별 (비신고) 댓글 수 + 최신 댓글 id 집계 — 피드 목록의 commentCount/latestComment 배치 조회용
+     */
+    @Query("""
+        SELECT c.feed.id, COUNT(c), MAX(c.id)
+        FROM Comment c
+        WHERE c.feed.id IN :feedIds
+          AND c.reportStatus <> com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.REPORTED
+        GROUP BY c.feed.id
+    """)
+    List<Object[]> aggregateByFeedIds(@Param("feedIds") List<Long> feedIds);
 
     void deleteByFeed(Feed feed);
 

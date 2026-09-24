@@ -22,6 +22,8 @@ import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequestGuest;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequestV2;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedGuestDeleteRequest;
 import com.nexters.sseotdabwa.domain.auth.service.JwtTokenService;
+import com.nexters.sseotdabwa.domain.comments.entity.Comment;
+import com.nexters.sseotdabwa.domain.comments.repository.CommentRepository;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
@@ -67,6 +69,9 @@ class FeedControllerTest {
 
     @Autowired
     private UserBlockRepository userBlockRepository;
+
+    @Autowired
+    private CommentRepository commentRepository;
 
     @Autowired
     private RandomNicknameGenerator randomNicknameGenerator;
@@ -312,6 +317,67 @@ class FeedControllerTest {
                 .andExpect(jsonPath("$.data.content[0].feedId").value(feed.getId()))
                 .andExpect(jsonPath("$.data.content[0].author.userId").value(user.getId()))
                 .andExpect(jsonPath("$.data.content[0].viewUrl").value(org.hamcrest.Matchers.startsWith("https://")));
+    }
+
+    @Test
+    @DisplayName("[V1] 피드 리스트 조회 - 댓글이 있으면 commentCount/latestComment가 채워진다")
+    void getFeedList_v1_withComment_includesCommentCountAndLatestComment() throws Exception {
+        // given
+        User owner = createUser();
+        User commenter = createUser();
+        Feed feed = createFeedWithImage(owner);
+        commentRepository.save(Comment.builder()
+                .feed(feed)
+                .user(commenter)
+                .displayNickname(commenter.getNickname())
+                .content("저도 고민되네요")
+                .build());
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].commentCount").value(1))
+                .andExpect(jsonPath("$.data.content[0].latestComment.content").value("저도 고민되네요"))
+                .andExpect(jsonPath("$.data.content[0].latestComment.authorType").value("MEMBER"))
+                .andExpect(jsonPath("$.data.content[0].latestComment.nickname").value(commenter.getNickname()))
+                .andExpect(jsonPath("$.data.content[0].latestComment.isAuthor").value(false));
+    }
+
+    @Test
+    @DisplayName("[V1] 피드 리스트 조회 - 댓글이 없으면 commentCount=0, latestComment=null")
+    void getFeedList_v1_withoutComment_commentCountZero() throws Exception {
+        // given
+        User owner = createUser();
+        createFeedWithImage(owner);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].commentCount").value(0))
+                .andExpect(jsonPath("$.data.content[0].latestComment").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("[V1] 피드 리스트 조회 - 신고된 댓글은 commentCount/latestComment에서 제외된다")
+    void getFeedList_v1_reportedComment_excludedFromCount() throws Exception {
+        // given
+        User owner = createUser();
+        User commenter = createUser();
+        Feed feed = createFeedWithImage(owner);
+        Comment comment = commentRepository.save(Comment.builder()
+                .feed(feed)
+                .user(commenter)
+                .displayNickname(commenter.getNickname())
+                .content("신고될 댓글")
+                .build());
+        comment.report();
+        commentRepository.save(comment);
+
+        // when & then
+        mockMvc.perform(get("/api/v1/feeds"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].commentCount").value(0))
+                .andExpect(jsonPath("$.data.content[0].latestComment").doesNotExist());
     }
 
     @Test

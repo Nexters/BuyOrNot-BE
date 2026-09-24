@@ -1,6 +1,8 @@
 package com.nexters.sseotdabwa.domain.comments.service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -8,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.nexters.sseotdabwa.common.exception.GlobalException;
 import com.nexters.sseotdabwa.domain.comments.entity.Comment;
+import com.nexters.sseotdabwa.domain.comments.enums.CommentSort;
 import com.nexters.sseotdabwa.domain.comments.exception.CommentErrorCode;
 import com.nexters.sseotdabwa.domain.comments.repository.CommentRepository;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
@@ -22,14 +25,14 @@ import lombok.RequiredArgsConstructor;
  *   (같은 락 구간 안에서 피드 내 닉네임 중복 검사까지 안전하게 처리하기 위함)
  *
  * 정책:
- * - content: 100자 이하 (Feed.content와 동일 기준)
+ * - content: 300자 이하
  */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class CommentService {
 
-    private static final int MAX_CONTENT_LENGTH = 100;
+    private static final int MAX_CONTENT_LENGTH = 300;
     private static final int MAX_NICKNAME_RETRY = 5;
 
     private final CommentRepository commentRepository;
@@ -49,7 +52,7 @@ public class CommentService {
     }
 
     @Transactional
-    public Comment createGuestComment(Feed feed, String requestedNickname, String guestProfileImage, String content) {
+    public Comment createGuestComment(Feed feed, String requestedNickname, String guestPasswordHash, String guestProfileImage, String content) {
         String normalized = validateAndNormalizeContent(content);
         String nickname = resolveUniqueGuestNickname(feed.getId(), requestedNickname);
 
@@ -57,6 +60,7 @@ public class CommentService {
                 .feed(feed)
                 .user(null)
                 .guestNickname(nickname)
+                .guestPasswordHash(guestPasswordHash)
                 .guestProfileImage(guestProfileImage)
                 .displayNickname(nickname)
                 .content(normalized)
@@ -92,11 +96,55 @@ public class CommentService {
         return normalized;
     }
 
+    public Comment findById(Long commentId) {
+        return commentRepository.findById(commentId)
+                .orElseThrow(() -> new GlobalException(CommentErrorCode.COMMENT_NOT_FOUND));
+    }
+
     /**
-     * 피드 내 댓글 목록 (등록순, 커서 기반 페이지네이션)
+     * 피드 내 댓글 목록 (커서 기반 페이지네이션, 등록순/최신순)
      */
-    public List<Comment> findByFeedIdWithCursor(Long feedId, Long cursor, int size) {
-        return commentRepository.findByFeedIdWithCursor(feedId, cursor, PageRequest.ofSize(size + 1));
+    public List<Comment> findByFeedIdWithCursor(Long feedId, Long cursor, int size, CommentSort sort) {
+        var pageable = PageRequest.ofSize(size + 1);
+        return sort == CommentSort.LATEST
+                ? commentRepository.findByFeedIdWithCursorDesc(feedId, cursor, pageable)
+                : commentRepository.findByFeedIdWithCursorAsc(feedId, cursor, pageable);
+    }
+
+    /**
+     * feedId별 (비신고 댓글 수 + 최신 댓글 1개) 집계 — 피드 목록 응답 확장(commentCount/latestComment)용.
+     * 피드 목록 크기와 무관하게 쿼리 2개(집계 1 + 댓글 로드 1)로 고정된다.
+     */
+    public Map<Long, CommentAggregate> aggregateByFeedIds(List<Long> feedIds) {
+        if (feedIds == null || feedIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<Object[]> rows = commentRepository.aggregateByFeedIds(feedIds);
+        if (rows.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, Long> latestCommentIdByFeedId = rows.stream()
+                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[2]));
+        Map<Long, Comment> commentById = commentRepository.findAllById(latestCommentIdByFeedId.values()).stream()
+                .collect(Collectors.toMap(Comment::getId, c -> c));
+
+        return rows.stream()
+                .collect(Collectors.toMap(
+                        row -> (Long) row[0],
+                        row -> new CommentAggregate((Long) row[1], commentById.get(latestCommentIdByFeedId.get((Long) row[0])))
+                ));
+    }
+
+    @Transactional
+    public void delete(Comment comment) {
+        commentRepository.delete(comment);
+    }
+
+    @Transactional
+    public void report(Comment comment) {
+        comment.report();
     }
 
     @Transactional

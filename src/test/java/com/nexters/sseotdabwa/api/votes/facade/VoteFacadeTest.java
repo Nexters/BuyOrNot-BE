@@ -15,7 +15,9 @@ import com.nexters.sseotdabwa.api.votes.dto.VoteRequest;
 import com.nexters.sseotdabwa.api.votes.dto.VoteResponse;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
+import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
+import com.nexters.sseotdabwa.domain.feeds.repository.FeedImageRepository;
 import com.nexters.sseotdabwa.domain.feeds.repository.FeedRepository;
 import com.nexters.sseotdabwa.domain.notifications.enums.NotificationType;
 import com.nexters.sseotdabwa.domain.notifications.repository.NotificationRepository;
@@ -42,6 +44,9 @@ class VoteFacadeTest {
 
     @Autowired
     private FeedRepository feedRepository;
+
+    @Autowired
+    private FeedImageRepository feedImageRepository;
 
     @Autowired
     private NotificationRepository notificationRepository;
@@ -83,7 +88,7 @@ class VoteFacadeTest {
         assertThat(response.noCount()).isEqualTo(0L);
         assertThat(response.totalCount()).isEqualTo(1L);
         assertThat(response.myProfileImage()).isEqualTo("https://cdn.example.com/profile1.png");
-        assertThat(response.voteToken()).isNull();
+        assertThat(response.feedImageUrl()).isNull();
     }
 
     @Test
@@ -173,7 +178,28 @@ class VoteFacadeTest {
         assertThat(response.noCount()).isEqualTo(0L);
         assertThat(response.totalCount()).isEqualTo(1L);
         assertThat(response.myProfileImage()).isNull();
-        assertThat(response.voteToken()).isNotNull();
+        assertThat(response.feedImageUrl()).isNull();
+    }
+
+    @Test
+    @DisplayName("피드에 이미지가 있으면 투표 응답에 대표(첫번째) 이미지 URL이 포함된다")
+    void vote_withFeedImage_includesFeedImageUrl() {
+        // given
+        User owner = createUser();
+        User voter = createUser();
+        Feed feed = createFeed(owner);
+        feedImageRepository.save(FeedImage.builder()
+                .feed(feed)
+                .s3ObjectKey("feeds/abc.png")
+                .imageWidth(100)
+                .imageHeight(100)
+                .build());
+
+        // when
+        VoteResponse response = voteFacade.vote(voter, feed.getId(), new VoteRequest(VoteChoice.YES));
+
+        // then
+        assertThat(response.feedImageUrl()).isEqualTo("https://d111.cloudfront.net/feeds/abc.png");
     }
 
     @Test
