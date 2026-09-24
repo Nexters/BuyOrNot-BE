@@ -14,6 +14,7 @@ import com.nexters.sseotdabwa.common.response.CursorPageResponse;
 import com.nexters.sseotdabwa.domain.comments.entity.Comment;
 import com.nexters.sseotdabwa.domain.comments.enums.CommentSort;
 import com.nexters.sseotdabwa.domain.comments.exception.CommentErrorCode;
+import com.nexters.sseotdabwa.domain.comments.service.CommentRateLimiter;
 import com.nexters.sseotdabwa.domain.comments.service.CommentService;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedService;
@@ -43,12 +44,14 @@ public class CommentFacade {
     private final VoteLogService voteLogService;
     private final AwsProperties awsProperties;
     private final PasswordEncoder passwordEncoder;
+    private final CommentRateLimiter commentRateLimiter;
 
     /**
      * 회원 댓글 작성
      */
     @Transactional
-    public CommentCreateResponse createComment(User user, Long feedId, CommentCreateRequest request) {
+    public CommentCreateResponse createComment(User user, Long feedId, CommentCreateRequest request, String ip, String deviceId) {
+        validateRateLimit(ip, deviceId);
         Feed feed = feedService.findByIdWithLock(feedId);
         validateFeedOpen(feed);
 
@@ -61,7 +64,8 @@ public class CommentFacade {
      * - 비밀번호는 해시로 저장, 이후 삭제 시 본인 확인에 사용 (Feed 게스트 작성과 동일 패턴)
      */
     @Transactional
-    public CommentCreateResponse createGuestComment(Long feedId, CommentCreateRequestGuest request) {
+    public CommentCreateResponse createGuestComment(Long feedId, CommentCreateRequestGuest request, String ip, String deviceId) {
+        validateRateLimit(ip, deviceId);
         Feed feed = feedService.findByIdWithLock(feedId);
         validateFeedOpen(feed);
 
@@ -156,6 +160,12 @@ public class CommentFacade {
     private void validateFeedOpen(Feed feed) {
         if (feed.isExpired() || !feed.isVoteOpen()) {
             throw new GlobalException(CommentErrorCode.COMMENT_FEED_CLOSED);
+        }
+    }
+
+    private void validateRateLimit(String ip, String deviceId) {
+        if (commentRateLimiter.isExceeded(ip, deviceId)) {
+            throw new GlobalException(CommentErrorCode.COMMENT_RATE_LIMIT_EXCEEDED);
         }
     }
 

@@ -9,9 +9,11 @@ import com.nexters.sseotdabwa.api.comments.facade.CommentFacade;
 import com.nexters.sseotdabwa.common.response.ApiResponse;
 import com.nexters.sseotdabwa.common.response.CursorPageResponse;
 import com.nexters.sseotdabwa.common.security.CurrentUser;
+import com.nexters.sseotdabwa.common.util.ClientIpResolver;
 import com.nexters.sseotdabwa.domain.comments.enums.CommentSort;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -30,9 +32,12 @@ public class CommentController implements CommentControllerSpec {
     public ApiResponse<CommentCreateResponse> createComment(
             @CurrentUser User user,
             @PathVariable Long feedId,
-            @Valid @RequestBody CommentCreateRequest request
+            @Valid @RequestBody CommentCreateRequest request,
+            @RequestHeader(value = "X-Device-Id", required = false) String deviceId,
+            HttpServletRequest httpRequest
     ) {
-        CommentCreateResponse response = commentFacade.createComment(user, feedId, request);
+        String ip = ClientIpResolver.resolve(httpRequest);
+        CommentCreateResponse response = commentFacade.createComment(user, feedId, request, ip, deviceId);
         return ApiResponse.success(response, HttpStatus.CREATED);
     }
 
@@ -41,9 +46,12 @@ public class CommentController implements CommentControllerSpec {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<CommentCreateResponse> createGuestComment(
             @PathVariable Long feedId,
-            @Valid @RequestBody CommentCreateRequestGuest request
+            @Valid @RequestBody CommentCreateRequestGuest request,
+            @RequestHeader(value = "X-Device-Id", required = false) String deviceId,
+            HttpServletRequest httpRequest
     ) {
-        CommentCreateResponse response = commentFacade.createGuestComment(feedId, request);
+        String ip = ClientIpResolver.resolve(httpRequest);
+        CommentCreateResponse response = commentFacade.createGuestComment(feedId, request, ip, deviceId);
         return ApiResponse.success(response, HttpStatus.CREATED);
     }
 

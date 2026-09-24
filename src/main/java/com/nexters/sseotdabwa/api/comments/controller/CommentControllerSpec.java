@@ -15,9 +15,11 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 
 @Tag(
@@ -36,6 +38,7 @@ public interface CommentControllerSpec {
                     - 닉네임은 항상 본인의 회원 닉네임(user.nickname)을 그대로 사용, 별도 입력 불필요
                     - 내용은 공백 제거 후 1~300자여야 함
                     - 마감(작성 후 48시간 경과)되었거나 신고 삭제된 피드에는 작성 불가
+                    - IP/디바이스(`X-Device-Id`) 기준 분당 5회로 요청 빈도가 제한됨(콘텐츠 내용과 무관)
                     """,
             security = @SecurityRequirement(name = "Bearer Authentication")
     )
@@ -43,12 +46,15 @@ public interface CommentControllerSpec {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "댓글 작성 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "내용 누락(COMMENT_001) / 300자 초과(COMMENT_002) / 마감된 피드(COMMENT_003)"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "피드를 찾을 수 없음(FEED_003)")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "피드를 찾을 수 없음(FEED_003)"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "요청 빈도 초과(COMMENT_010)")
     })
     ApiResponse<CommentCreateResponse> createComment(
             @Parameter(hidden = true) User user,
             @Parameter(description = "댓글을 작성할 피드 id", required = true) @PathVariable Long feedId,
-            @Valid @RequestBody CommentCreateRequest request
+            @Valid @RequestBody CommentCreateRequest request,
+            @Parameter(description = "클라이언트 디바이스 식별자(요청 빈도 제한용, 선택)") @RequestHeader(value = "X-Device-Id", required = false) String deviceId,
+            @Parameter(hidden = true) HttpServletRequest httpRequest
     );
 
     @Operation(
@@ -63,16 +69,20 @@ public interface CommentControllerSpec {
                     - guestPassword는 이후 본인 확인(삭제 시)을 위해 BCrypt 해시로만 저장되고 평문으로는 저장되지 않음. \
                     삭제할 때 이 비밀번호를 다시 입력해야 하므로 클라이언트가 반드시 기억해두어야 함(서버는 복구 수단 제공 안 함)
                     - 내용은 공백 제거 후 1~300자여야 함
+                    - IP/디바이스(`X-Device-Id`) 기준 분당 5회로 요청 빈도가 제한됨(콘텐츠 내용과 무관)
                     """
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "댓글 작성 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "내용/닉네임/비밀번호 누락(COMMENT_001) / 300자 초과(COMMENT_002) / 마감된 피드(COMMENT_003)"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "피드를 찾을 수 없음(FEED_003)")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "피드를 찾을 수 없음(FEED_003)"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "요청 빈도 초과(COMMENT_010)")
     })
     ApiResponse<CommentCreateResponse> createGuestComment(
             @Parameter(description = "댓글을 작성할 피드 id", required = true) @PathVariable Long feedId,
-            @Valid @RequestBody CommentCreateRequestGuest request
+            @Valid @RequestBody CommentCreateRequestGuest request,
+            @Parameter(description = "클라이언트 디바이스 식별자(요청 빈도 제한용, 선택)") @RequestHeader(value = "X-Device-Id", required = false) String deviceId,
+            @Parameter(hidden = true) HttpServletRequest httpRequest
     );
 
     @Operation(
