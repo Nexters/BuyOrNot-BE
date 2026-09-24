@@ -54,6 +54,9 @@ dependencies {
     // Caffeine (인메모리 rate limit 캐시)
     implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
 
+    // 댓글 금칙어(욕설) 필터
+    implementation 'io.github.lisuugi:korean-profanity-filter:0.1.0'
+
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'com.mysql:mysql-connector-j'
     annotationProcessor 'org.projectlombok:lombok'

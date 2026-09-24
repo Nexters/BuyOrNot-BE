@@ -23,7 +23,9 @@ public enum CommentErrorCode implements ErrorCode {
     COMMENT_GUEST_PASSWORD_MISMATCH(HttpStatus.FORBIDDEN, "COMMENT_007", "비밀번호가 일치하지 않습니다."),
     COMMENT_SELF_REPORT(HttpStatus.BAD_REQUEST, "COMMENT_008", "본인의 댓글은 신고할 수 없습니다."),
     COMMENT_ALREADY_REPORTED(HttpStatus.BAD_REQUEST, "COMMENT_009", "이미 신고된 댓글입니다."),
-    COMMENT_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "COMMENT_010", "잠시 후 다시 댓글을 남길 수 있어요.");
+    COMMENT_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "COMMENT_010", "잠시 후 다시 댓글을 남길 수 있어요."),
+    COMMENT_PROFANITY_DETECTED(HttpStatus.BAD_REQUEST, "COMMENT_011", "부적절한 표현을 수정한 뒤 다시 등록해주세요."),
+    COMMENT_TEMPORARILY_RESTRICTED(HttpStatus.TOO_MANY_REQUESTS, "COMMENT_012", "잠시 후 다시 댓글을 남길 수 있어요.");
 
     private final HttpStatus httpStatus;
     private final String code;

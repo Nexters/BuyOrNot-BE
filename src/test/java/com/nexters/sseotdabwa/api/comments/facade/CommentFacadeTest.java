@@ -21,6 +21,7 @@ import com.nexters.sseotdabwa.common.exception.GlobalException;
 import com.nexters.sseotdabwa.common.response.CursorPageResponse;
 import com.nexters.sseotdabwa.domain.comments.entity.Comment;
 import com.nexters.sseotdabwa.domain.comments.enums.CommentSort;
+import com.nexters.sseotdabwa.domain.comments.exception.CommentErrorCode;
 import com.nexters.sseotdabwa.domain.comments.repository.CommentRepository;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
@@ -36,6 +37,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @SpringBootTest
 @Transactional
 class CommentFacadeTest {
+
+    private static final String PROFANE_CONTENT = "시발 진짜 별로다";
 
     @Autowired
     private CommentFacade commentFacade;
@@ -114,6 +117,39 @@ class CommentFacadeTest {
         assertThatThrownBy(() -> commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("6번째 댓글"), ip, null))
                 .isInstanceOf(GlobalException.class)
                 .hasMessage("잠시 후 다시 댓글을 남길 수 있어요.");
+    }
+
+    @Test
+    @DisplayName("금칙어 포함 시 COMMENT_011 에러")
+    void createComment_profanity_throwsComment011() {
+        // given
+        User owner = createUser();
+        User commenter = createUser();
+        Feed feed = createFeed(owner);
+
+        // when & then
+        assertThatThrownBy(() -> commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest(PROFANE_CONTENT), randomIp(), null))
+                .isInstanceOf(GlobalException.class)
+                .extracting("errorCode").isEqualTo(CommentErrorCode.COMMENT_PROFANITY_DETECTED);
+    }
+
+    @Test
+    @DisplayName("10분 내 금칙어 위반 5회 누적 시, 이후 요청은 내용과 무관하게 COMMENT_012(429)로 즉시 차단된다")
+    void createComment_repeatedProfanityViolations_throwsComment012() {
+        // given: rate limit(IP 기준)에 걸리지 않도록 매 시도마다 IP를 바꾸되, 위반 집계는 회원(userId) 기준이라 그대로 누적된다
+        User owner = createUser();
+        User commenter = createUser();
+        Feed feed = createFeed(owner);
+        for (int i = 0; i < 5; i++) {
+            assertThatThrownBy(() -> commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest(PROFANE_CONTENT), randomIp(), null))
+                    .isInstanceOf(GlobalException.class)
+                    .extracting("errorCode").isEqualTo(CommentErrorCode.COMMENT_PROFANITY_DETECTED);
+        }
+
+        // when & then: 6번째는 정상적인 내용이어도 검증 이전에 즉시 차단된다
+        assertThatThrownBy(() -> commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("정상적인 댓글"), randomIp(), null))
+                .isInstanceOf(GlobalException.class)
+                .extracting("errorCode").isEqualTo(CommentErrorCode.COMMENT_TEMPORARILY_RESTRICTED);
     }
 
     // ===== 게스트 댓글 작성 =====

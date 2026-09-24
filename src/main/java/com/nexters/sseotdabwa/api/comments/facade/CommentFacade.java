@@ -14,6 +14,8 @@ import com.nexters.sseotdabwa.common.response.CursorPageResponse;
 import com.nexters.sseotdabwa.domain.comments.entity.Comment;
 import com.nexters.sseotdabwa.domain.comments.enums.CommentSort;
 import com.nexters.sseotdabwa.domain.comments.exception.CommentErrorCode;
+import com.nexters.sseotdabwa.domain.comments.service.CommentProfanityFilter;
+import com.nexters.sseotdabwa.domain.comments.service.CommentProfanityViolationTracker;
 import com.nexters.sseotdabwa.domain.comments.service.CommentRateLimiter;
 import com.nexters.sseotdabwa.domain.comments.service.CommentService;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
@@ -45,6 +47,8 @@ public class CommentFacade {
     private final AwsProperties awsProperties;
     private final PasswordEncoder passwordEncoder;
     private final CommentRateLimiter commentRateLimiter;
+    private final CommentProfanityFilter commentProfanityFilter;
+    private final CommentProfanityViolationTracker commentProfanityViolationTracker;
 
     /**
      * 회원 댓글 작성
@@ -52,6 +56,8 @@ public class CommentFacade {
     @Transactional
     public CommentCreateResponse createComment(User user, Long feedId, CommentCreateRequest request, String ip, String deviceId) {
         validateRateLimit(ip, deviceId);
+        String identity = memberIdentity(user);
+        validateNotProfane(identity, request.content());
         Feed feed = feedService.findByIdWithLock(feedId);
         validateFeedOpen(feed);
 
@@ -66,6 +72,8 @@ public class CommentFacade {
     @Transactional
     public CommentCreateResponse createGuestComment(Long feedId, CommentCreateRequestGuest request, String ip, String deviceId) {
         validateRateLimit(ip, deviceId);
+        String identity = guestIdentity(ip, deviceId);
+        validateNotProfane(identity, request.content());
         Feed feed = feedService.findByIdWithLock(feedId);
         validateFeedOpen(feed);
 
@@ -167,6 +175,28 @@ public class CommentFacade {
         if (commentRateLimiter.isExceeded(ip, deviceId)) {
             throw new GlobalException(CommentErrorCode.COMMENT_RATE_LIMIT_EXCEEDED);
         }
+    }
+
+    /**
+     * 금칙어 위반 누적으로 일시 차단된 상태면 내용을 검사하지도 않고 즉시 429로 막는다.
+     * 아니라면 이번 내용이 금칙어를 포함하는지 검사하고, 포함 시 위반을 기록한 뒤 400을 반환한다.
+     */
+    private void validateNotProfane(String identity, String content) {
+        if (commentProfanityViolationTracker.isBlocked(identity)) {
+            throw new GlobalException(CommentErrorCode.COMMENT_TEMPORARILY_RESTRICTED);
+        }
+        if (commentProfanityFilter.containsProfanity(content)) {
+            commentProfanityViolationTracker.recordViolation(identity);
+            throw new GlobalException(CommentErrorCode.COMMENT_PROFANITY_DETECTED);
+        }
+    }
+
+    private String memberIdentity(User user) {
+        return "user:" + user.getId();
+    }
+
+    private String guestIdentity(String ip, String deviceId) {
+        return "guest:" + ip + ":" + (deviceId == null ? "" : deviceId);
     }
 
     private String resolveProfileImage(Comment comment) {
