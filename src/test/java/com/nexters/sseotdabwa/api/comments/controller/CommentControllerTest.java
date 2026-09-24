@@ -134,6 +134,26 @@ class CommentControllerTest {
     }
 
     @Test
+    @DisplayName("댓글 작성 - 금칙어 포함 시 400 COMMENT_011")
+    void createComment_profanity_400() throws Exception {
+        // given
+        User owner = createUser();
+        User commenter = createUser();
+        Feed feed = createFeed(owner);
+        String token = jwtTokenService.createAccessToken(commenter.getId());
+        CommentCreateRequest request = new CommentCreateRequest("시발 진짜 별로다");
+
+        // when & then
+        mockMvc.perform(post("/api/v1/feeds/" + feed.getId() + "/comments")
+                        .header("Authorization", "Bearer " + token)
+                        .header("X-Forwarded-For", randomIp())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("COMMENT_011"));
+    }
+
+    @Test
     @DisplayName("댓글 목록 조회 성공 - 200 OK (인증 불필요, sort 파라미터 포함)")
     void getComments_success_200() throws Exception {
         // given

@@ -39,15 +39,17 @@ public interface CommentControllerSpec {
                     - 내용은 공백 제거 후 1~300자여야 함
                     - 마감(작성 후 48시간 경과)되었거나 신고 삭제된 피드에는 작성 불가
                     - IP/디바이스(`X-Device-Id`) 기준 분당 5회로 요청 빈도가 제한됨(콘텐츠 내용과 무관)
+                    - 금칙어(욕설) 포함 시 400 반환. 같은 작성자가 10분 내 5회 이상 금칙어 위반 시, 이후 요청은 \
+                    내용과 무관하게 5분간 즉시 차단됨(요청 빈도 제한과는 별개의 정책)
                     """,
             security = @SecurityRequirement(name = "Bearer Authentication")
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "댓글 작성 성공"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "내용 누락(COMMENT_001) / 300자 초과(COMMENT_002) / 마감된 피드(COMMENT_003)"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "내용 누락(COMMENT_001) / 300자 초과(COMMENT_002) / 마감된 피드(COMMENT_003) / 금칙어 포함(COMMENT_011)"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "피드를 찾을 수 없음(FEED_003)"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "요청 빈도 초과(COMMENT_010)")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "요청 빈도 초과(COMMENT_010) / 금칙어 반복 위반으로 일시 차단(COMMENT_012)")
     })
     ApiResponse<CommentCreateResponse> createComment(
             @Parameter(hidden = true) User user,
@@ -70,13 +72,15 @@ public interface CommentControllerSpec {
                     삭제할 때 이 비밀번호를 다시 입력해야 하므로 클라이언트가 반드시 기억해두어야 함(서버는 복구 수단 제공 안 함)
                     - 내용은 공백 제거 후 1~300자여야 함
                     - IP/디바이스(`X-Device-Id`) 기준 분당 5회로 요청 빈도가 제한됨(콘텐츠 내용과 무관)
+                    - 금칙어(욕설) 포함 시 400 반환. 같은 게스트(IP+디바이스ID 기준)가 10분 내 5회 이상 금칙어 위반 시, \
+                    이후 요청은 내용과 무관하게 5분간 즉시 차단됨(요청 빈도 제한과는 별개의 정책)
                     """
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "댓글 작성 성공"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "내용/닉네임/비밀번호 누락(COMMENT_001) / 300자 초과(COMMENT_002) / 마감된 피드(COMMENT_003)"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "내용/닉네임/비밀번호 누락(COMMENT_001) / 300자 초과(COMMENT_002) / 마감된 피드(COMMENT_003) / 금칙어 포함(COMMENT_011)"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "피드를 찾을 수 없음(FEED_003)"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "요청 빈도 초과(COMMENT_010)")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "요청 빈도 초과(COMMENT_010) / 금칙어 반복 위반으로 일시 차단(COMMENT_012)")
     })
     ApiResponse<CommentCreateResponse> createGuestComment(
             @Parameter(description = "댓글을 작성할 피드 id", required = true) @PathVariable Long feedId,
