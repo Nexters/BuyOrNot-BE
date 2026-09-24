@@ -20,9 +20,15 @@ public record CommentResponse(
         String profileImage,
         @Schema(description = "댓글 내용")
         String content,
-        @Schema(description = "현재 조회 중인 회원 본인이 작성한 댓글인지. 게스트는 세션이 없어 조회 시 항상 false.")
+        @Schema(
+                description = "이 댓글을 지금 조회 중인 회원 본인이 작성했는지 (삭제 버튼 노출 판단용). 게스트로 조회하거나 "
+                        + "비로그인 상태면 항상 false. isAuthor(피드 원작성자 여부, 조회자와 무관하게 고정)와는 다른 개념이니 혼동 주의."
+        )
         boolean isMine,
-        @Schema(description = "이 댓글의 작성자가 피드 원작성자 본인인지. true면 FE에서 투표 태그 대신 \"작성자\" 배지를 표시한다.")
+        @Schema(
+                description = "이 댓글의 작성자가 피드 원작성자 본인인지 (\"작성자\" 배지 표시용). 누가 조회하든 값이 고정된다는 점에서 "
+                        + "isMine(조회자 본인 여부, 조회자마다 달라짐)과 다르다."
+        )
         boolean isAuthor,
         @Schema(
                 description = "댓글 작성자(회원)가 이 피드에 투표했다면 그 선택(YES/NO). 게스트 댓글이거나 투표하지 않은 회원의 댓글, "
