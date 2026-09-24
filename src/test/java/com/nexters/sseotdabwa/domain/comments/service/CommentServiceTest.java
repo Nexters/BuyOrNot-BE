@@ -67,17 +67,17 @@ class CommentServiceTest {
     }
 
     @Test
-    @DisplayName("회원 댓글 내용이 100자를 초과하면 COMMENT_002 에러")
+    @DisplayName("회원 댓글 내용이 300자를 초과하면 COMMENT_002 에러")
     void createMemberComment_tooLongContent_throwsComment002() {
         // given
         Feed feed = createFeed(1L);
         User user = createUser("참새방앗간12345");
-        String tooLong = "가".repeat(101);
+        String tooLong = "가".repeat(301);
 
         // when & then
         assertThatThrownBy(() -> commentService.createMemberComment(feed, user, tooLong))
                 .isInstanceOf(GlobalException.class)
-                .hasMessage("댓글은 100자 이하로 입력해주세요.");
+                .hasMessage("댓글은 300자 이하로 입력해주세요.");
     }
 
     // ===== 게스트 댓글 =====
@@ -93,11 +93,12 @@ class CommentServiceTest {
         when(commentRepository.save(any(Comment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // when
-        Comment comment = commentService.createGuestComment(feed, "해킹시도닉네임", "https://img.example.com/1.png", "내용");
+        Comment comment = commentService.createGuestComment(feed, "해킹시도닉네임", "hashed-password", "https://img.example.com/1.png", "내용");
 
         // then
         assertThat(comment.getDisplayNickname()).isEqualTo("지름신들린수달_1234");
         assertThat(comment.getGuestNickname()).isEqualTo("지름신들린수달_1234");
+        assertThat(comment.getGuestPasswordHash()).isEqualTo("hashed-password");
         assertThat(comment.isGuestComment()).isTrue();
         verify(randomNicknameGenerator, times(1)).generate();
     }
@@ -114,7 +115,7 @@ class CommentServiceTest {
         when(commentRepository.save(any(Comment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // when
-        Comment comment = commentService.createGuestComment(feed, "지름신들린수달_1234", null, "내용");
+        Comment comment = commentService.createGuestComment(feed, "지름신들린수달_1234", "hashed-password", null, "내용");
 
         // then
         assertThat(comment.getDisplayNickname()).isEqualTo("무지출챌린저_5678");
@@ -127,7 +128,7 @@ class CommentServiceTest {
         Feed feed = createFeed(1L);
 
         // when & then
-        assertThatThrownBy(() -> commentService.createGuestComment(feed, "아무닉네임", null, ""))
+        assertThatThrownBy(() -> commentService.createGuestComment(feed, "아무닉네임", "hashed-password", null, ""))
                 .isInstanceOf(GlobalException.class)
                 .hasMessage("댓글 내용을 입력해주세요.");
     }

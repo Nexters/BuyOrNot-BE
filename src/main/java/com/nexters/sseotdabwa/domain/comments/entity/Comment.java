@@ -2,6 +2,7 @@ package com.nexters.sseotdabwa.domain.comments.entity;
 
 import com.nexters.sseotdabwa.common.entity.BaseEntity;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
+import com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 
 import jakarta.persistence.*;
@@ -36,6 +37,12 @@ public class Comment extends BaseEntity {
     private String guestNickname;
 
     /**
+     * 비회원(게스트) 작성 댓글 삭제 시 본인 확인용 비밀번호 해시. 회원 작성 댓글은 null.
+     */
+    @Column(name = "guest_password_hash")
+    private String guestPasswordHash;
+
+    /**
      * 비회원(게스트) 작성 댓글의 표시용 프로필 이미지 URL. 작성 시점에 한 번 랜덤 부여되어 고정됨. 회원 작성 댓글은 null.
      */
     @Column(name = "guest_profile_image")
@@ -52,17 +59,43 @@ public class Comment extends BaseEntity {
     @Column(name = "content", nullable = false)
     private String content;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "report_status", nullable = false)
+    private ReportStatus reportStatus;
+
     @Builder
-    public Comment(Feed feed, User user, String guestNickname, String guestProfileImage, String displayNickname, String content) {
+    public Comment(Feed feed, User user, String guestNickname, String guestPasswordHash, String guestProfileImage,
+                   String displayNickname, String content) {
         this.feed = feed;
         this.user = user;
         this.guestNickname = guestNickname;
+        this.guestPasswordHash = guestPasswordHash;
         this.guestProfileImage = guestProfileImage;
         this.displayNickname = displayNickname;
         this.content = content;
+        this.reportStatus = ReportStatus.NONE;
     }
 
     public boolean isGuestComment() {
         return this.user == null;
+    }
+
+    public boolean isOwner(User user) {
+        return this.user != null && this.user.getId().equals(user.getId());
+    }
+
+    /**
+     * 댓글 작성자가 이 피드의 작성자 본인인지 (댓글 태그를 "작성자"로 고정 표시하기 위함)
+     */
+    public boolean isByFeedAuthor() {
+        return !isGuestComment() && this.feed.getUser() != null && this.feed.getUser().getId().equals(this.user.getId());
+    }
+
+    public void report() {
+        this.reportStatus = ReportStatus.REPORTED;
+    }
+
+    public boolean isReported() {
+        return this.reportStatus == ReportStatus.REPORTED;
     }
 }

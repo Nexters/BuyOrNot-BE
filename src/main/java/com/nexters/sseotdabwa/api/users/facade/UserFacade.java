@@ -12,12 +12,15 @@ import com.nexters.sseotdabwa.domain.users.service.UserBlockService;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.nexters.sseotdabwa.api.comments.dto.CommentPreviewResponse;
+import com.nexters.sseotdabwa.api.comments.facade.CommentPreviewAssembler;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedResponseV2;
 import com.nexters.sseotdabwa.api.users.dto.UserResponse;
 import com.nexters.sseotdabwa.api.users.dto.UserWithdrawResponse;
 import com.nexters.sseotdabwa.common.config.AwsProperties;
 import com.nexters.sseotdabwa.common.response.CursorPageResponse;
+import com.nexters.sseotdabwa.domain.comments.service.CommentAggregate;
 import com.nexters.sseotdabwa.domain.comments.service.CommentService;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
@@ -44,11 +47,13 @@ public class UserFacade {
 
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final int MAX_PAGE_SIZE = 50;
+    private static final CommentAggregate EMPTY_COMMENT_AGGREGATE = new CommentAggregate(0L, null);
 
     private final FeedService feedService;
     private final FeedImageService feedImageService;
     private final FeedReviewService feedReviewService;
     private final CommentService commentService;
+    private final CommentPreviewAssembler commentPreviewAssembler;
     private final VoteLogService voteLogService;
     private final RefreshTokenService refreshTokenService;
     private final UserService userService;
@@ -124,13 +129,17 @@ public class UserFacade {
                 .stream()
                 .collect(Collectors.toMap(vl -> vl.getFeed().getId(), vl -> vl.getChoice()));
 
+        Map<Long, CommentAggregate> aggregates = commentService.aggregateByFeedIds(feedIds);
+        Map<Long, CommentPreviewResponse> previews = commentPreviewAssembler.build(feedIds, aggregates);
+
         List<FeedResponse> content = slicedFeeds.stream()
                 .map(feed -> {
                     FeedImage img = firstImageMap.get(feed.getId());
                     String viewUrl = buildViewUrl(img);
                     VoteChoice myChoice = voteMap.get(feed.getId());
                     boolean hasVoted = myChoice != null;
-                    return FeedResponse.of(feed, img, viewUrl, hasVoted, myChoice);
+                    Long commentCount = aggregates.getOrDefault(feed.getId(), EMPTY_COMMENT_AGGREGATE).commentCount();
+                    return FeedResponse.of(feed, img, viewUrl, hasVoted, myChoice, commentCount, previews.get(feed.getId()));
                 })
                 .toList();
 
@@ -159,13 +168,17 @@ public class UserFacade {
                 .stream()
                 .collect(Collectors.toMap(vl -> vl.getFeed().getId(), vl -> vl.getChoice()));
 
+        Map<Long, CommentAggregate> aggregates = commentService.aggregateByFeedIds(feedIds);
+        Map<Long, CommentPreviewResponse> previews = commentPreviewAssembler.build(feedIds, aggregates);
+
         List<FeedResponseV2> content = slicedFeeds.stream()
                 .map(feed -> {
                     List<FeedImage> imgs = imageMap.getOrDefault(feed.getId(), List.of());
                     List<String> imageUrls = buildViewUrls(imgs);
                     VoteChoice myChoice = voteMap.get(feed.getId());
                     boolean hasVoted = myChoice != null;
-                    return FeedResponseV2.of(feed, imgs, imageUrls, hasVoted, myChoice);
+                    Long commentCount = aggregates.getOrDefault(feed.getId(), EMPTY_COMMENT_AGGREGATE).commentCount();
+                    return FeedResponseV2.of(feed, imgs, imageUrls, hasVoted, myChoice, commentCount, previews.get(feed.getId()));
                 })
                 .toList();
 

@@ -1,11 +1,12 @@
 package com.nexters.sseotdabwa.api.feeds.facade;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.nexters.sseotdabwa.api.comments.dto.CommentPreviewResponse;
+import com.nexters.sseotdabwa.api.comments.facade.CommentPreviewAssembler;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequest;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequestGuest;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequestV2;
@@ -16,6 +17,7 @@ import com.nexters.sseotdabwa.api.feeds.dto.FeedResponseV2;
 import com.nexters.sseotdabwa.common.config.AwsProperties;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
 import com.nexters.sseotdabwa.common.response.CursorPageResponse;
+import com.nexters.sseotdabwa.domain.comments.service.CommentAggregate;
 import com.nexters.sseotdabwa.domain.comments.service.CommentService;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
@@ -54,11 +56,13 @@ public class FeedFacade {
 
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final int MAX_PAGE_SIZE = 50;
+    private static final CommentAggregate EMPTY_COMMENT_AGGREGATE = new CommentAggregate(0L, null);
 
     private final FeedService feedService;
     private final FeedImageService feedImageService;
     private final FeedReviewService feedReviewService;
     private final CommentService commentService;
+    private final CommentPreviewAssembler commentPreviewAssembler;
     private final VoteLogService voteLogService;
     private final S3StorageService s3StorageService;
     private final NotificationService notificationService;
@@ -103,14 +107,19 @@ public class FeedFacade {
         FeedImage firstImage = images.isEmpty() ? null : images.get(0);
         String viewUrl = buildViewUrl(firstImage);
 
+        Map<Long, CommentAggregate> aggregates = commentService.aggregateByFeedIds(List.of(feedId));
+        Map<Long, CommentPreviewResponse> previews = commentPreviewAssembler.build(List.of(feedId), aggregates);
+        Long commentCount = aggregates.getOrDefault(feedId, EMPTY_COMMENT_AGGREGATE).commentCount();
+        CommentPreviewResponse preview = previews.get(feedId);
+
         if (user == null) {
-            return FeedResponse.of(feed, firstImage, viewUrl);
+            return FeedResponse.of(feed, firstImage, viewUrl, commentCount, preview);
         }
 
         List<VoteLog> voteLogs = voteLogService.findByUserIdAndFeedIds(user.getId(), List.of(feedId));
         VoteChoice myChoice = voteLogs.isEmpty() ? null : voteLogs.get(0).getChoice();
         boolean hasVoted = myChoice != null;
-        return FeedResponse.of(feed, firstImage, viewUrl, hasVoted, myChoice);
+        return FeedResponse.of(feed, firstImage, viewUrl, hasVoted, myChoice, commentCount, preview);
     }
 
     /**
@@ -140,12 +149,16 @@ public class FeedFacade {
                         (a, b) -> a
                 ));
 
+        Map<Long, CommentAggregate> aggregates = commentService.aggregateByFeedIds(feedIds);
+        Map<Long, CommentPreviewResponse> previews = commentPreviewAssembler.build(feedIds, aggregates);
+
         List<FeedResponse> content;
         if (user == null || slicedFeeds.isEmpty()) {
             content = slicedFeeds.stream()
                     .map(feed -> {
                         FeedImage img = firstImageMap.get(feed.getId());
-                        return FeedResponse.of(feed, img, buildViewUrl(img));
+                        Long commentCount = aggregates.getOrDefault(feed.getId(), EMPTY_COMMENT_AGGREGATE).commentCount();
+                        return FeedResponse.of(feed, img, buildViewUrl(img), commentCount, previews.get(feed.getId()));
                     })
                     .toList();
         } else {
@@ -158,7 +171,8 @@ public class FeedFacade {
                         FeedImage img = firstImageMap.get(feed.getId());
                         VoteChoice myChoice = voteMap.get(feed.getId());
                         boolean hasVoted = myChoice != null;
-                        return FeedResponse.of(feed, img, buildViewUrl(img), hasVoted, myChoice);
+                        Long commentCount = aggregates.getOrDefault(feed.getId(), EMPTY_COMMENT_AGGREGATE).commentCount();
+                        return FeedResponse.of(feed, img, buildViewUrl(img), hasVoted, myChoice, commentCount, previews.get(feed.getId()));
                     })
                     .toList();
         }
@@ -240,14 +254,19 @@ public class FeedFacade {
         List<FeedImage> images = feedImageService.findByFeed(feed);
         List<String> imageUrls = buildViewUrls(images);
 
+        Map<Long, CommentAggregate> aggregates = commentService.aggregateByFeedIds(List.of(feedId));
+        Map<Long, CommentPreviewResponse> previews = commentPreviewAssembler.build(List.of(feedId), aggregates);
+        Long commentCount = aggregates.getOrDefault(feedId, EMPTY_COMMENT_AGGREGATE).commentCount();
+        CommentPreviewResponse preview = previews.get(feedId);
+
         if (user == null) {
-            return FeedResponseV2.of(feed, images, imageUrls);
+            return FeedResponseV2.of(feed, images, imageUrls, commentCount, preview);
         }
 
         List<VoteLog> voteLogs = voteLogService.findByUserIdAndFeedIds(user.getId(), List.of(feedId));
         VoteChoice myChoice = voteLogs.isEmpty() ? null : voteLogs.get(0).getChoice();
         boolean hasVoted = myChoice != null;
-        return FeedResponseV2.of(feed, images, imageUrls, hasVoted, myChoice);
+        return FeedResponseV2.of(feed, images, imageUrls, hasVoted, myChoice, commentCount, preview);
     }
 
     /**
@@ -272,12 +291,16 @@ public class FeedFacade {
         Map<Long, List<FeedImage>> imageMap = images.stream()
                 .collect(Collectors.groupingBy(fi -> fi.getFeed().getId()));
 
+        Map<Long, CommentAggregate> aggregates = commentService.aggregateByFeedIds(feedIds);
+        Map<Long, CommentPreviewResponse> previews = commentPreviewAssembler.build(feedIds, aggregates);
+
         List<FeedResponseV2> content;
         if (user == null || slicedFeeds.isEmpty()) {
             content = slicedFeeds.stream()
                     .map(feed -> {
                         List<FeedImage> imgs = imageMap.getOrDefault(feed.getId(), List.of());
-                        return FeedResponseV2.of(feed, imgs, buildViewUrls(imgs));
+                        Long commentCount = aggregates.getOrDefault(feed.getId(), EMPTY_COMMENT_AGGREGATE).commentCount();
+                        return FeedResponseV2.of(feed, imgs, buildViewUrls(imgs), commentCount, previews.get(feed.getId()));
                     })
                     .toList();
         } else {
@@ -290,7 +313,8 @@ public class FeedFacade {
                         List<FeedImage> imgs = imageMap.getOrDefault(feed.getId(), List.of());
                         VoteChoice myChoice = voteMap.get(feed.getId());
                         boolean hasVoted = myChoice != null;
-                        return FeedResponseV2.of(feed, imgs, buildViewUrls(imgs), hasVoted, myChoice);
+                        Long commentCount = aggregates.getOrDefault(feed.getId(), EMPTY_COMMENT_AGGREGATE).commentCount();
+                        return FeedResponseV2.of(feed, imgs, buildViewUrls(imgs), hasVoted, myChoice, commentCount, previews.get(feed.getId()));
                     })
                     .toList();
         }
@@ -334,7 +358,7 @@ public class FeedFacade {
     }
 
     /**
-     * 피드 삭제(물리 삭제) + 연관 데이터(알림/투표기록/이미지/리뷰) 삭제 + S3 이미지 삭제
+     * 피드 삭제(물리 삭제) + 연관 데이터(알림/투표기록/댓글/이미지/리뷰) 삭제 + S3 이미지 삭제
      */
     private void deleteFeedAndRelatedData(Feed feed) {
         List<String> s3Keys = feedImageService.findByFeed(feed).stream()
