@@ -63,6 +63,7 @@ class CommentControllerTest {
         // when & then
         mockMvc.perform(post("/api/v1/feeds/" + feed.getId() + "/comments")
                         .header("Authorization", "Bearer " + token)
+                        .header("X-Forwarded-For", randomIp())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -80,6 +81,7 @@ class CommentControllerTest {
 
         // when & then
         mockMvc.perform(post("/api/v1/feeds/" + feed.getId() + "/comments")
+                        .header("X-Forwarded-For", randomIp())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized());
@@ -95,11 +97,40 @@ class CommentControllerTest {
 
         // when & then
         mockMvc.perform(post("/api/v1/feeds/" + feed.getId() + "/comments/guest")
+                        .header("X-Forwarded-For", randomIp())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("201"))
                 .andExpect(jsonPath("$.data.id").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("댓글 작성 - 분당 5회 초과 시 429 COMMENT_010")
+    void createComment_rateLimitExceeded_429() throws Exception {
+        // given
+        User owner = createUser();
+        User commenter = createUser();
+        Feed feed = createFeed(owner);
+        String token = jwtTokenService.createAccessToken(commenter.getId());
+        String ip = randomIp();
+        for (int i = 0; i < 5; i++) {
+            mockMvc.perform(post("/api/v1/feeds/" + feed.getId() + "/comments")
+                            .header("Authorization", "Bearer " + token)
+                            .header("X-Forwarded-For", ip)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(new CommentCreateRequest("댓글 " + i))))
+                    .andExpect(status().isCreated());
+        }
+
+        // when & then
+        mockMvc.perform(post("/api/v1/feeds/" + feed.getId() + "/comments")
+                        .header("Authorization", "Bearer " + token)
+                        .header("X-Forwarded-For", ip)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentCreateRequest("6번째 댓글"))))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.errorCode").value("COMMENT_010"));
     }
 
     @Test
@@ -141,6 +172,7 @@ class CommentControllerTest {
         Feed feed = createFeed(owner);
         CommentCreateRequestGuest createRequest = new CommentCreateRequestGuest("내용", "지름신들린수달_1234", "guest-password");
         String body = mockMvc.perform(post("/api/v1/feeds/" + feed.getId() + "/comments/guest")
+                        .header("X-Forwarded-For", randomIp())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createRequest)))
                 .andReturn().getResponse().getContentAsString();
@@ -162,6 +194,7 @@ class CommentControllerTest {
         Feed feed = createFeed(owner);
         CommentCreateRequestGuest createRequest = new CommentCreateRequestGuest("내용", "지름신들린수달_1234", "guest-password");
         String body = mockMvc.perform(post("/api/v1/feeds/" + feed.getId() + "/comments/guest")
+                        .header("X-Forwarded-For", randomIp())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createRequest)))
                 .andReturn().getResponse().getContentAsString();
@@ -196,6 +229,7 @@ class CommentControllerTest {
     private CommentCreateResponse createCommentDirectly(Feed feed, User commenter, String token) throws Exception {
         String body = mockMvc.perform(post("/api/v1/feeds/" + feed.getId() + "/comments")
                         .header("Authorization", "Bearer " + token)
+                        .header("X-Forwarded-For", randomIp())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new CommentCreateRequest("내용"))))
                 .andReturn().getResponse().getContentAsString();
@@ -218,5 +252,12 @@ class CommentControllerTest {
                 .price(10000L)
                 .category(FeedCategory.FASHION)
                 .build());
+    }
+
+    /**
+     * rate limit 카운터가 테스트 간에 공유되지 않도록 테스트마다 고유한 식별자를 사용한다.
+     */
+    private String randomIp() {
+        return "ip-" + UUID.randomUUID();
     }
 }
