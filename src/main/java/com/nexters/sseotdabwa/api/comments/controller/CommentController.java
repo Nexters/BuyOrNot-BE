@@ -32,12 +32,9 @@ public class CommentController implements CommentControllerSpec {
     public ApiResponse<CommentCreateResponse> createComment(
             @CurrentUser User user,
             @PathVariable Long feedId,
-            @Valid @RequestBody CommentCreateRequest request,
-            @RequestHeader(value = "X-Device-Id", required = false) String deviceId,
-            HttpServletRequest httpRequest
+            @Valid @RequestBody CommentCreateRequest request
     ) {
-        String ip = ClientIpResolver.resolve(httpRequest);
-        CommentCreateResponse response = commentFacade.createComment(user, feedId, request, ip, deviceId);
+        CommentCreateResponse response = commentFacade.createComment(user, feedId, request);
         return ApiResponse.success(response, HttpStatus.CREATED);
     }
 

@@ -1,7 +1,7 @@
 ---
 name: "♻️ Refactor Template "
 about: Refactor Template
-title: refactor
+title: 'refactor: '
 labels: "♻️ refactor"
 assignees: ''
 

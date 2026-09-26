@@ -70,13 +70,12 @@ class CommentFacadeTest {
     @DisplayName("회원 댓글 작성 성공 (투표 여부와 무관)")
     void createComment_success() {
         // given
-        String ip = randomIp();
         User owner = createUser();
         User commenter = createUser();
         Feed feed = createFeed(owner);
 
         // when
-        CommentCreateResponse response = commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("저도 고민되네요"), ip, null);
+        CommentCreateResponse response = commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("저도 고민되네요"));
 
         // then
         assertThat(response.id()).isNotNull();
@@ -88,7 +87,6 @@ class CommentFacadeTest {
     @DisplayName("마감된 피드에 회원이 댓글 작성 시 COMMENT_003 에러")
     void createComment_closedFeed_throwsComment003() {
         // given
-        String ip = randomIp();
         User owner = createUser();
         User commenter = createUser();
         Feed feed = createFeed(owner);
@@ -96,7 +94,7 @@ class CommentFacadeTest {
         feedRepository.save(feed);
 
         // when & then
-        assertThatThrownBy(() -> commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("내용"), ip, null))
+        assertThatThrownBy(() -> commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("내용")))
                 .isInstanceOf(GlobalException.class)
                 .hasMessage("마감된 피드에는 댓글을 작성할 수 없습니다.");
     }
@@ -105,16 +103,15 @@ class CommentFacadeTest {
     @DisplayName("분당 5회 초과 요청 시 COMMENT_010(429) 에러")
     void createComment_rateLimitExceeded_throwsComment010() {
         // given
-        String ip = randomIp();
         User owner = createUser();
         User commenter = createUser();
         Feed feed = createFeed(owner);
         for (int i = 0; i < 5; i++) {
-            commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("댓글 " + i), ip, null);
+            commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("댓글 " + i));
         }
 
         // when & then
-        assertThatThrownBy(() -> commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("6번째 댓글"), ip, null))
+        assertThatThrownBy(() -> commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("6번째 댓글")))
                 .isInstanceOf(GlobalException.class)
                 .hasMessage("잠시 후 다시 댓글을 남길 수 있어요.");
     }
@@ -128,31 +125,59 @@ class CommentFacadeTest {
         Feed feed = createFeed(owner);
 
         // when & then
-        assertThatThrownBy(() -> commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest(PROFANE_CONTENT), randomIp(), null))
+        assertThatThrownBy(() -> commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest(PROFANE_CONTENT)))
                 .isInstanceOf(GlobalException.class)
                 .extracting("errorCode").isEqualTo(CommentErrorCode.COMMENT_PROFANITY_DETECTED);
     }
 
     @Test
-    @DisplayName("10분 내 금칙어 위반 5회 누적 시, 이후 요청은 내용과 무관하게 COMMENT_012(429)로 즉시 차단된다")
-    void createComment_repeatedProfanityViolations_throwsComment012() {
-        // given: rate limit(IP 기준)에 걸리지 않도록 매 시도마다 IP를 바꾸되, 위반 집계는 회원(userId) 기준이라 그대로 누적된다
+    @DisplayName("회원이 5회 연속 금칙어를 위반하면, 같은 계정의 rate limit도 함께 소진되어 6번째 요청은 COMMENT_010(429)로 막힌다")
+    void createComment_repeatedProfanityViolations_alsoExhaustsMemberRateLimit() {
+        // given: 회원 rate limit(계정 기준, 분당 5회)과 금칙어 위반 카운터(계정 기준, 10분 5회)가 같은 identity(userId)를
+        // 공유하므로, 같은 계정으로 5회 연속 요청하면 두 카운터가 동시에 임계치에 도달한다.
+        // 검사 순서상 rate limit이 먼저 확인되므로 6번째 요청은 금칙어 여부와 무관하게 COMMENT_010으로 막힘
+        // (금칙어 위반 카운터 자체가 5회 후 정확히 차단 상태로 전환되는지는 CommentProfanityViolationTrackerTest에서 별도 검증)
         User owner = createUser();
         User commenter = createUser();
         Feed feed = createFeed(owner);
         for (int i = 0; i < 5; i++) {
-            assertThatThrownBy(() -> commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest(PROFANE_CONTENT), randomIp(), null))
+            assertThatThrownBy(() -> commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest(PROFANE_CONTENT)))
                     .isInstanceOf(GlobalException.class)
                     .extracting("errorCode").isEqualTo(CommentErrorCode.COMMENT_PROFANITY_DETECTED);
         }
 
-        // when & then: 6번째는 정상적인 내용이어도 검증 이전에 즉시 차단된다
-        assertThatThrownBy(() -> commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("정상적인 댓글"), randomIp(), null))
+        // when & then
+        assertThatThrownBy(() -> commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("정상적인 댓글")))
                 .isInstanceOf(GlobalException.class)
-                .extracting("errorCode").isEqualTo(CommentErrorCode.COMMENT_TEMPORARILY_RESTRICTED);
+                .extracting("errorCode").isEqualTo(CommentErrorCode.COMMENT_RATE_LIMIT_EXCEEDED);
     }
 
     // ===== 게스트 댓글 작성 =====
+
+    @Test
+    @DisplayName("게스트도 같은 IP로 분당 5회 초과 요청 시 COMMENT_010(429) 에러")
+    void createGuestComment_rateLimitExceeded_throwsComment010() {
+        // given
+        String ip = randomIp();
+        User owner = createUser();
+        Feed feed = createFeed(owner);
+        for (int i = 0; i < 5; i++) {
+            commentFacade.createGuestComment(
+                    feed.getId(),
+                    new CommentCreateRequestGuest("게스트 댓글 " + i, "지름신들린수달_1234", "guest-password"),
+                    ip, null
+            );
+        }
+
+        // when & then
+        assertThatThrownBy(() -> commentFacade.createGuestComment(
+                feed.getId(),
+                new CommentCreateRequestGuest("6번째 댓글", "지름신들린수달_1234", "guest-password"),
+                ip, null
+        ))
+                .isInstanceOf(GlobalException.class)
+                .extracting("errorCode").isEqualTo(CommentErrorCode.COMMENT_RATE_LIMIT_EXCEEDED);
+    }
 
     @Test
     @DisplayName("게스트 댓글 작성 성공 (투표 여부와 무관, 비밀번호 해시 저장)")
@@ -181,11 +206,10 @@ class CommentFacadeTest {
     @DisplayName("본인 댓글 삭제 성공")
     void deleteComment_success() {
         // given
-        String ip = randomIp();
         User owner = createUser();
         User commenter = createUser();
         Feed feed = createFeed(owner);
-        CommentCreateResponse created = commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("내용"), ip, null);
+        CommentCreateResponse created = commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("내용"));
 
         // when
         commentFacade.deleteComment(commenter, created.id());
@@ -198,12 +222,11 @@ class CommentFacadeTest {
     @DisplayName("본인 댓글이 아니면 삭제 시 COMMENT_005 에러")
     void deleteComment_notOwner_throwsComment005() {
         // given
-        String ip = randomIp();
         User owner = createUser();
         User commenter = createUser();
         User other = createUser();
         Feed feed = createFeed(owner);
-        CommentCreateResponse created = commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("내용"), ip, null);
+        CommentCreateResponse created = commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("내용"));
 
         // when & then
         assertThatThrownBy(() -> commentFacade.deleteComment(other, created.id()))
@@ -250,11 +273,10 @@ class CommentFacadeTest {
     @DisplayName("회원 댓글을 게스트 삭제 API로 삭제 시도하면 COMMENT_006 에러")
     void deleteGuestComment_onMemberComment_throwsComment006() {
         // given
-        String ip = randomIp();
         User owner = createUser();
         User commenter = createUser();
         Feed feed = createFeed(owner);
-        CommentCreateResponse created = commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("내용"), ip, null);
+        CommentCreateResponse created = commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("내용"));
 
         // when & then
         assertThatThrownBy(() -> commentFacade.deleteGuestComment(created.id(), new CommentGuestDeleteRequest("아무거나")))
@@ -268,12 +290,11 @@ class CommentFacadeTest {
     @DisplayName("댓글 신고 성공 - 1건 신고로 즉시 숨김되어 목록에서 제외된다")
     void reportComment_success_hidesFromList() {
         // given
-        String ip = randomIp();
         User owner = createUser();
         User commenter = createUser();
         User reporter = createUser();
         Feed feed = createFeed(owner);
-        CommentCreateResponse created = commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("내용"), ip, null);
+        CommentCreateResponse created = commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("내용"));
 
         // when
         commentFacade.reportComment(reporter, created.id());
@@ -287,11 +308,10 @@ class CommentFacadeTest {
     @DisplayName("본인 댓글은 자기신고 시 COMMENT_008 에러")
     void reportComment_selfReport_throwsComment008() {
         // given
-        String ip = randomIp();
         User owner = createUser();
         User commenter = createUser();
         Feed feed = createFeed(owner);
-        CommentCreateResponse created = commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("내용"), ip, null);
+        CommentCreateResponse created = commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("내용"));
 
         // when & then
         assertThatThrownBy(() -> commentFacade.reportComment(commenter, created.id()))
@@ -303,12 +323,11 @@ class CommentFacadeTest {
     @DisplayName("이미 신고된 댓글 재신고 시 COMMENT_009 에러")
     void reportComment_alreadyReported_throwsComment009() {
         // given
-        String ip = randomIp();
         User owner = createUser();
         User commenter = createUser();
         User reporter = createUser();
         Feed feed = createFeed(owner);
-        CommentCreateResponse created = commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("내용"), ip, null);
+        CommentCreateResponse created = commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("내용"));
         commentFacade.reportComment(reporter, created.id());
 
         // when & then
@@ -321,11 +340,10 @@ class CommentFacadeTest {
     @DisplayName("게스트도 인증 없이 댓글 신고가 가능하다")
     void reportComment_byGuestViewer_success() {
         // given
-        String ip = randomIp();
         User owner = createUser();
         User commenter = createUser();
         Feed feed = createFeed(owner);
-        CommentCreateResponse created = commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("내용"), ip, null);
+        CommentCreateResponse created = commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("내용"));
 
         // when
         commentFacade.reportComment(null, created.id());
@@ -340,12 +358,11 @@ class CommentFacadeTest {
     @DisplayName("댓글 목록은 기본값(등록순, 오래된 순)으로 조회된다")
     void getComments_defaultOrderedByCreatedAsc() {
         // given
-        String ip = randomIp();
         User owner = createUser();
         User commenter = createUser();
         Feed feed = createFeed(owner);
-        commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("첫 댓글"), ip, null);
-        commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("두번째 댓글"), ip, null);
+        commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("첫 댓글"));
+        commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("두번째 댓글"));
 
         // when
         CursorPageResponse<CommentResponse> response = commentFacade.getComments(null, feed.getId(), null, null, null);
@@ -361,12 +378,11 @@ class CommentFacadeTest {
     @DisplayName("sort=LATEST로 조회하면 최신순(최근 작성 순)으로 조회된다")
     void getComments_sortLatest() {
         // given
-        String ip = randomIp();
         User owner = createUser();
         User commenter = createUser();
         Feed feed = createFeed(owner);
-        commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("첫 댓글"), ip, null);
-        commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("두번째 댓글"), ip, null);
+        commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("첫 댓글"));
+        commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("두번째 댓글"));
 
         // when
         CursorPageResponse<CommentResponse> response = commentFacade.getComments(null, feed.getId(), null, null, CommentSort.LATEST);
@@ -388,12 +404,11 @@ class CommentFacadeTest {
     @DisplayName("본인이 작성한 댓글은 isMine이 true, 다른 유저/비로그인은 false")
     void getComments_isMineFlag() {
         // given
-        String ip = randomIp();
         User owner = createUser();
         User commenter = createUser();
         User otherViewer = createUser();
         Feed feed = createFeed(owner);
-        commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("내 댓글"), ip, null);
+        commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("내 댓글"));
 
         // when
         CommentResponse asAuthor = commentFacade.getComments(commenter, feed.getId(), null, null, null).content().get(0);
@@ -417,9 +432,9 @@ class CommentFacadeTest {
         Feed feed = createFeed(owner);
         voteFacade.vote(voter, feed.getId(), new VoteRequest(VoteChoice.YES));
 
-        commentFacade.createComment(voter, feed.getId(), new CommentCreateRequest("투표한 회원 댓글"), ip, null);
-        commentFacade.createComment(notVoter, feed.getId(), new CommentCreateRequest("미투표 회원 댓글"), ip, null);
-        commentFacade.createComment(owner, feed.getId(), new CommentCreateRequest("작성자 댓글"), ip, null);
+        commentFacade.createComment(voter, feed.getId(), new CommentCreateRequest("투표한 회원 댓글"));
+        commentFacade.createComment(notVoter, feed.getId(), new CommentCreateRequest("미투표 회원 댓글"));
+        commentFacade.createComment(owner, feed.getId(), new CommentCreateRequest("작성자 댓글"));
         commentFacade.createGuestComment(feed.getId(), new CommentCreateRequestGuest("게스트 댓글", "지름신들린수달_1234", "pw"), ip, null);
 
         // when
