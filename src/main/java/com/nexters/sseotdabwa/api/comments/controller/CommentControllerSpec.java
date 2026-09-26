@@ -38,7 +38,8 @@ public interface CommentControllerSpec {
                     - 닉네임은 항상 본인의 회원 닉네임(user.nickname)을 그대로 사용, 별도 입력 불필요
                     - 내용은 공백 제거 후 1~300자여야 함
                     - 마감(작성 후 48시간 경과)되었거나 신고 삭제된 피드에는 작성 불가
-                    - IP/디바이스(`X-Device-Id`) 기준 분당 5회로 요청 빈도가 제한됨(콘텐츠 내용과 무관)
+                    - 계정(userId) 기준 분당 5회로 요청 빈도가 제한됨(콘텐츠 내용과 무관). 웹 요청은 프록시를 거쳐 \
+                    IP가 공유되므로 IP가 아닌 계정 기준으로 제한함
                     - 금칙어(욕설) 포함 시 400 반환. 같은 작성자가 10분 내 5회 이상 금칙어 위반 시, 이후 요청은 \
                     내용과 무관하게 5분간 즉시 차단됨(요청 빈도 제한과는 별개의 정책)
                     """,
@@ -54,9 +55,7 @@ public interface CommentControllerSpec {
     ApiResponse<CommentCreateResponse> createComment(
             @Parameter(hidden = true) User user,
             @Parameter(description = "댓글을 작성할 피드 id", required = true) @PathVariable Long feedId,
-            @Valid @RequestBody CommentCreateRequest request,
-            @Parameter(description = "클라이언트 디바이스 식별자(요청 빈도 제한용, 선택)") @RequestHeader(value = "X-Device-Id", required = false) String deviceId,
-            @Parameter(hidden = true) HttpServletRequest httpRequest
+            @Valid @RequestBody CommentCreateRequest request
     );
 
     @Operation(

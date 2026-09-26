@@ -52,10 +52,14 @@ public class CommentFacade {
 
     /**
      * 회원 댓글 작성
+     * - 요청 빈도 제한은 계정(userId) 기준. 웹 회원 요청은 Cloudflare Worker를 거쳐 들어와 IP가 전부 동일하게
+     *   보이므로 IP 기준으로는 제한할 수 없다(게스트 경로와의 차이점).
      */
     @Transactional
-    public CommentCreateResponse createComment(User user, Long feedId, CommentCreateRequest request, String ip, String deviceId) {
-        validateRateLimit(ip, deviceId);
+    public CommentCreateResponse createComment(User user, Long feedId, CommentCreateRequest request) {
+        if (commentRateLimiter.isExceededForMember(user.getId())) {
+            throw new GlobalException(CommentErrorCode.COMMENT_RATE_LIMIT_EXCEEDED);
+        }
         String identity = memberIdentity(user);
         validateNotProfane(identity, request.content());
         Feed feed = feedService.findByIdWithLock(feedId);
