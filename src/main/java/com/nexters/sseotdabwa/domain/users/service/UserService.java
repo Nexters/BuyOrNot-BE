@@ -29,10 +29,12 @@ import lombok.RequiredArgsConstructor;
 public class UserService {
 
     private static final int MAX_NICKNAME_RETRY = 5;
+    private static final long NICKNAME_CHANGE_COOLDOWN_DAYS = 20;
 
     private final UserRepository userRepository;
     private final RandomNicknameGenerator randomNicknameGenerator;
     private final TransactionTemplate requiresNewTransactionTemplate;
+    private final NicknameValidator nicknameValidator;
 
     /**
      * 소셜 ID와 소셜 계정 타입으로 사용자 조회
@@ -94,11 +96,39 @@ public class UserService {
     }
 
     /**
-     * 사용자 프로필 업데이트 (소셜 로그인 시 최신 정보 동기화)
+     * 프로필 수정 (닉네임 최초 설정 겸용). nickname/profileImage 모두 optional — null이면 해당 필드는 건드리지 않는다.
+     * - 닉네임 미설정(null) 상태에서 최초로 설정하는 경우 쿨다운 없이 통과
+     * - 이미 닉네임이 있는 상태에서 값이 그대로면(대소문자 무관) 아무 것도 하지 않고 통과(no-op)
+     * - 실제로 값이 바뀌는 경우에만 검증(형식 → 쿨다운 → 중복 → 금칙어 순) 후 nicknameUpdatedAt 갱신
      */
     @Transactional
     public void updateProfile(User user, String nickname, String profileImage) {
-        user.updateProfile(nickname, profileImage);
+        if (nickname != null) {
+            String trimmed = nickname.trim();
+            if (!trimmed.equalsIgnoreCase(user.getNickname())) {
+                nicknameValidator.validateFormat(trimmed);
+                validateNicknameChangeCooldown(user);
+                validateNicknameNotDuplicate(trimmed);
+                nicknameValidator.validateNotForbidden(trimmed);
+                user.updateNickname(trimmed, LocalDateTime.now());
+            }
+        }
+        if (profileImage != null) {
+            user.updateProfileImage(profileImage);
+        }
+    }
+
+    private void validateNicknameChangeCooldown(User user) {
+        LocalDateTime updatedAt = user.getNicknameUpdatedAt();
+        if (updatedAt != null && LocalDateTime.now().isBefore(updatedAt.plusDays(NICKNAME_CHANGE_COOLDOWN_DAYS))) {
+            throw new GlobalException(UserErrorCode.NICKNAME_CHANGE_COOLDOWN);
+        }
+    }
+
+    private void validateNicknameNotDuplicate(String trimmed) {
+        if (userRepository.existsByNicknameIgnoreCase(trimmed)) {
+            throw new GlobalException(UserErrorCode.NICKNAME_DUPLICATE);
+        }
     }
 
     /**

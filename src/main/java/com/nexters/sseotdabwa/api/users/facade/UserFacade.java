@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import com.nexters.sseotdabwa.api.users.dto.BlockedUserResponse;
 import com.nexters.sseotdabwa.api.users.dto.FcmTokenRequest;
+import com.nexters.sseotdabwa.api.users.dto.UserProfileUpdateRequest;
 
 import com.nexters.sseotdabwa.domain.users.service.UserBlockService;
 
@@ -65,6 +66,15 @@ public class UserFacade {
      * 현재 로그인한 사용자 정보 조회
      */
     public UserResponse getMyInfo(User user) {
+        return UserResponse.from(user);
+    }
+
+    /**
+     * 프로필 수정 (닉네임 최초 설정 겸용) — 검증/쿨다운 로직은 UserService에 있음
+     */
+    @Transactional
+    public UserResponse updateProfile(User user, UserProfileUpdateRequest request) {
+        userService.updateProfile(user, request.nickname(), request.profileImage());
         return UserResponse.from(user);
     }
 
