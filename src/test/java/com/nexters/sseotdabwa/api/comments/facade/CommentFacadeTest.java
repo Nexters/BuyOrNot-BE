@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Transactional
 class CommentFacadeTest {
 
-    private static final String PROFANE_CONTENT = "시발 진짜 별로다";
+    private static final String PROFANE_CONTENT = "썅놈아 진짜 별로다";
 
     @Autowired
     private CommentFacade commentFacade;

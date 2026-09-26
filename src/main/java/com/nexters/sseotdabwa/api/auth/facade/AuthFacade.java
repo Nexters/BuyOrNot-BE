@@ -60,7 +60,7 @@ public class AuthFacade {
     /**
      * 카카오 소셜 로그인
      * 1. 카카오 Access Token으로 사용자 정보 조회 (socialId만 사용)
-     * 2. 기존 회원이면 로그인, 신규 회원이면 랜덤 닉네임/프로필로 가입 처리
+     * 2. 기존 회원이면 로그인, 신규 회원이면 닉네임 null, 프로필 이미지만 랜덤 배정하여 가입 처리(닉네임은 별도 API로 필수 설정해야 함)
      * 3. JWT Access/Refresh Token 발급
      */
     public TokenResponse loginWithKakao(KakaoLoginRequest request) {
@@ -80,7 +80,7 @@ public class AuthFacade {
                 .orElseGet(() -> userService.createUser(
                         new UserCreateCommand(
                                 socialId,
-                                userService.generateUniqueNickname(),
+                                null,
                                 SocialAccount.KAKAO,
                                 randomDefaultProfileImageUrl(),
                                 email
@@ -93,7 +93,7 @@ public class AuthFacade {
     /**
      * Apple 소셜 로그인
      * 1. Authorization Code를 Apple Token API로 교환하여 사용자 정보 추출 (socialId만 사용)
-     * 2. 기존 회원이면 로그인, 신규 회원이면 랜덤 닉네임/프로필로 가입 처리
+     * 2. 기존 회원이면 로그인, 신규 회원이면 닉네임 null, 프로필 이미지만 랜덤 배정하여 가입 처리(닉네임은 별도 API로 필수 설정해야 함)
      * 3. JWT Access/Refresh Token 발급
      */
     public TokenResponse loginWithApple(AppleLoginRequest request) {
@@ -113,7 +113,7 @@ public class AuthFacade {
                 .orElseGet(() -> userService.createUser(
                         new UserCreateCommand(
                                 socialId,
-                                userService.generateUniqueNickname(),
+                                null,
                                 SocialAccount.APPLE,
                                 randomDefaultProfileImageUrl(),
                                 email
@@ -126,7 +126,7 @@ public class AuthFacade {
     /**
      * Google 소셜 로그인
      * 1. ID Token 검증 및 사용자 정보 추출 (socialId만 사용)
-     * 2. 기존 회원이면 로그인, 신규 회원이면 랜덤 닉네임/프로필로 가입 처리
+     * 2. 기존 회원이면 로그인, 신규 회원이면 닉네임 null, 프로필 이미지만 랜덤 배정하여 가입 처리(닉네임은 별도 API로 필수 설정해야 함)
      * 3. JWT Access/Refresh Token 발급
      */
     public TokenResponse loginWithGoogle(GoogleLoginRequest request) {
@@ -146,7 +146,7 @@ public class AuthFacade {
                 .orElseGet(() -> userService.createUser(
                         new UserCreateCommand(
                                 socialId,
-                                userService.generateUniqueNickname(),
+                                null,
                                 SocialAccount.GOOGLE,
                                 randomDefaultProfileImageUrl(),
                                 email
