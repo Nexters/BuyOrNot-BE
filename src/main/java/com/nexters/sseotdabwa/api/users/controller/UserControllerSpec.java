@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 @Tag(
         name = "Users",
-        description = "사용자 API. 참고: 닉네임이 아직 없는(가입 직후) 회원은 이 태그의 프로필 수정/내 정보 조회와 로그아웃을 "
+        description = "사용자 API. 참고: 닉네임이 아직 없는(가입 직후) 회원은 이 태그의 프로필 수정/내 정보 조회, 로그아웃, FCM 토큰 등록을 "
                 + "제외한 모든 인증 API에서 403(USER_006)을 받는다 — 먼저 프로필 수정 API로 닉네임을 설정해야 한다."
 )
 public interface UserControllerSpec {
@@ -116,7 +116,7 @@ public interface UserControllerSpec {
 
     @Operation(
             summary = "FCM 토큰 등록/갱신",
-            description = "현재 로그인한 사용자의 FCM 토큰을 저장(업데이트)합니다.",
+            description = "현재 로그인한 사용자의 FCM 토큰을 저장(업데이트)합니다. 닉네임 미설정 상태에서도 호출 가능(화이트리스트).",
             security = @SecurityRequirement(name = "Bearer Authentication")
     )
     @ApiResponses(value = {

@@ -15,7 +15,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 /**
  * 닉네임 미설정(nickname == null) 회원의 우회 진입을 막는다.
  * FE 라우팅 가드만으로는 인증 없는 직접 API 호출을 막을 수 없어 서버 레벨에서도 강제한다.
- * 화이트리스트(프로필 설정, 내 정보 조회, 로그아웃) 외 모든 인증된 요청을 차단(NICKNAME_REQUIRED).
+ * 화이트리스트(프로필 설정, 내 정보 조회, 로그아웃, FCM 토큰 등록) 외 모든 인증된 요청을 차단(NICKNAME_REQUIRED).
  * 비인증 요청(principal이 User가 아님)은 이 인터셉터의 관심사가 아니므로 그대로 통과시킨다.
  */
 @Component
@@ -42,6 +42,7 @@ public class NicknameRequiredInterceptor implements HandlerInterceptor {
 
         return ("GET".equals(method) && "/api/v1/users/me".equals(uri))
                 || ("PATCH".equals(method) && "/api/v1/users/me/profile".equals(uri))
-                || ("POST".equals(method) && "/api/v1/auth/logout".equals(uri));
+                || ("POST".equals(method) && "/api/v1/auth/logout".equals(uri))
+                || ("PATCH".equals(method) && "/api/v1/users/fcm".equals(uri));
     }
 }

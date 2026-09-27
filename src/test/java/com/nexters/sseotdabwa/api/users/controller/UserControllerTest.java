@@ -319,6 +319,49 @@ class UserControllerTest {
     }
 
     @Test
+    @DisplayName("닉네임 미설정 유저도 FCM 토큰 등록은 통과한다")
+    void nicknameRequired_allowsFcmTokenUpdate() throws Exception {
+        // given
+        User user = createUserWithoutNickname();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+        FcmTokenRequest request = new FcmTokenRequest("fcm_" + UUID.randomUUID());
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/users/fcm")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("프로필 수정 성공 - 닉네임/프로필 이미지 둘 다 DB에 반영됨")
+    void updateProfile_success_actuallyPersistsToDatabase() throws Exception {
+        // given: 응답만으로는 실제 저장 여부를 알 수 없으므로(과거 detached 엔티티 버그가 응답은 정상으로 위장했음)
+        // 반드시 DB 재조회로 검증한다. 다만 이 테스트 클래스는 @Transactional이라 필터의 조회와 이 테스트가
+        // 같은 트랜잭션/영속성 컨텍스트를 공유해 detached 상황 자체는 재현하지 못한다 — 그 케이스는
+        // UserServiceTest#updateProfile_withDetachedUser_persistsToDatabase에서 별도로 검증한다.
+        User user = createUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+        String newNickname = "영속확인닉네임" + UUID.randomUUID().toString().substring(0, 3);
+        UserProfileUpdateRequest request = new UserProfileUpdateRequest(newNickname, "https://example.com/new.jpg");
+
+        // when
+        mockMvc.perform(patch("/api/v1/users/me/profile")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.nickname").value(newNickname))
+                .andExpect(jsonPath("$.data.profileImage").value("https://example.com/new.jpg"));
+
+        // then
+        User reloaded = userRepository.findById(user.getId()).orElseThrow();
+        assertThat(reloaded.getNickname()).isEqualTo(newNickname);
+        assertThat(reloaded.getProfileImage()).isEqualTo("https://example.com/new.jpg");
+    }
+
+    @Test
     @DisplayName("내가 작성한 피드 조회 성공 - 200 OK")
     void getMyFeeds_success() throws Exception {
         // given

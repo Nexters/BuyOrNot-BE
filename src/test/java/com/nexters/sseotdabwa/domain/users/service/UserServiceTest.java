@@ -158,6 +158,26 @@ class UserServiceTest {
     }
 
     @Test
+    @DisplayName("detached 상태의 user를 수정해도 실제 DB에 반영된다 (JwtAuthenticationFilter가 넘기는 상황 재현)")
+    void updateProfile_withDetachedUser_persistsToDatabase() {
+        // given: createUser는 REQUIRES_NEW 트랜잭션에서 저장·커밋 후 반환하므로, 반환된 user는 이 테스트의
+        // (외부) 트랜잭션/영속성 컨텍스트와는 다른 세션에서 온 detached 엔티티다 — JwtAuthenticationFilter가
+        // 별도로 닫힌 트랜잭션에서 조회해 넘기는 실제 상황과 동일하게 재현한다.
+        UserCreateCommand command = new UserCreateCommand(
+                UUID.randomUUID().toString(), "기존닉네임" + randomSuffix(), SocialAccount.KAKAO, null, null
+        );
+        User detachedUser = userService.createUser(command);
+        String newNickname = "새닉네임" + randomSuffix();
+
+        // when
+        userService.updateProfile(detachedUser, newNickname, null);
+
+        // then: detachedUser 객체가 아니라 DB에서 새로 조회한 값으로 검증해야 실제 저장 여부를 확인할 수 있다
+        User reloaded = userRepository.findById(detachedUser.getId()).orElseThrow();
+        assertThat(reloaded.getNickname()).isEqualTo(newNickname);
+    }
+
+    @Test
     @DisplayName("닉네임 최초 설정 - 미설정(null) 상태에서는 쿨다운 없이 통과")
     void updateProfile_initialNicknameSetting_skipsCooldown() {
         // given
@@ -219,7 +239,19 @@ class UserServiceTest {
         // when & then
         assertThatThrownBy(() -> userService.updateProfile(user, "가나", null))
                 .isInstanceOf(GlobalException.class)
-                .hasFieldOrPropertyWithValue("errorCode", UserErrorCode.NICKNAME_LENGTH_INVALID);
+                .hasFieldOrPropertyWithValue("errorCode", UserErrorCode.NICKNAME_TOO_SHORT);
+    }
+
+    @Test
+    @DisplayName("닉네임이 10자 초과면 USER_014 예외")
+    void updateProfile_tooLong_throwsUser014() {
+        // given
+        User user = createUserWithNickname("기존닉네임" + randomSuffix());
+
+        // when & then
+        assertThatThrownBy(() -> userService.updateProfile(user, "너무너무행복한토봉이6983", null))
+                .isInstanceOf(GlobalException.class)
+                .hasFieldOrPropertyWithValue("errorCode", UserErrorCode.NICKNAME_TOO_LONG);
     }
 
     @Test

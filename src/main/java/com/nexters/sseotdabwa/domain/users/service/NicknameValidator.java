@@ -44,8 +44,11 @@ public class NicknameValidator {
         if (trimmed.contains(" ")) {
             throw new GlobalException(UserErrorCode.NICKNAME_WHITESPACE);
         }
-        if (trimmed.length() < MIN_LENGTH || trimmed.length() > MAX_LENGTH) {
-            throw new GlobalException(UserErrorCode.NICKNAME_LENGTH_INVALID);
+        if (trimmed.length() < MIN_LENGTH) {
+            throw new GlobalException(UserErrorCode.NICKNAME_TOO_SHORT);
+        }
+        if (trimmed.length() > MAX_LENGTH) {
+            throw new GlobalException(UserErrorCode.NICKNAME_TOO_LONG);
         }
         if (DIGITS_ONLY.matcher(trimmed).matches() || STANDALONE_JAMO.matcher(trimmed).find()) {
             throw new GlobalException(UserErrorCode.NICKNAME_INVALID_COMPOSITION);
