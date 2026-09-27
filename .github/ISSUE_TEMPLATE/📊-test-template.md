@@ -1,7 +1,7 @@
 ---
 name: "\U0001F4CA Test Template"
 about: Test Template
-title: 'test:'
+title: 'test: '
 labels: "\U0001F4CA test"
 assignees: ''
 

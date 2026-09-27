@@ -3,6 +3,7 @@ package com.nexters.sseotdabwa.api.users.controller;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
 import com.nexters.sseotdabwa.api.users.dto.BlockedUserResponse;
 import com.nexters.sseotdabwa.api.users.dto.FcmTokenRequest;
+import com.nexters.sseotdabwa.api.users.dto.UserProfileUpdateRequest;
 import com.nexters.sseotdabwa.api.users.dto.UserResponse;
 import com.nexters.sseotdabwa.api.users.dto.UserWithdrawResponse;
 import com.nexters.sseotdabwa.api.users.facade.UserFacade;
@@ -48,6 +49,16 @@ public class UserController implements UserControllerSpec {
     @DeleteMapping("/me")
     public ApiResponse<UserWithdrawResponse> withdraw(@CurrentUser User user) {
         UserWithdrawResponse response = userFacade.withdraw(user);
+        return ApiResponse.success(response, HttpStatus.OK);
+    }
+
+    @Override
+    @PatchMapping("/me/profile")
+    public ApiResponse<UserResponse> updateProfile(
+            @CurrentUser User user,
+            @RequestBody UserProfileUpdateRequest request
+    ) {
+        UserResponse response = userFacade.updateProfile(user, request);
         return ApiResponse.success(response, HttpStatus.OK);
     }
 

@@ -9,16 +9,18 @@ public record VoteResponse(
         Long yesCount,
         Long noCount,
         Long totalCount,
-        String myProfileImage
+        String myProfileImage,
+        String feedImageUrl
 ) {
-    public static VoteResponse of(Feed feed, VoteChoice choice, String myProfileImage) {
+    public static VoteResponse of(Feed feed, VoteChoice choice, String myProfileImage, String feedImageUrl) {
         return new VoteResponse(
                 feed.getId(),
                 choice,
                 feed.getYesCount(),
                 feed.getNoCount(),
                 feed.getYesCount() + feed.getNoCount(),
-                myProfileImage
+                myProfileImage,
+                feedImageUrl
         );
     }
 }

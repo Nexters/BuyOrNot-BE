@@ -59,6 +59,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/feeds", "/api/v1/feeds/", "/api/v1/feeds/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v2/feeds", "/api/v2/feeds/", "/api/v2/feeds/*").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/feeds/*/votes/guest").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/feeds/*/comments").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/feeds/*/comments/guest").permitAll()
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/feeds/*/comments/*/guest").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/feeds/*/comments/*/report").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/guest/nickname").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/feeds/guest").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/feeds/*/guest").permitAll()
@@ -87,6 +91,7 @@ public class SecurityConfig {
                 "http://localhost:3000",
                 "http://localhost:5173",
                 "https://dev.buy-or-not.com",
+                "https://dev-web.buy-or-not.com",
                 "https://buy-or-not.com",
                 "https://api.buy-or-not.com"
         ));

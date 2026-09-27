@@ -58,6 +58,9 @@ public class User extends BaseEntity {
     @Column
     private LocalDateTime lastOpenedAt;
 
+    @Column
+    private LocalDateTime nicknameUpdatedAt;
+
     @Builder
     public User(String socialId, String nickname, SocialAccount socialAccount,
             String profileImage, String email) {
@@ -80,6 +83,15 @@ public class User extends BaseEntity {
 
     public void updateProfileImage(String profileImage) {
         this.profileImage = profileImage;
+    }
+
+    /**
+     * 닉네임만 변경하며 변경 시각을 함께 기록한다 (20일 쿨다운 계산용).
+     * 프로필 이미지만 바꾸는 경우와 구분하기 위해 updateProfile과 별도로 둔다.
+     */
+    public void updateNickname(String nickname, LocalDateTime updatedAt) {
+        this.nickname = nickname;
+        this.nicknameUpdatedAt = updatedAt;
     }
 
     public void updateFcmToken(String fcmToken) {

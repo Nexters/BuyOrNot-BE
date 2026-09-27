@@ -2,6 +2,7 @@ package com.nexters.sseotdabwa.api.feeds.dto;
 
 import java.time.LocalDateTime;
 
+import com.nexters.sseotdabwa.api.comments.dto.CommentPreviewResponse;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
@@ -24,7 +25,9 @@ public record FeedResponse(
         FeedAuthorResponse author,
         LocalDateTime createdAt,
         Boolean hasVoted,
-        VoteChoice myVoteChoice
+        VoteChoice myVoteChoice,
+        Long commentCount,
+        CommentPreviewResponse latestComment
 ) {
 
     public record FeedAuthorResponse(
@@ -33,7 +36,7 @@ public record FeedResponse(
             String profileImage
     ) {}
 
-    public static FeedResponse of(Feed feed, FeedImage feedImage, String viewUrl) {
+    public static FeedResponse of(Feed feed, FeedImage feedImage, String viewUrl, Long commentCount, CommentPreviewResponse latestComment) {
         return new FeedResponse(
                 feed.getId(),
                 feed.getContent(),
@@ -50,11 +53,14 @@ public record FeedResponse(
                 buildAuthorResponse(feed),
                 feed.getCreatedAt(),
                 null,
-                null
+                null,
+                commentCount,
+                latestComment
         );
     }
 
-    public static FeedResponse of(Feed feed, FeedImage feedImage, String viewUrl, Boolean hasVoted, VoteChoice myVoteChoice) {
+    public static FeedResponse of(Feed feed, FeedImage feedImage, String viewUrl, Boolean hasVoted, VoteChoice myVoteChoice,
+                                   Long commentCount, CommentPreviewResponse latestComment) {
         return new FeedResponse(
                 feed.getId(),
                 feed.getContent(),
@@ -71,7 +77,9 @@ public record FeedResponse(
                 buildAuthorResponse(feed),
                 feed.getCreatedAt(),
                 hasVoted,
-                myVoteChoice
+                myVoteChoice,
+                commentCount,
+                latestComment
         );
     }
 

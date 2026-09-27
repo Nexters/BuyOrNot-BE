@@ -3,6 +3,7 @@ package com.nexters.sseotdabwa.api.feeds.dto;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.nexters.sseotdabwa.api.comments.dto.CommentPreviewResponse;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.entity.FeedImage;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
@@ -24,7 +25,9 @@ public record FeedResponseV2(
         Boolean hasVoted,
         VoteChoice myVoteChoice,
         String link,
-        String title
+        String title,
+        Long commentCount,
+        CommentPreviewResponse latestComment
 ) {
 
     public record ImageInfo(
@@ -40,7 +43,8 @@ public record FeedResponseV2(
             String profileImage
     ) {}
 
-    public static FeedResponseV2 of(Feed feed, List<FeedImage> feedImages, List<String> viewUrls) {
+    public static FeedResponseV2 of(Feed feed, List<FeedImage> feedImages, List<String> viewUrls,
+                                     Long commentCount, CommentPreviewResponse latestComment) {
         return new FeedResponseV2(
                 feed.getId(),
                 feed.getContent(),
@@ -56,11 +60,14 @@ public record FeedResponseV2(
                 null,
                 null,
                 feed.getLink(),
-                feed.getTitle()
+                feed.getTitle(),
+                commentCount,
+                latestComment
         );
     }
 
-    public static FeedResponseV2 of(Feed feed, List<FeedImage> feedImages, List<String> viewUrls, Boolean hasVoted, VoteChoice myVoteChoice) {
+    public static FeedResponseV2 of(Feed feed, List<FeedImage> feedImages, List<String> viewUrls, Boolean hasVoted, VoteChoice myVoteChoice,
+                                     Long commentCount, CommentPreviewResponse latestComment) {
         return new FeedResponseV2(
                 feed.getId(),
                 feed.getContent(),
@@ -76,7 +83,9 @@ public record FeedResponseV2(
                 hasVoted,
                 myVoteChoice,
                 feed.getLink(),
-                feed.getTitle()
+                feed.getTitle(),
+                commentCount,
+                latestComment
         );
     }
 

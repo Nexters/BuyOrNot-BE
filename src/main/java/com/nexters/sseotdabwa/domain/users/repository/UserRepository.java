@@ -17,6 +17,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsByNickname(String nickname);
 
+    boolean existsByNicknameIgnoreCase(String nickname);
+
     List<User> findByIdIn(List<Long> ids);
 
     /**
@@ -25,6 +27,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * - 투표를 한 번도 등록하지 않은 유저
      * - 가입한지 signupCutoff 이전인 유저만 (가입 초반은 온보딩 유도 푸시가 전담 — 중복 발송 방지)
      * - pushEnabled = true, fcmToken 존재
+     * - 닉네임 미설정(회원가입 중단) 유저 제외 — 앱을 쓸 수 없는 상태라 푸시를 보내도 무의미함
      */
     @Query("""
         SELECT u FROM User u
@@ -33,6 +36,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
           AND u.pushEnabled = true
           AND u.fcmToken IS NOT NULL
           AND TRIM(u.fcmToken) <> ''
+          AND u.nickname IS NOT NULL
           AND NOT EXISTS (
               SELECT f FROM Feed f WHERE f.user = u
           )
@@ -44,6 +48,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * - 가입일이 [rangeStart, rangeEnd) 범위에 속함 (가입 후 정확히 N일 경과)
      * - 피드를 한 번도 등록하지 않은 유저
      * - pushEnabled = true, fcmToken 존재
+     * - 닉네임 미설정(회원가입 중단) 유저 제외 — 앱을 쓸 수 없는 상태라 푸시를 보내도 무의미함
      */
     @Query("""
         SELECT u FROM User u
@@ -51,6 +56,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
           AND u.pushEnabled = true
           AND u.fcmToken IS NOT NULL
           AND TRIM(u.fcmToken) <> ''
+          AND u.nickname IS NOT NULL
           AND NOT EXISTS (
               SELECT f FROM Feed f WHERE f.user = u
           )

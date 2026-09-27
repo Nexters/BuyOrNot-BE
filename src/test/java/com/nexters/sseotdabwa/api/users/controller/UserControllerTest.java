@@ -6,6 +6,7 @@ import java.util.UUID;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.nexters.sseotdabwa.api.users.dto.FcmTokenRequest;
+import com.nexters.sseotdabwa.api.users.dto.UserProfileUpdateRequest;
 
 import com.nexters.sseotdabwa.domain.users.entity.UserBlock;
 import com.nexters.sseotdabwa.domain.users.repository.UserBlockRepository;
@@ -220,6 +221,147 @@ class UserControllerTest {
     }
 
     @Test
+    @DisplayName("프로필 수정 성공 - 닉네임 변경, 200 OK")
+    void updateProfile_success_updatesNickname() throws Exception {
+        // given
+        User user = createUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+        String newNickname = "새로운닉네임" + UUID.randomUUID().toString().substring(0, 3);
+        UserProfileUpdateRequest request = new UserProfileUpdateRequest(newNickname, null);
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/users/me/profile")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.nickname").value(newNickname));
+
+        User updated = userRepository.findById(user.getId()).orElseThrow();
+        assertThat(updated.getNickname()).isEqualTo(newNickname);
+        assertThat(updated.getNicknameUpdatedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("프로필 수정 실패 - 이미 사용 중인 닉네임 409 USER_011")
+    void updateProfile_duplicateNickname_returns409() throws Exception {
+        // given
+        String takenNickname = "먼저있는닉네임" + UUID.randomUUID().toString().substring(0, 3);
+        userRepository.save(User.builder()
+                .socialId(UUID.randomUUID().toString())
+                .nickname(takenNickname)
+                .socialAccount(SocialAccount.KAKAO)
+                .build());
+        User user = createUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+        UserProfileUpdateRequest request = new UserProfileUpdateRequest(takenNickname, null);
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/users/me/profile")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("USER_011"));
+    }
+
+    @Test
+    @DisplayName("프로필 수정 실패 - 미인증 401")
+    void updateProfile_unauthorized_returns401() throws Exception {
+        // given
+        UserProfileUpdateRequest request = new UserProfileUpdateRequest("아무닉네임", null);
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/users/me/profile")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("닉네임 미설정 유저는 화이트리스트 외 API 호출 시 403 USER_006")
+    void nicknameRequired_blocksOtherApis_returns403() throws Exception {
+        // given
+        User user = createUserWithoutNickname();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+
+        // when & then
+        mockMvc.perform(get("/api/v1/users/me/feeds")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("USER_006"));
+    }
+
+    @Test
+    @DisplayName("닉네임 미설정 유저도 화이트리스트(내 정보 조회/프로필 수정)는 통과한다")
+    void nicknameRequired_allowsWhitelistedApis() throws Exception {
+        // given
+        User user = createUserWithoutNickname();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+
+        // when & then: GET /me는 통과
+        mockMvc.perform(get("/api/v1/users/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk());
+
+        // when & then: 프로필(닉네임) 최초 설정도 통과
+        String nickname = "최초설정닉네임" + UUID.randomUUID().toString().substring(0, 3);
+        mockMvc.perform(patch("/api/v1/users/me/profile")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(new UserProfileUpdateRequest(nickname, null))))
+                .andExpect(status().isOk());
+
+        // then: 닉네임 설정 후에는 다른 API도 정상 통과
+        mockMvc.perform(get("/api/v1/users/me/feeds")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("닉네임 미설정 유저도 FCM 토큰 등록은 통과한다")
+    void nicknameRequired_allowsFcmTokenUpdate() throws Exception {
+        // given
+        User user = createUserWithoutNickname();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+        FcmTokenRequest request = new FcmTokenRequest("fcm_" + UUID.randomUUID());
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/users/fcm")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("프로필 수정 성공 - 닉네임/프로필 이미지 둘 다 DB에 반영됨")
+    void updateProfile_success_actuallyPersistsToDatabase() throws Exception {
+        // given: 응답만으로는 실제 저장 여부를 알 수 없으므로(과거 detached 엔티티 버그가 응답은 정상으로 위장했음)
+        // 반드시 DB 재조회로 검증한다. 다만 이 테스트 클래스는 @Transactional이라 필터의 조회와 이 테스트가
+        // 같은 트랜잭션/영속성 컨텍스트를 공유해 detached 상황 자체는 재현하지 못한다 — 그 케이스는
+        // UserServiceTest#updateProfile_withDetachedUser_persistsToDatabase에서 별도로 검증한다.
+        User user = createUser();
+        String accessToken = jwtTokenService.createAccessToken(user.getId());
+        String newNickname = "영속확인닉네임" + UUID.randomUUID().toString().substring(0, 3);
+        UserProfileUpdateRequest request = new UserProfileUpdateRequest(newNickname, "https://example.com/new.jpg");
+
+        // when
+        mockMvc.perform(patch("/api/v1/users/me/profile")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.nickname").value(newNickname))
+                .andExpect(jsonPath("$.data.profileImage").value("https://example.com/new.jpg"));
+
+        // then
+        User reloaded = userRepository.findById(user.getId()).orElseThrow();
+        assertThat(reloaded.getNickname()).isEqualTo(newNickname);
+        assertThat(reloaded.getProfileImage()).isEqualTo("https://example.com/new.jpg");
+    }
+
+    @Test
     @DisplayName("내가 작성한 피드 조회 성공 - 200 OK")
     void getMyFeeds_success() throws Exception {
         // given
@@ -405,6 +547,14 @@ class UserControllerTest {
         return userRepository.save(User.builder()
                 .socialId(UUID.randomUUID().toString())
                 .nickname("테스트_" + UUID.randomUUID().toString().substring(0, 8))
+                .socialAccount(SocialAccount.KAKAO)
+                .build());
+    }
+
+    private User createUserWithoutNickname() {
+        return userRepository.save(User.builder()
+                .socialId(UUID.randomUUID().toString())
+                .nickname(null)
                 .socialAccount(SocialAccount.KAKAO)
                 .build());
     }
