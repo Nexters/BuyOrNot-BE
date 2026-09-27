@@ -100,22 +100,26 @@ public class UserService {
      * - 닉네임 미설정(null) 상태에서 최초로 설정하는 경우 쿨다운 없이 통과
      * - 이미 닉네임이 있는 상태에서 값이 그대로면(대소문자 무관) 아무 것도 하지 않고 통과(no-op)
      * - 실제로 값이 바뀌는 경우에만 검증(형식 → 쿨다운 → 중복 → 금칙어 순) 후 nicknameUpdatedAt 갱신
+     * - 파라미터로 받은 user는 JwtAuthenticationFilter가 별도 트랜잭션에서 조회해 넘긴 detached 엔티티라
+     *   변경 감지(dirty checking)가 동작하지 않는다 — 이 트랜잭션 안에서 managed 엔티티를 다시 조회해서 수정한다.
      */
     @Transactional
-    public void updateProfile(User user, String nickname, String profileImage) {
+    public User updateProfile(User user, String nickname, String profileImage) {
+        User managed = findById(user.getId());
         if (nickname != null) {
             String trimmed = nickname.trim();
-            if (!trimmed.equalsIgnoreCase(user.getNickname())) {
+            if (!trimmed.equalsIgnoreCase(managed.getNickname())) {
                 nicknameValidator.validateFormat(trimmed);
-                validateNicknameChangeCooldown(user);
+                validateNicknameChangeCooldown(managed);
                 validateNicknameNotDuplicate(trimmed);
                 nicknameValidator.validateNotForbidden(trimmed);
-                user.updateNickname(trimmed, LocalDateTime.now());
+                managed.updateNickname(trimmed, LocalDateTime.now());
             }
         }
         if (profileImage != null) {
-            user.updateProfileImage(profileImage);
+            managed.updateProfileImage(profileImage);
         }
+        return managed;
     }
 
     private void validateNicknameChangeCooldown(User user) {
@@ -133,10 +137,12 @@ public class UserService {
 
     /**
      * 사용자 프로필 이미지만 업데이트 (닉네임은 유지)
+     * - updateProfile과 마찬가지로 detached 엔티티를 직접 수정하면 저장되지 않으므로 managed 엔티티를 다시 조회한다.
      */
     @Transactional
     public void updateProfileImage(User user, String profileImage) {
-        user.updateProfileImage(profileImage);
+        User managed = findById(user.getId());
+        managed.updateProfileImage(profileImage);
     }
 
     /**

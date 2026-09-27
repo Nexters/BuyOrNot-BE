@@ -74,8 +74,8 @@ public class UserFacade {
      */
     @Transactional
     public UserResponse updateProfile(User user, UserProfileUpdateRequest request) {
-        userService.updateProfile(user, request.nickname(), request.profileImage());
-        return UserResponse.from(user);
+        User updated = userService.updateProfile(user, request.nickname(), request.profileImage());
+        return UserResponse.from(updated);
     }
 
     /**
