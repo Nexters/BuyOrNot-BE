@@ -26,11 +26,12 @@ public enum UserErrorCode implements ErrorCode {
     NICKNAME_REQUIRED(HttpStatus.FORBIDDEN, "USER_006", "닉네임을 먼저 설정해주세요."),
     NICKNAME_SPECIAL_CHARACTER(HttpStatus.BAD_REQUEST, "USER_007", "특수문자는 사용할 수 없어요."),
     NICKNAME_WHITESPACE(HttpStatus.BAD_REQUEST, "USER_008", "띄어쓰기는 사용할 수 없어요."),
-    NICKNAME_LENGTH_INVALID(HttpStatus.BAD_REQUEST, "USER_009", "최소 3자 이상 입력해주세요."),
+    NICKNAME_TOO_SHORT(HttpStatus.BAD_REQUEST, "USER_009", "최소 3자 이상 입력해주세요."),
     NICKNAME_INVALID_COMPOSITION(HttpStatus.BAD_REQUEST, "USER_010", "한글, 영문, 숫자를 조합해 입력해주세요."),
     NICKNAME_DUPLICATE(HttpStatus.CONFLICT, "USER_011", "이미 사용 중인 닉네임이에요."),
     NICKNAME_FORBIDDEN_WORD(HttpStatus.BAD_REQUEST, "USER_012", "사용할 수 없는 닉네임이에요."),
-    NICKNAME_CHANGE_COOLDOWN(HttpStatus.BAD_REQUEST, "USER_013", "닉네임은 20일마다 한 번만 변경할 수 있어요.");
+    NICKNAME_CHANGE_COOLDOWN(HttpStatus.BAD_REQUEST, "USER_013", "닉네임은 20일마다 한 번만 변경할 수 있어요."),
+    NICKNAME_TOO_LONG(HttpStatus.BAD_REQUEST, "USER_014", "최대 10자까지 입력할 수 있어요.");
 
     private final HttpStatus httpStatus;
     private final String code;
