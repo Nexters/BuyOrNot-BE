@@ -15,11 +15,11 @@ public record CommentResponse(
         Long id,
         @Schema(description = "작성자 유형. MEMBER(회원) 또는 GUEST(게스트)")
         String authorType,
-        @Schema(description = "작성 시점 닉네임 스냅샷. 회원 닉네임이 나중에 바뀌어도 과거 댓글 표시는 바뀌지 않는다. 삭제된 댓글이면 null")
+        @Schema(description = "작성 시점 닉네임 스냅샷. 회원 닉네임이 나중에 바뀌어도 과거 댓글 표시는 바뀌지 않는다.")
         String nickname,
-        @Schema(description = "작성자 프로필 이미지 URL. 게스트는 작성 시점에 랜덤 배정되어 고정된다. 삭제된 댓글이면 null")
+        @Schema(description = "작성자 프로필 이미지 URL. 게스트는 작성 시점에 랜덤 배정되어 고정된다.")
         String profileImage,
-        @Schema(description = "댓글 내용. 삭제된 댓글이면 null")
+        @Schema(description = "댓글 내용.")
         String content,
         @Schema(
                 description = "이 댓글을 지금 조회 중인 회원 본인이 작성했는지 (삭제 버튼 노출 판단용). 게스트로 조회하거나 "
@@ -38,11 +38,6 @@ public record CommentResponse(
         VoteChoice voteChoice,
         @Schema(description = "작성 시각")
         LocalDateTime createdAt,
-        @Schema(
-                description = "답글이 남아있는 상태에서 삭제된 원댓글인지. true면 \"삭제된 댓글입니다\"로 표시하고 "
-                        + "nickname/profileImage/content/voteChoice는 null, isMine/isAuthor/isLiked는 false, likeCount는 0으로 내려간다."
-        )
-        boolean isDeleted,
         @Schema(description = "공감 수 (0이면 \"공감\" 텍스트, 99 초과 표기는 FE)")
         long likeCount,
         @Schema(description = "지금 조회 중인 회원이 공감했는지. 비로그인이면 항상 false")
@@ -59,14 +54,6 @@ public record CommentResponse(
                                      long likeCount, boolean isLiked, long replyCount, List<CommentReplyResponse> replies) {
         String authorType = comment.isGuestComment() ? "GUEST" : "MEMBER";
 
-        if (comment.isDeleted()) {
-            return new CommentResponse(
-                    comment.getId(), authorType, null, null, null,
-                    false, false, null, comment.getCreatedAt(),
-                    true, 0L, false, replyCount, replies
-            );
-        }
-
         boolean isMine = !comment.isGuestComment()
                 && currentUser != null
                 && comment.getUser().getId().equals(currentUser.getId());
@@ -82,7 +69,6 @@ public record CommentResponse(
                 isAuthor,
                 isAuthor ? null : voteChoice,
                 comment.getCreatedAt(),
-                false,
                 likeCount,
                 isLiked,
                 replyCount,

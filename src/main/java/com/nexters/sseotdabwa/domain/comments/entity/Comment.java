@@ -1,7 +1,5 @@
 package com.nexters.sseotdabwa.domain.comments.entity;
 
-import java.time.LocalDateTime;
-
 import com.nexters.sseotdabwa.common.entity.BaseEntity;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus;
@@ -82,13 +80,6 @@ public class Comment extends BaseEntity {
     @Column(name = "report_status", nullable = false)
     private ReportStatus reportStatus;
 
-    /**
-     * 답글이 남아있는 원댓글을 삭제했을 때만 채워진다(soft delete, "삭제된 댓글입니다" 표시용).
-     * 답글이 없는 원댓글과 답글은 hard delete되므로 항상 null.
-     */
-    @Column(name = "deleted_at")
-    private LocalDateTime deletedAt;
-
     @Builder
     public Comment(Feed feed, User user, Comment parent, String guestNickname, String guestPasswordHash,
                    String guestProfileImage, String displayNickname, String content) {
@@ -128,13 +119,5 @@ public class Comment extends BaseEntity {
 
     public boolean isReply() {
         return this.parent != null;
-    }
-
-    public boolean isDeleted() {
-        return this.deletedAt != null;
-    }
-
-    public void softDelete() {
-        this.deletedAt = LocalDateTime.now();
     }
 }

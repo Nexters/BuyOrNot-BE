@@ -25,18 +25,13 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     Optional<Comment> findByIdWithLock(@Param("commentId") Long commentId);
 
     /**
-     * 원댓글 목록 (등록순). 답글은 제외하고, soft delete된 원댓글은 보이는 답글이 남아있을 때만 포함한다.
+     * 원댓글 목록 (등록순). 답글과 신고된 원댓글은 제외한다.
      */
     @Query("""
         SELECT c FROM Comment c
         WHERE c.feed.id = :feedId
           AND c.parent IS NULL
           AND c.reportStatus <> com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.REPORTED
-          AND (c.deletedAt IS NULL OR EXISTS (
-              SELECT 1 FROM Comment r
-              WHERE r.parent = c
-                AND r.reportStatus <> com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.REPORTED
-          ))
           AND (:cursorId IS NULL OR c.id > :cursorId)
         ORDER BY c.id ASC
     """)
@@ -53,11 +48,6 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
         WHERE c.feed.id = :feedId
           AND c.parent IS NULL
           AND c.reportStatus <> com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.REPORTED
-          AND (c.deletedAt IS NULL OR EXISTS (
-              SELECT 1 FROM Comment r
-              WHERE r.parent = c
-                AND r.reportStatus <> com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.REPORTED
-          ))
           AND (:cursorId IS NULL OR c.id < :cursorId)
         ORDER BY c.id DESC
     """)
@@ -110,7 +100,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
 
     /**
      * 피드별 댓글 수 — 원댓글 + 답글 (row: [feedId, count])
-     * - 제외: 신고된 댓글/답글, soft delete된 원댓글, 신고된 원댓글 밑의 답글(목록에 보이지 않으므로)
+     * - 제외: 신고된 댓글/답글, 신고된 원댓글 밑의 답글(목록에 보이지 않으므로)
      */
     @Query("""
         SELECT c.feed.id, COUNT(c)
@@ -118,7 +108,6 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
         LEFT JOIN c.parent p
         WHERE c.feed.id IN :feedIds
           AND c.reportStatus <> com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.REPORTED
-          AND c.deletedAt IS NULL
           AND (p IS NULL OR p.reportStatus <> com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.REPORTED)
         GROUP BY c.feed.id
     """)
@@ -126,7 +115,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
 
     /**
      * 피드별 가장 최근 원댓글 id — 피드 목록의 latestComment 미리보기용 (row: [feedId, commentId])
-     * - 답글은 맥락 없이 미리보기에 뜨지 않도록 제외, 삭제/신고된 원댓글도 제외
+     * - 답글은 맥락 없이 미리보기에 뜨지 않도록 제외, 신고된 원댓글도 제외
      */
     @Query("""
         SELECT c.feed.id, MAX(c.id)
@@ -134,7 +123,6 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
         WHERE c.feed.id IN :feedIds
           AND c.parent IS NULL
           AND c.reportStatus <> com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.REPORTED
-          AND c.deletedAt IS NULL
         GROUP BY c.feed.id
     """)
     List<Object[]> findLatestRootCommentIdsByFeedIds(@Param("feedIds") List<Long> feedIds);

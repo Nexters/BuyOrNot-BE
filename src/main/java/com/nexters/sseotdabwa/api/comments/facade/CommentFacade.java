@@ -77,7 +77,7 @@ public class CommentFacade {
 
     /**
      * 회원 답글 작성
-     * - 원댓글에만 달 수 있고(답글에 답글 불가), 신고/삭제된 원댓글에는 달 수 없다
+     * - 원댓글에만 달 수 있고(답글에 답글 불가), 신고된 원댓글에는 달 수 없다
      * - 요청 빈도 제한/금칙어는 원댓글과 같은 카운터를 공유한다
      * - 커밋 후 답글 알림(푸시/이메일)이 비동기로 발송된다
      */
@@ -96,7 +96,7 @@ public class CommentFacade {
     /**
      * 게스트 답글 작성
      * - 검증/저장 방식은 게스트 원댓글과 동일 (IP·디바이스 기준 빈도 제한, 금칙어, 피드 내 닉네임 중복 재발급, 비밀번호 해시 저장)
-     * - 부모 조건은 회원 답글과 동일 (원댓글에만, 신고/삭제된 원댓글 불가)
+     * - 부모 조건은 회원 답글과 동일 (원댓글에만, 신고된 원댓글 불가)
      * - 삭제는 게스트 댓글 삭제 API(비밀번호 확인)로 한다
      */
     @Transactional
@@ -142,7 +142,7 @@ public class CommentFacade {
     }
 
     /**
-     * 회원 댓글/답글 삭제 (본인 소유만). 답글이 남아있는 원댓글은 "삭제된 댓글"로 남는다.
+     * 회원 댓글/답글 삭제 (본인 소유만). 원댓글을 지우면 답글까지 함께 삭제된다.
      */
     @Transactional
     public void deleteComment(User user, Long commentId) {
@@ -154,7 +154,7 @@ public class CommentFacade {
     }
 
     /**
-     * 게스트 댓글 삭제 (비밀번호 일치 시에만). 답글이 남아있으면 "삭제된 댓글"로 남는다.
+     * 게스트 댓글 삭제 (비밀번호 일치 시에만). 원댓글을 지우면 답글까지 함께 삭제된다.
      */
     @Transactional
     public void deleteGuestComment(Long commentId, CommentGuestDeleteRequest request) {
@@ -176,9 +176,6 @@ public class CommentFacade {
     @Transactional
     public void reportComment(User user, Long commentId) {
         Comment comment = commentService.findById(commentId);
-        if (comment.isDeleted()) {
-            throw new GlobalException(CommentErrorCode.COMMENT_NOT_FOUND);
-        }
         if (user != null && comment.isOwner(user)) {
             throw new GlobalException(CommentErrorCode.COMMENT_SELF_REPORT);
         }
@@ -195,7 +192,7 @@ public class CommentFacade {
     @Transactional
     public CommentLikeResponse likeComment(User user, Long feedId, Long commentId) {
         Comment comment = findLikeTargetWithLock(feedId, commentId);
-        if (comment.isReported() || comment.isDeleted()) {
+        if (comment.isReported()) {
             throw new GlobalException(CommentErrorCode.COMMENT_LIKE_UNAVAILABLE);
         }
         commentLikeService.like(comment, user);
@@ -311,7 +308,6 @@ public class CommentFacade {
 
     /**
      * 답글 페이지 대상 원댓글 조회 — 답글이거나, 신고됐거나, 다른 피드 소속이면 404
-     * (soft delete된 원댓글은 "삭제된 댓글"로 보여줘야 하므로 허용)
      */
     private Comment findVisibleRoot(Long feedId, Long commentId) {
         Comment comment = commentService.findById(commentId);
@@ -322,7 +318,7 @@ public class CommentFacade {
     }
 
     /**
-     * 답글을 달 수 있는 원댓글 조회 — 다른 피드 소속이면 404, 답글이면 COMMENT_013, 신고/삭제됐으면 COMMENT_014
+     * 답글을 달 수 있는 원댓글 조회 — 다른 피드 소속이면 404, 답글이면 COMMENT_013, 신고됐으면 COMMENT_014
      */
     private Comment findReplyableParent(Long feedId, Long commentId) {
         Comment parent = commentService.findById(commentId);
@@ -330,7 +326,7 @@ public class CommentFacade {
         if (parent.isReply()) {
             throw new GlobalException(CommentErrorCode.COMMENT_REPLY_TO_REPLY);
         }
-        if (parent.isReported() || parent.isDeleted()) {
+        if (parent.isReported()) {
             throw new GlobalException(CommentErrorCode.COMMENT_INVALID_PARENT);
         }
         return parent;
