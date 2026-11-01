@@ -8,6 +8,7 @@ import com.nexters.sseotdabwa.api.feeds.dto.FeedResponseV2;
 import com.nexters.sseotdabwa.api.feeds.facade.FeedFacade;
 import com.nexters.sseotdabwa.common.response.ApiResponse;
 import com.nexters.sseotdabwa.common.response.CursorPageResponse;
+import com.nexters.sseotdabwa.common.response.StringCursorPageResponse;
 import com.nexters.sseotdabwa.common.security.CurrentUser;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus;
@@ -46,6 +47,18 @@ public class FeedControllerV2 implements FeedControllerSpecV2 {
             @RequestParam(name = "category", required = false) List<FeedCategory> categories
     ) {
         CursorPageResponse<FeedResponseV2> response = feedFacade.getFeedListV2(user, cursor, size, feedStatus, categories);
+        return ApiResponse.success(response, HttpStatus.OK);
+    }
+
+    @Override
+    @GetMapping("/hot")
+    public ApiResponse<StringCursorPageResponse<FeedResponseV2>> getHotFeedList(
+            @CurrentUser User user,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(name = "category", required = false) List<FeedCategory> categories
+    ) {
+        StringCursorPageResponse<FeedResponseV2> response = feedFacade.getHotFeedListV2(user, cursor, size, categories);
         return ApiResponse.success(response, HttpStatus.OK);
     }
 
