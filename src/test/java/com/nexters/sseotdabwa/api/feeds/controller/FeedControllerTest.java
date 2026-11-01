@@ -1408,6 +1408,91 @@ class FeedControllerTest {
                 .andExpect(jsonPath("$.errorCode").value("FEED_003"));
     }
 
+    // ===== 핫플 투표 / voteClosedAt =====
+
+    @Test
+    @DisplayName("[V1] 핫플 목록 - 비로그인 200, /hot이 상세 조회로 매핑되지 않음, voteClosedAt 포함")
+    void getHotFeedList_v1_noAuth_success() throws Exception {
+        createFeedWithImage(createUser());
+
+        mockMvc.perform(get("/api/v1/feeds/hot").param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content").isArray())
+                .andExpect(jsonPath("$.data.content[0].voteClosedAt").exists())
+                .andExpect(jsonPath("$.data.content[0].totalCount").exists())
+                .andExpect(jsonPath("$.data.hasNext").exists());
+    }
+
+    @Test
+    @DisplayName("[V2] 핫플 목록 - 비로그인 200, /hot이 상세 조회로 매핑되지 않음, voteClosedAt 포함")
+    void getHotFeedList_v2_noAuth_success() throws Exception {
+        createFeedWithImage(createUser());
+
+        mockMvc.perform(get("/api/v2/feeds/hot").param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content").isArray())
+                .andExpect(jsonPath("$.data.content[0].voteClosedAt").exists())
+                .andExpect(jsonPath("$.data.content[0].images").isArray());
+    }
+
+    @Test
+    @DisplayName("[V1] 핫플 목록 - 다음 페이지가 있으면 nextCursor는 \"{투표수}_{feedId}\" 문자열")
+    void getHotFeedList_v1_nextCursorFormat() throws Exception {
+        User user = createUser();
+        createFeedWithImage(user);
+        createFeedWithImage(user);
+
+        mockMvc.perform(get("/api/v1/feeds/hot").param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.hasNext").value(true))
+                .andExpect(jsonPath("$.data.nextCursor").value(org.hamcrest.Matchers.matchesPattern("\\d+_\\d+")));
+    }
+
+    @Test
+    @DisplayName("[V1/V2] 핫플 목록 - 잘못된 커서면 400 FEED_013")
+    void getHotFeedList_invalidCursor_400() throws Exception {
+        mockMvc.perform(get("/api/v1/feeds/hot").param("cursor", "abc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("FEED_013"));
+
+        mockMvc.perform(get("/api/v2/feeds/hot").param("cursor", "1_2_3"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("FEED_013"));
+    }
+
+    @Test
+    @DisplayName("[V1] 핫플 목록 - 로그인 시 투표 여부 포함")
+    void getHotFeedList_v1_withAuth_hasVoted() throws Exception {
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+        Feed feed = createFeedWithImage(createUser());
+        for (int i = 0; i < 100_000; i++) feed.incrementYes(); // 공유 DB에서도 맨 앞에 오도록
+        feedRepository.saveAndFlush(feed);
+        voteLogRepository.save(VoteLog.builder().feed(feed).user(user).choice(VoteChoice.YES).voteType(VoteType.USER).build());
+
+        mockMvc.perform(get("/api/v1/feeds/hot").param("size", "1")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].feedId").value(feed.getId()))
+                .andExpect(jsonPath("$.data.content[0].hasVoted").value(true))
+                .andExpect(jsonPath("$.data.content[0].myVoteChoice").value("YES"));
+    }
+
+    @Test
+    @DisplayName("[V1/V2] 피드 상세 - voteClosedAt = createdAt + 48시간")
+    void getFeedDetail_voteClosedAt() throws Exception {
+        Feed feed = createFeedWithImage(createUser());
+        String expected = feed.getVoteClosedAt().toString().substring(0, 16); // yyyy-MM-ddTHH:mm 까지 비교
+
+        mockMvc.perform(get("/api/v1/feeds/" + feed.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.voteClosedAt").value(org.hamcrest.Matchers.startsWith(expected)));
+
+        mockMvc.perform(get("/api/v2/feeds/" + feed.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.voteClosedAt").value(org.hamcrest.Matchers.startsWith(expected)));
+    }
+
     // ===== Helper Methods =====
 
     private User createUser() {

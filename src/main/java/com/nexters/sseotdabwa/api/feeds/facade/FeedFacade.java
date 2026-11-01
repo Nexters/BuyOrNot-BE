@@ -17,6 +17,7 @@ import com.nexters.sseotdabwa.api.feeds.dto.FeedResponseV2;
 import com.nexters.sseotdabwa.common.config.AwsProperties;
 import com.nexters.sseotdabwa.common.exception.GlobalException;
 import com.nexters.sseotdabwa.common.response.CursorPageResponse;
+import com.nexters.sseotdabwa.common.response.StringCursorPageResponse;
 import com.nexters.sseotdabwa.domain.comments.service.CommentAggregate;
 import com.nexters.sseotdabwa.domain.comments.service.CommentService;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
@@ -27,6 +28,7 @@ import com.nexters.sseotdabwa.domain.feeds.exception.FeedErrorCode;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedImageService;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedReviewService;
 import com.nexters.sseotdabwa.domain.feeds.service.FeedService;
+import com.nexters.sseotdabwa.domain.feeds.service.HotFeedCursor;
 import com.nexters.sseotdabwa.domain.feeds.service.command.FeedCreateCommand;
 import com.nexters.sseotdabwa.domain.feeds.service.command.FeedImageCreateInfo;
 import com.nexters.sseotdabwa.domain.notifications.service.NotificationService;
@@ -127,7 +129,7 @@ public class FeedFacade {
      */
     @Transactional(readOnly = true)
     public CursorPageResponse<FeedResponse> getFeedList(User user, Long cursor, Integer size, FeedStatus feedStatus, List<FeedCategory> categories) {
-        int pageSize = (size == null) ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
+        int pageSize = resolvePageSize(size);
 
         List<Long> excludedUserIds = (user != null)
                 ? userBlockService.findBlockedUserIds(user.getId())
@@ -138,44 +140,7 @@ public class FeedFacade {
         boolean hasNext = feeds.size() > pageSize;
         List<Feed> slicedFeeds = hasNext ? feeds.subList(0, pageSize) : feeds;
 
-        List<Long> feedIds = slicedFeeds.stream().map(Feed::getId).toList();
-        List<FeedImage> images = feedImageService.findByFeedIds(feedIds);
-
-        // 피드당 id 오름차순 첫 번째 이미지만 유지
-        Map<Long, FeedImage> firstImageMap = images.stream()
-                .collect(Collectors.toMap(
-                        fi -> fi.getFeed().getId(),
-                        fi -> fi,
-                        (a, b) -> a
-                ));
-
-        Map<Long, CommentAggregate> aggregates = commentService.aggregateByFeedIds(feedIds);
-        Map<Long, CommentPreviewResponse> previews = commentPreviewAssembler.build(feedIds, aggregates);
-
-        List<FeedResponse> content;
-        if (user == null || slicedFeeds.isEmpty()) {
-            content = slicedFeeds.stream()
-                    .map(feed -> {
-                        FeedImage img = firstImageMap.get(feed.getId());
-                        Long commentCount = aggregates.getOrDefault(feed.getId(), EMPTY_COMMENT_AGGREGATE).commentCount();
-                        return FeedResponse.of(feed, img, buildViewUrl(img), commentCount, previews.get(feed.getId()));
-                    })
-                    .toList();
-        } else {
-            Map<Long, VoteChoice> voteMap = voteLogService.findByUserIdAndFeedIds(user.getId(), feedIds)
-                    .stream()
-                    .collect(Collectors.toMap(vl -> vl.getFeed().getId(), vl -> vl.getChoice()));
-
-            content = slicedFeeds.stream()
-                    .map(feed -> {
-                        FeedImage img = firstImageMap.get(feed.getId());
-                        VoteChoice myChoice = voteMap.get(feed.getId());
-                        boolean hasVoted = myChoice != null;
-                        Long commentCount = aggregates.getOrDefault(feed.getId(), EMPTY_COMMENT_AGGREGATE).commentCount();
-                        return FeedResponse.of(feed, img, buildViewUrl(img), hasVoted, myChoice, commentCount, previews.get(feed.getId()));
-                    })
-                    .toList();
-        }
+        List<FeedResponse> content = toFeedResponses(user, slicedFeeds);
 
         Long nextCursor = hasNext ? slicedFeeds.get(slicedFeeds.size() - 1).getId() : null;
         return CursorPageResponse.of(content, nextCursor, hasNext);
@@ -274,7 +239,7 @@ public class FeedFacade {
      */
     @Transactional(readOnly = true)
     public CursorPageResponse<FeedResponseV2> getFeedListV2(User user, Long cursor, Integer size, FeedStatus feedStatus, List<FeedCategory> categories) {
-        int pageSize = (size == null) ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
+        int pageSize = resolvePageSize(size);
 
         List<Long> excludedUserIds = (user != null)
                 ? userBlockService.findBlockedUserIds(user.getId())
@@ -285,42 +250,54 @@ public class FeedFacade {
         boolean hasNext = feeds.size() > pageSize;
         List<Feed> slicedFeeds = hasNext ? feeds.subList(0, pageSize) : feeds;
 
-        List<Long> feedIds = slicedFeeds.stream().map(Feed::getId).toList();
-        List<FeedImage> images = feedImageService.findByFeedIds(feedIds);
-
-        Map<Long, List<FeedImage>> imageMap = images.stream()
-                .collect(Collectors.groupingBy(fi -> fi.getFeed().getId()));
-
-        Map<Long, CommentAggregate> aggregates = commentService.aggregateByFeedIds(feedIds);
-        Map<Long, CommentPreviewResponse> previews = commentPreviewAssembler.build(feedIds, aggregates);
-
-        List<FeedResponseV2> content;
-        if (user == null || slicedFeeds.isEmpty()) {
-            content = slicedFeeds.stream()
-                    .map(feed -> {
-                        List<FeedImage> imgs = imageMap.getOrDefault(feed.getId(), List.of());
-                        Long commentCount = aggregates.getOrDefault(feed.getId(), EMPTY_COMMENT_AGGREGATE).commentCount();
-                        return FeedResponseV2.of(feed, imgs, buildViewUrls(imgs), commentCount, previews.get(feed.getId()));
-                    })
-                    .toList();
-        } else {
-            Map<Long, VoteChoice> voteMap = voteLogService.findByUserIdAndFeedIds(user.getId(), feedIds)
-                    .stream()
-                    .collect(Collectors.toMap(vl -> vl.getFeed().getId(), vl -> vl.getChoice()));
-
-            content = slicedFeeds.stream()
-                    .map(feed -> {
-                        List<FeedImage> imgs = imageMap.getOrDefault(feed.getId(), List.of());
-                        VoteChoice myChoice = voteMap.get(feed.getId());
-                        boolean hasVoted = myChoice != null;
-                        Long commentCount = aggregates.getOrDefault(feed.getId(), EMPTY_COMMENT_AGGREGATE).commentCount();
-                        return FeedResponseV2.of(feed, imgs, buildViewUrls(imgs), hasVoted, myChoice, commentCount, previews.get(feed.getId()));
-                    })
-                    .toList();
-        }
+        List<FeedResponseV2> content = toFeedResponsesV2(user, slicedFeeds);
 
         Long nextCursor = hasNext ? slicedFeeds.get(slicedFeeds.size() - 1).getId() : null;
         return CursorPageResponse.of(content, nextCursor, hasNext);
+    }
+
+    // ========================
+    // 핫플 투표 (V1/V2)
+    // ========================
+
+    /**
+     * 핫플 투표 리스트 조회 (V1: 진행중 + 투표 수 많은 순, 복합 커서 "{투표수}_{feedId}")
+     */
+    @Transactional(readOnly = true)
+    public StringCursorPageResponse<FeedResponse> getHotFeedList(User user, String cursor, Integer size, List<FeedCategory> categories) {
+        int pageSize = resolvePageSize(size);
+        List<Feed> feeds = findHotFeeds(user, cursor, pageSize, categories);
+
+        boolean hasNext = feeds.size() > pageSize;
+        List<Feed> slicedFeeds = hasNext ? feeds.subList(0, pageSize) : feeds;
+
+        return StringCursorPageResponse.of(toFeedResponses(user, slicedFeeds), hotNextCursor(slicedFeeds, hasNext), hasNext);
+    }
+
+    /**
+     * 핫플 투표 리스트 조회 (V2: 다중 이미지, 진행중 + 투표 수 많은 순, 복합 커서 "{투표수}_{feedId}")
+     */
+    @Transactional(readOnly = true)
+    public StringCursorPageResponse<FeedResponseV2> getHotFeedListV2(User user, String cursor, Integer size, List<FeedCategory> categories) {
+        int pageSize = resolvePageSize(size);
+        List<Feed> feeds = findHotFeeds(user, cursor, pageSize, categories);
+
+        boolean hasNext = feeds.size() > pageSize;
+        List<Feed> slicedFeeds = hasNext ? feeds.subList(0, pageSize) : feeds;
+
+        return StringCursorPageResponse.of(toFeedResponsesV2(user, slicedFeeds), hotNextCursor(slicedFeeds, hasNext), hasNext);
+    }
+
+    private List<Feed> findHotFeeds(User user, String cursor, int pageSize, List<FeedCategory> categories) {
+        HotFeedCursor hotCursor = HotFeedCursor.parse(cursor);
+        List<Long> excludedUserIds = (user != null)
+                ? userBlockService.findBlockedUserIds(user.getId())
+                : Collections.emptyList();
+        return feedService.findHotFeedsWithCursor(hotCursor, pageSize, categories, excludedUserIds);
+    }
+
+    private String hotNextCursor(List<Feed> slicedFeeds, boolean hasNext) {
+        return hasNext ? HotFeedCursor.from(slicedFeeds.get(slicedFeeds.size() - 1)).encode() : null;
     }
 
     // ========================
@@ -394,6 +371,95 @@ public class FeedFacade {
             throw new GlobalException(FeedErrorCode.FEED_ALREADY_REPORTED);
         }
         feedService.report(feed);
+    }
+
+    /**
+     * V1 피드 응답 배치 조립 (첫 번째 이미지, 댓글 집계/미리보기, 로그인 시 투표 여부) - 피드 리스트/핫플 공용
+     */
+    private List<FeedResponse> toFeedResponses(User user, List<Feed> feeds) {
+        List<Long> feedIds = feeds.stream().map(Feed::getId).toList();
+        List<FeedImage> images = feedImageService.findByFeedIds(feedIds);
+
+        // 피드당 id 오름차순 첫 번째 이미지만 유지
+        Map<Long, FeedImage> firstImageMap = images.stream()
+                .collect(Collectors.toMap(
+                        fi -> fi.getFeed().getId(),
+                        fi -> fi,
+                        (a, b) -> a
+                ));
+
+        Map<Long, CommentAggregate> aggregates = commentService.aggregateByFeedIds(feedIds);
+        Map<Long, CommentPreviewResponse> previews = commentPreviewAssembler.build(feedIds, aggregates);
+
+        List<FeedResponse> content;
+        if (user == null || feeds.isEmpty()) {
+            content = feeds.stream()
+                    .map(feed -> {
+                        FeedImage img = firstImageMap.get(feed.getId());
+                        Long commentCount = aggregates.getOrDefault(feed.getId(), EMPTY_COMMENT_AGGREGATE).commentCount();
+                        return FeedResponse.of(feed, img, buildViewUrl(img), commentCount, previews.get(feed.getId()));
+                    })
+                    .toList();
+        } else {
+            Map<Long, VoteChoice> voteMap = voteLogService.findByUserIdAndFeedIds(user.getId(), feedIds)
+                    .stream()
+                    .collect(Collectors.toMap(vl -> vl.getFeed().getId(), vl -> vl.getChoice()));
+
+            content = feeds.stream()
+                    .map(feed -> {
+                        FeedImage img = firstImageMap.get(feed.getId());
+                        VoteChoice myChoice = voteMap.get(feed.getId());
+                        boolean hasVoted = myChoice != null;
+                        Long commentCount = aggregates.getOrDefault(feed.getId(), EMPTY_COMMENT_AGGREGATE).commentCount();
+                        return FeedResponse.of(feed, img, buildViewUrl(img), hasVoted, myChoice, commentCount, previews.get(feed.getId()));
+                    })
+                    .toList();
+        }
+        return content;
+    }
+
+    /**
+     * V2 피드 응답 배치 조립 (다중 이미지, 댓글 집계/미리보기, 로그인 시 투표 여부) - 피드 리스트/핫플 공용
+     */
+    private List<FeedResponseV2> toFeedResponsesV2(User user, List<Feed> feeds) {
+        List<Long> feedIds = feeds.stream().map(Feed::getId).toList();
+        List<FeedImage> images = feedImageService.findByFeedIds(feedIds);
+
+        Map<Long, List<FeedImage>> imageMap = images.stream()
+                .collect(Collectors.groupingBy(fi -> fi.getFeed().getId()));
+
+        Map<Long, CommentAggregate> aggregates = commentService.aggregateByFeedIds(feedIds);
+        Map<Long, CommentPreviewResponse> previews = commentPreviewAssembler.build(feedIds, aggregates);
+
+        List<FeedResponseV2> content;
+        if (user == null || feeds.isEmpty()) {
+            content = feeds.stream()
+                    .map(feed -> {
+                        List<FeedImage> imgs = imageMap.getOrDefault(feed.getId(), List.of());
+                        Long commentCount = aggregates.getOrDefault(feed.getId(), EMPTY_COMMENT_AGGREGATE).commentCount();
+                        return FeedResponseV2.of(feed, imgs, buildViewUrls(imgs), commentCount, previews.get(feed.getId()));
+                    })
+                    .toList();
+        } else {
+            Map<Long, VoteChoice> voteMap = voteLogService.findByUserIdAndFeedIds(user.getId(), feedIds)
+                    .stream()
+                    .collect(Collectors.toMap(vl -> vl.getFeed().getId(), vl -> vl.getChoice()));
+
+            content = feeds.stream()
+                    .map(feed -> {
+                        List<FeedImage> imgs = imageMap.getOrDefault(feed.getId(), List.of());
+                        VoteChoice myChoice = voteMap.get(feed.getId());
+                        boolean hasVoted = myChoice != null;
+                        Long commentCount = aggregates.getOrDefault(feed.getId(), EMPTY_COMMENT_AGGREGATE).commentCount();
+                        return FeedResponseV2.of(feed, imgs, buildViewUrls(imgs), hasVoted, myChoice, commentCount, previews.get(feed.getId()));
+                    })
+                    .toList();
+        }
+        return content;
+    }
+
+    private int resolvePageSize(Integer size) {
+        return (size == null) ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
     }
 
     private String buildViewUrl(FeedImage image) {
