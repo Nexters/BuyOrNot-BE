@@ -126,17 +126,18 @@ class CommentReplyFacadeTest {
     }
 
     @Test
-    @DisplayName("삭제된(soft delete) 원댓글에 답글 작성 시 COMMENT_014 에러")
-    void createReply_toDeletedRoot_throwsComment014() {
+    @DisplayName("삭제된 원댓글에 답글 작성 시 COMMENT_004 에러 (원댓글이 답글과 함께 삭제됨)")
+    void createReply_toDeletedRoot_throwsComment004() {
         Feed feed = createFeed(createUser());
         User commenter = createUser();
         Long rootId = comment(commenter, feed, "원댓글");
         reply(createUser(), feed, rootId, "답글");
         commentFacade.deleteComment(commenter, rootId);
+        entityManager.flush();
 
         assertThatThrownBy(() -> commentFacade.createReply(createUser(), feed.getId(), rootId, new CommentCreateRequest("답글")))
                 .isInstanceOf(GlobalException.class)
-                .hasMessage(CommentErrorCode.COMMENT_INVALID_PARENT.getMessage());
+                .hasMessage(CommentErrorCode.COMMENT_NOT_FOUND.getMessage());
     }
 
     @Test
@@ -387,17 +388,18 @@ class CommentReplyFacadeTest {
     }
 
     @Test
-    @DisplayName("삭제된 원댓글에 공감 시 COMMENT_016 에러")
-    void like_onDeletedRoot_throwsComment016() {
+    @DisplayName("삭제된 원댓글에 공감 시 COMMENT_004 에러")
+    void like_onDeletedRoot_throwsComment004() {
         Feed feed = createFeed(createUser());
         User commenter = createUser();
         Long rootId = comment(commenter, feed, "원댓글");
         reply(createUser(), feed, rootId, "답글");
         commentFacade.deleteComment(commenter, rootId);
+        entityManager.flush();
 
         assertThatThrownBy(() -> commentFacade.likeComment(createUser(), feed.getId(), rootId))
                 .isInstanceOf(GlobalException.class)
-                .hasMessage(CommentErrorCode.COMMENT_LIKE_UNAVAILABLE.getMessage());
+                .hasMessage(CommentErrorCode.COMMENT_NOT_FOUND.getMessage());
     }
 
     // ===== 삭제 정책 =====
@@ -418,82 +420,86 @@ class CommentReplyFacadeTest {
     }
 
     @Test
-    @DisplayName("답글이 있는 원댓글은 soft delete되어 '삭제된 댓글'로 남고 작성자 정보/내용/공감이 가려진다")
-    void delete_rootWithReplies_softDeleteAndMasked() {
-        User owner = createUser();
+    @DisplayName("답글이 있는 원댓글을 삭제하면 답글(신고된 답글 포함)과 공감까지 모두 삭제된다")
+    void delete_rootWithReplies_deletesWholeThread() {
+        Feed feed = createFeed(createUser());
         User commenter = createUser();
-        Feed feed = createFeed(owner);
         Long rootId = comment(commenter, feed, "원댓글");
         Long replyId = reply(createUser(), feed, rootId, "답글");
+        Long reportedReplyId = reply(createUser(), feed, rootId, "신고될 답글");
+        commentFacade.reportComment(createUser(), reportedReplyId);
         commentFacade.likeComment(createUser(), feed.getId(), rootId);
 
         commentFacade.deleteComment(commenter, rootId);
         entityManager.flush();
         entityManager.clear();
 
-        CommentResponse root = commentFacade.getComments(commenter, feed.getId(), null, null, null).content().get(0);
-        assertThat(root.id()).isEqualTo(rootId);
-        assertThat(root.isDeleted()).isTrue();
-        assertThat(root.nickname()).isNull();
-        assertThat(root.content()).isNull();
-        assertThat(root.profileImage()).isNull();
-        assertThat(root.isMine()).isFalse();
-        assertThat(root.likeCount()).isZero();
-        assertThat(root.replies()).extracting(CommentReplyResponse::id).containsExactly(replyId);
+        assertThat(commentRepository.findById(rootId)).isEmpty();
+        assertThat(commentRepository.findById(replyId)).isEmpty();
+        assertThat(commentRepository.findById(reportedReplyId)).isEmpty();
+        assertThat(commentLikeRepository.countByCommentId(rootId)).isZero();
+        assertThat(commentFacade.getComments(null, feed.getId(), null, null, null).content()).isEmpty();
+        assertThatThrownBy(() -> commentFacade.getCommentThread(null, feed.getId(), rootId))
+                .isInstanceOf(GlobalException.class)
+                .hasMessage(CommentErrorCode.COMMENT_NOT_FOUND.getMessage());
+    }
 
-        // 헤더 카운트: 삭제된 원댓글은 세지 않음
-        assertThat(commentFacade.getCommentThread(null, feed.getId(), rootId).totalCount()).isEqualTo(1);
+    @Test
+    @DisplayName("게스트 원댓글도 비밀번호로 삭제하면 답글까지 모두 삭제된다")
+    void deleteGuest_rootWithReplies_deletesWholeThread() {
+        Feed feed = createFeed(createUser());
+        Long rootId = commentFacade.createGuestComment(feed.getId(),
+                new CommentCreateRequestGuest("게스트 원댓글", "지름신들린수달_1234", "pw1234"),
+                "ip-" + UUID.randomUUID(), null).id();
+        Long replyId = reply(createUser(), feed, rootId, "답글");
+
+        commentFacade.deleteGuestComment(rootId, new CommentGuestDeleteRequest("pw1234"));
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(commentRepository.findById(rootId)).isEmpty();
+        assertThat(commentRepository.findById(replyId)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("답글을 삭제하면 해당 답글만 삭제되고 원댓글과 다른 답글은 유지된다")
+    void delete_reply_deletesOnlyReply() {
+        Feed feed = createFeed(createUser());
+        User replier = createUser();
+        Long rootId = comment(createUser(), feed, "원댓글");
+        Long replyId = reply(replier, feed, rootId, "지울 답글");
+        Long otherReplyId = reply(createUser(), feed, rootId, "남는 답글");
+
+        commentFacade.deleteComment(replier, replyId);
+        entityManager.flush();
+        entityManager.clear();
+
+        CommentResponse root = commentFacade.getComments(null, feed.getId(), null, null, null).content().get(0);
+        assertThat(root.id()).isEqualTo(rootId);
+        assertThat(root.replyCount()).isEqualTo(1);
+        assertThat(root.replies()).extracting(CommentReplyResponse::id).containsExactly(otherReplyId);
+        assertThat(commentFacade.getCommentThread(null, feed.getId(), rootId).totalCount()).isEqualTo(2);
     }
 
     @Test
     @DisplayName("이미 삭제된 원댓글을 다시 삭제하면 COMMENT_004 에러")
-    void delete_alreadySoftDeleted_throwsComment004() {
+    void delete_alreadyDeleted_throwsComment004() {
         Feed feed = createFeed(createUser());
         User commenter = createUser();
         Long rootId = comment(commenter, feed, "원댓글");
         reply(createUser(), feed, rootId, "답글");
         commentFacade.deleteComment(commenter, rootId);
+        entityManager.flush();
 
         assertThatThrownBy(() -> commentFacade.deleteComment(commenter, rootId))
                 .isInstanceOf(GlobalException.class)
                 .hasMessage(CommentErrorCode.COMMENT_NOT_FOUND.getMessage());
     }
 
-    @Test
-    @DisplayName("'삭제된 댓글'의 마지막 답글이 삭제되면 원댓글도 함께 정리된다")
-    void delete_lastReplyOfSoftDeletedRoot_removesRoot() {
-        Feed feed = createFeed(createUser());
-        User commenter = createUser();
-        User replier = createUser();
-        Long rootId = comment(commenter, feed, "원댓글");
-        Long replyId = reply(replier, feed, rootId, "답글");
-        commentFacade.deleteComment(commenter, rootId);
-
-        commentFacade.deleteComment(replier, replyId);
-        entityManager.flush();
-
-        assertThat(commentRepository.findById(rootId)).isEmpty();
-        assertThat(commentFacade.getComments(null, feed.getId(), null, null, null).content()).isEmpty();
-    }
-
-    @Test
-    @DisplayName("답글이 신고로 모두 가려진 '삭제된 댓글'은 목록에 나오지 않는다")
-    void getComments_hidesSoftDeletedRootWithOnlyReportedReplies() {
-        Feed feed = createFeed(createUser());
-        User commenter = createUser();
-        Long rootId = comment(commenter, feed, "원댓글");
-        Long replyId = reply(createUser(), feed, rootId, "답글");
-        commentFacade.deleteComment(commenter, rootId);
-        commentFacade.reportComment(createUser(), replyId);
-        entityManager.flush();
-
-        assertThat(commentFacade.getComments(null, feed.getId(), null, null, null).content()).isEmpty();
-    }
-
     // ===== 피드 댓글 수 / 최신 댓글 집계 =====
 
     @Test
-    @DisplayName("commentCount는 원댓글+답글, 신고/삭제 원댓글과 신고된 원댓글 밑 답글은 제외. latestComment는 최신 원댓글")
+    @DisplayName("commentCount는 원댓글+답글, 신고된 댓글/답글과 신고된 원댓글 밑 답글, 삭제된 원댓글의 답글은 제외. latestComment는 최신 원댓글")
     void aggregate_countsRootsAndReplies() {
         Feed feed = createFeed(createUser());
         User deletedRootAuthor = createUser();
@@ -503,8 +509,8 @@ class CommentReplyFacadeTest {
         Long reportedReply = reply(createUser(), feed, root1, "답글1-2");  // 신고 → 제외
         Long reportedRoot = comment(createUser(), feed, "신고될 원댓글");   // 신고 → 제외
         reply(createUser(), feed, reportedRoot, "신고된 원댓글의 답글");     // 제외
-        Long deletedRoot = comment(deletedRootAuthor, feed, "삭제될 원댓글"); // soft delete → 제외
-        reply(createUser(), feed, deletedRoot, "삭제된 원댓글의 답글");      // +1
+        Long deletedRoot = comment(deletedRootAuthor, feed, "삭제될 원댓글"); // 삭제 → 제외
+        reply(createUser(), feed, deletedRoot, "삭제된 원댓글의 답글");      // 함께 삭제 → 제외
         Long latestRoot = comment(createUser(), feed, "최신 원댓글");        // +1
         reply(createUser(), feed, latestRoot, "최신 원댓글의 답글");         // +1 (답글은 latestComment 후보 아님)
 
@@ -515,8 +521,8 @@ class CommentReplyFacadeTest {
 
         Map<Long, CommentAggregate> aggregates = commentService.aggregateByFeedIds(List.of(feed.getId()));
 
-        // root1 + 답글1-1 + 삭제된 원댓글의 답글 + 최신 원댓글 + 최신 원댓글의 답글 = 5
-        assertThat(aggregates.get(feed.getId()).commentCount()).isEqualTo(5);
+        // root1 + 답글1-1 + 최신 원댓글 + 최신 원댓글의 답글 = 4
+        assertThat(aggregates.get(feed.getId()).commentCount()).isEqualTo(4);
         assertThat(aggregates.get(feed.getId()).latestComment().getId()).isEqualTo(latestRoot);
     }
 

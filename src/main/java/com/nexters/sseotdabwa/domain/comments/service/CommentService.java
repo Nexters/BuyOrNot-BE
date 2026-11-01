@@ -29,7 +29,7 @@ import lombok.RequiredArgsConstructor;
  * 정책:
  * - content: 300자 이하
  * - 답글은 원댓글에만 달 수 있다 (depth 1)
- * - 답글이 남아있는 원댓글을 지우면 soft delete("삭제된 댓글입니다"), 그 외는 hard delete
+ * - 원댓글을 지우면 답글/공감까지 함께 삭제, 답글을 지우면 해당 답글만 삭제
  * - parent_id self FK 때문에 일괄 삭제는 항상 공감 → 답글 → 원댓글 순
  */
 @Service
@@ -58,7 +58,7 @@ public class CommentService {
     }
 
     /**
-     * 회원 답글 작성. 부모 검증(같은 피드/원댓글/신고·삭제 여부)은 호출하는 쪽에서 끝낸 상태여야 한다.
+     * 회원 답글 작성. 부모 검증(같은 피드/원댓글/신고 여부)은 호출하는 쪽에서 끝낸 상태여야 한다.
      */
     @Transactional
     public Comment createMemberReply(Feed feed, Comment parent, User user, String content) {
@@ -80,7 +80,7 @@ public class CommentService {
     }
 
     /**
-     * 게스트 답글 작성. 부모 검증(같은 피드/원댓글/신고·삭제 여부)은 호출하는 쪽에서 끝낸 상태여야 한다.
+     * 게스트 답글 작성. 부모 검증(같은 피드/원댓글/신고 여부)은 호출하는 쪽에서 끝낸 상태여야 한다.
      * 닉네임/비밀번호/프로필 이미지 처리는 게스트 원댓글과 동일.
      */
     @Transactional
@@ -198,7 +198,7 @@ public class CommentService {
 
     /**
      * feedId별 (댓글 수 + 최신 원댓글 1개) 집계 — 피드 목록 응답 확장(commentCount/latestComment)용.
-     * - commentCount: 원댓글 + 답글 (신고/삭제 제외, 신고된 원댓글 밑의 답글 제외)
+     * - commentCount: 원댓글 + 답글 (신고 제외, 신고된 원댓글 밑의 답글 제외)
      * - latestComment: 삭제/신고되지 않은 원댓글 중 최신 1개 (답글 제외)
      * 피드 목록 크기와 무관하게 쿼리 3개(댓글 수 1 + 최신 id 1 + 댓글 로드 1)로 고정된다.
      */
@@ -227,38 +227,20 @@ public class CommentService {
 
     /**
      * 사용자 요청에 의한 댓글 1건 삭제 (회원/게스트 공통 삭제 정책)
-     * - 원댓글 + 보이는(비신고) 답글 있음 → soft delete, 공감은 삭제
-     * - 원댓글 + 보이는 답글 없음 → 신고로 숨겨진 답글/공감과 함께 hard delete
-     * - 답글 → hard delete, 그 결과 부모가 soft delete 상태인데 보이는 답글이 0개가 되면 부모도 정리
+     * - 원댓글 → 공감, 답글 전체(신고된 답글 포함)와 함께 삭제 ("삭제된 댓글"로 남기지 않음)
+     * - 답글 → 해당 답글만 삭제 (답글에는 공감이 없음)
      */
     @Transactional
     public void delete(Comment comment) {
-        if (comment.isDeleted()) {
-            throw new GlobalException(CommentErrorCode.COMMENT_NOT_FOUND);
-        }
-
-        if (!comment.isReply()) {
-            commentLikeRepository.deleteByCommentIdIn(List.of(comment.getId()));
-            if (countVisibleReplies(comment.getId()) > 0) {
-                comment.softDelete();
-                return;
-            }
-            hardDeleteRoot(comment);
+        if (comment.isReply()) {
+            commentRepository.delete(comment);
             return;
         }
 
-        Comment parent = comment.getParent();
+        // parent_id self FK 때문에 공감 → 답글 → 원댓글 순으로 지운다
+        commentLikeRepository.deleteByCommentIdIn(List.of(comment.getId()));
+        commentRepository.deleteRepliesByParentIds(List.of(comment.getId()));
         commentRepository.delete(comment);
-        commentRepository.flush();
-        if (parent.isDeleted() && countVisibleReplies(parent.getId()) == 0) {
-            hardDeleteRoot(parent);
-        }
-    }
-
-    private void hardDeleteRoot(Comment root) {
-        commentLikeRepository.deleteByCommentIdIn(List.of(root.getId()));
-        commentRepository.deleteRepliesByParentIds(List.of(root.getId()));
-        commentRepository.delete(root);
     }
 
     @Transactional
