@@ -4,7 +4,10 @@ import com.nexters.sseotdabwa.api.comments.dto.CommentCreateRequest;
 import com.nexters.sseotdabwa.api.comments.dto.CommentCreateRequestGuest;
 import com.nexters.sseotdabwa.api.comments.dto.CommentCreateResponse;
 import com.nexters.sseotdabwa.api.comments.dto.CommentGuestDeleteRequest;
+import com.nexters.sseotdabwa.api.comments.dto.CommentLikeResponse;
+import com.nexters.sseotdabwa.api.comments.dto.CommentReplyResponse;
 import com.nexters.sseotdabwa.api.comments.dto.CommentResponse;
+import com.nexters.sseotdabwa.api.comments.dto.CommentThreadResponse;
 import com.nexters.sseotdabwa.api.comments.facade.CommentFacade;
 import com.nexters.sseotdabwa.common.response.ApiResponse;
 import com.nexters.sseotdabwa.common.response.CursorPageResponse;
@@ -96,5 +99,75 @@ public class CommentController implements CommentControllerSpec {
     ) {
         commentFacade.reportComment(user, commentId);
         return ApiResponse.success(HttpStatus.OK);
+    }
+
+    @Override
+    @PostMapping("/{feedId}/comments/{commentId}/replies")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<CommentCreateResponse> createReply(
+            @CurrentUser User user,
+            @PathVariable Long feedId,
+            @PathVariable Long commentId,
+            @Valid @RequestBody CommentCreateRequest request
+    ) {
+        CommentCreateResponse response = commentFacade.createReply(user, feedId, commentId, request);
+        return ApiResponse.success(response, HttpStatus.CREATED);
+    }
+
+    @Override
+    @PostMapping("/{feedId}/comments/{commentId}/replies/guest")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<CommentCreateResponse> createGuestReply(
+            @PathVariable Long feedId,
+            @PathVariable Long commentId,
+            @Valid @RequestBody CommentCreateRequestGuest request,
+            @RequestHeader(value = "X-Device-Id", required = false) String deviceId,
+            HttpServletRequest httpRequest
+    ) {
+        String ip = ClientIpResolver.resolve(httpRequest);
+        CommentCreateResponse response = commentFacade.createGuestReply(feedId, commentId, request, ip, deviceId);
+        return ApiResponse.success(response, HttpStatus.CREATED);
+    }
+
+    @Override
+    @GetMapping("/{feedId}/comments/{commentId}")
+    public ApiResponse<CommentThreadResponse> getCommentThread(
+            @CurrentUser User user,
+            @PathVariable Long feedId,
+            @PathVariable Long commentId
+    ) {
+        return ApiResponse.success(commentFacade.getCommentThread(user, feedId, commentId), HttpStatus.OK);
+    }
+
+    @Override
+    @GetMapping("/{feedId}/comments/{commentId}/replies")
+    public ApiResponse<CursorPageResponse<CommentReplyResponse>> getReplies(
+            @CurrentUser User user,
+            @PathVariable Long feedId,
+            @PathVariable Long commentId,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(required = false) Integer size
+    ) {
+        return ApiResponse.success(commentFacade.getReplies(user, feedId, commentId, cursor, size), HttpStatus.OK);
+    }
+
+    @Override
+    @PostMapping("/{feedId}/comments/{commentId}/likes")
+    public ApiResponse<CommentLikeResponse> likeComment(
+            @CurrentUser User user,
+            @PathVariable Long feedId,
+            @PathVariable Long commentId
+    ) {
+        return ApiResponse.success(commentFacade.likeComment(user, feedId, commentId), HttpStatus.OK);
+    }
+
+    @Override
+    @DeleteMapping("/{feedId}/comments/{commentId}/likes")
+    public ApiResponse<CommentLikeResponse> unlikeComment(
+            @CurrentUser User user,
+            @PathVariable Long feedId,
+            @PathVariable Long commentId
+    ) {
+        return ApiResponse.success(commentFacade.unlikeComment(user, feedId, commentId), HttpStatus.OK);
     }
 }

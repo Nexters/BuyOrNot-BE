@@ -185,6 +185,15 @@ public class UserService {
         return userRepository.findByIdIn(userIds);
     }
 
+    /**
+     * 이메일 알림 끄기 (메일 하단 수신 거부 링크). 멱등 — 이미 꺼져 있어도 그대로 성공
+     */
+    @Transactional
+    public void disableEmailNotification(Long userId) {
+        User user = findById(userId);
+        user.disableEmailNotification();
+    }
+
     @Transactional
     public void updateLastOpenedAt(Long userId) {
         User user = findById(userId);

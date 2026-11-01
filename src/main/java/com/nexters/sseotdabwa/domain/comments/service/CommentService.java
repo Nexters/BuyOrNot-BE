@@ -12,8 +12,10 @@ import com.nexters.sseotdabwa.common.exception.GlobalException;
 import com.nexters.sseotdabwa.domain.comments.entity.Comment;
 import com.nexters.sseotdabwa.domain.comments.enums.CommentSort;
 import com.nexters.sseotdabwa.domain.comments.exception.CommentErrorCode;
+import com.nexters.sseotdabwa.domain.comments.repository.CommentLikeRepository;
 import com.nexters.sseotdabwa.domain.comments.repository.CommentRepository;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
+import com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus;
 import com.nexters.sseotdabwa.domain.users.entity.User;
 import com.nexters.sseotdabwa.domain.users.service.RandomNicknameGenerator;
 
@@ -26,6 +28,9 @@ import lombok.RequiredArgsConstructor;
  *
  * 정책:
  * - content: 300자 이하
+ * - 답글은 원댓글에만 달 수 있다 (depth 1)
+ * - 답글이 남아있는 원댓글을 지우면 soft delete("삭제된 댓글입니다"), 그 외는 hard delete
+ * - parent_id self FK 때문에 일괄 삭제는 항상 공감 → 답글 → 원댓글 순
  */
 @Service
 @RequiredArgsConstructor
@@ -36,6 +41,7 @@ public class CommentService {
     private static final int MAX_NICKNAME_RETRY = 5;
 
     private final CommentRepository commentRepository;
+    private final CommentLikeRepository commentLikeRepository;
     private final RandomNicknameGenerator randomNicknameGenerator;
 
     @Transactional
@@ -51,14 +57,47 @@ public class CommentService {
         return commentRepository.save(comment);
     }
 
+    /**
+     * 회원 답글 작성. 부모 검증(같은 피드/원댓글/신고·삭제 여부)은 호출하는 쪽에서 끝낸 상태여야 한다.
+     */
+    @Transactional
+    public Comment createMemberReply(Feed feed, Comment parent, User user, String content) {
+        String normalized = validateAndNormalizeContent(content);
+
+        Comment reply = Comment.builder()
+                .feed(feed)
+                .user(user)
+                .parent(parent)
+                .displayNickname(user.getNickname())
+                .content(normalized)
+                .build();
+        return commentRepository.save(reply);
+    }
+
     @Transactional
     public Comment createGuestComment(Feed feed, String requestedNickname, String guestPasswordHash, String guestProfileImage, String content) {
+        return saveGuestComment(feed, null, requestedNickname, guestPasswordHash, guestProfileImage, content);
+    }
+
+    /**
+     * 게스트 답글 작성. 부모 검증(같은 피드/원댓글/신고·삭제 여부)은 호출하는 쪽에서 끝낸 상태여야 한다.
+     * 닉네임/비밀번호/프로필 이미지 처리는 게스트 원댓글과 동일.
+     */
+    @Transactional
+    public Comment createGuestReply(Feed feed, Comment parent, String requestedNickname, String guestPasswordHash,
+                                    String guestProfileImage, String content) {
+        return saveGuestComment(feed, parent, requestedNickname, guestPasswordHash, guestProfileImage, content);
+    }
+
+    private Comment saveGuestComment(Feed feed, Comment parent, String requestedNickname, String guestPasswordHash,
+                                     String guestProfileImage, String content) {
         String normalized = validateAndNormalizeContent(content);
         String nickname = resolveUniqueGuestNickname(feed.getId(), requestedNickname);
 
         Comment comment = Comment.builder()
                 .feed(feed)
                 .user(null)
+                .parent(parent)
                 .guestNickname(nickname)
                 .guestPasswordHash(guestPasswordHash)
                 .guestProfileImage(guestProfileImage)
@@ -102,7 +141,16 @@ public class CommentService {
     }
 
     /**
-     * 피드 내 댓글 목록 (커서 기반 페이지네이션, 등록순/최신순)
+     * 공감 처리처럼 같은 댓글에 대한 동시 요청을 직렬화해야 할 때 사용 (행 잠금)
+     */
+    @Transactional
+    public Comment findByIdWithLock(Long commentId) {
+        return commentRepository.findByIdWithLock(commentId)
+                .orElseThrow(() -> new GlobalException(CommentErrorCode.COMMENT_NOT_FOUND));
+    }
+
+    /**
+     * 피드 내 원댓글 목록 (커서 기반 페이지네이션, 등록순/최신순)
      */
     public List<Comment> findByFeedIdWithCursor(Long feedId, Long cursor, int size, CommentSort sort) {
         var pageable = PageRequest.ofSize(size + 1);
@@ -112,34 +160,105 @@ public class CommentService {
     }
 
     /**
-     * feedId별 (비신고 댓글 수 + 최신 댓글 1개) 집계 — 피드 목록 응답 확장(commentCount/latestComment)용.
-     * 피드 목록 크기와 무관하게 쿼리 2개(집계 1 + 댓글 로드 1)로 고정된다.
+     * 원댓글 id별 (비신고) 답글 전체, 등록순
+     */
+    public Map<Long, List<Comment>> findRepliesByParentIds(List<Long> parentIds) {
+        if (parentIds == null || parentIds.isEmpty()) {
+            return Map.of();
+        }
+        return commentRepository.findRepliesByParentIds(parentIds).stream()
+                .collect(Collectors.groupingBy(c -> c.getParent().getId()));
+    }
+
+    /**
+     * 답글 페이지용 답글 목록 (등록순, 커서 기반, size+1개 조회)
+     */
+    public List<Comment> findRepliesWithCursor(Long parentId, Long cursor, int size) {
+        return commentRepository.findRepliesWithCursor(parentId, cursor, PageRequest.ofSize(size + 1));
+    }
+
+    public long countVisibleReplies(Long parentId) {
+        return commentRepository.countByParentIdAndReportStatusNot(parentId, ReportStatus.REPORTED);
+    }
+
+    /**
+     * 답글 id → 원댓글 id. 이미 삭제된 답글은 map에 없음
+     */
+    public Map<Long, Long> findParentIdsByReplyIds(List<Long> replyIds) {
+        if (replyIds == null || replyIds.isEmpty()) {
+            return Map.of();
+        }
+        return commentRepository.findParentIdsByReplyIds(replyIds).stream()
+                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+    }
+
+    public List<Long> findDistinctReplyAuthorIds(Long parentId) {
+        return commentRepository.findDistinctReplyAuthorIds(parentId);
+    }
+
+    /**
+     * feedId별 (댓글 수 + 최신 원댓글 1개) 집계 — 피드 목록 응답 확장(commentCount/latestComment)용.
+     * - commentCount: 원댓글 + 답글 (신고/삭제 제외, 신고된 원댓글 밑의 답글 제외)
+     * - latestComment: 삭제/신고되지 않은 원댓글 중 최신 1개 (답글 제외)
+     * 피드 목록 크기와 무관하게 쿼리 3개(댓글 수 1 + 최신 id 1 + 댓글 로드 1)로 고정된다.
      */
     public Map<Long, CommentAggregate> aggregateByFeedIds(List<Long> feedIds) {
         if (feedIds == null || feedIds.isEmpty()) {
             return Map.of();
         }
 
-        List<Object[]> rows = commentRepository.aggregateByFeedIds(feedIds);
-        if (rows.isEmpty()) {
+        Map<Long, Long> countByFeedId = commentRepository.countVisibleByFeedIds(feedIds).stream()
+                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+        if (countByFeedId.isEmpty()) {
             return Map.of();
         }
 
-        Map<Long, Long> latestCommentIdByFeedId = rows.stream()
-                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[2]));
+        Map<Long, Long> latestCommentIdByFeedId = commentRepository.findLatestRootCommentIdsByFeedIds(feedIds).stream()
+                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
         Map<Long, Comment> commentById = commentRepository.findAllById(latestCommentIdByFeedId.values()).stream()
                 .collect(Collectors.toMap(Comment::getId, c -> c));
 
-        return rows.stream()
+        return countByFeedId.entrySet().stream()
                 .collect(Collectors.toMap(
-                        row -> (Long) row[0],
-                        row -> new CommentAggregate((Long) row[1], commentById.get(latestCommentIdByFeedId.get((Long) row[0])))
+                        Map.Entry::getKey,
+                        e -> new CommentAggregate(e.getValue(), commentById.get(latestCommentIdByFeedId.get(e.getKey())))
                 ));
     }
 
+    /**
+     * 사용자 요청에 의한 댓글 1건 삭제 (회원/게스트 공통 삭제 정책)
+     * - 원댓글 + 보이는(비신고) 답글 있음 → soft delete, 공감은 삭제
+     * - 원댓글 + 보이는 답글 없음 → 신고로 숨겨진 답글/공감과 함께 hard delete
+     * - 답글 → hard delete, 그 결과 부모가 soft delete 상태인데 보이는 답글이 0개가 되면 부모도 정리
+     */
     @Transactional
     public void delete(Comment comment) {
+        if (comment.isDeleted()) {
+            throw new GlobalException(CommentErrorCode.COMMENT_NOT_FOUND);
+        }
+
+        if (!comment.isReply()) {
+            commentLikeRepository.deleteByCommentIdIn(List.of(comment.getId()));
+            if (countVisibleReplies(comment.getId()) > 0) {
+                comment.softDelete();
+                return;
+            }
+            hardDeleteRoot(comment);
+            return;
+        }
+
+        Comment parent = comment.getParent();
         commentRepository.delete(comment);
+        commentRepository.flush();
+        if (parent.isDeleted() && countVisibleReplies(parent.getId()) == 0) {
+            hardDeleteRoot(parent);
+        }
+    }
+
+    private void hardDeleteRoot(Comment root) {
+        commentLikeRepository.deleteByCommentIdIn(List.of(root.getId()));
+        commentRepository.deleteRepliesByParentIds(List.of(root.getId()));
+        commentRepository.delete(root);
     }
 
     @Transactional
@@ -149,16 +268,32 @@ public class CommentService {
 
     @Transactional
     public void deleteByFeed(Feed feed) {
-        commentRepository.deleteByFeed(feed);
+        commentLikeRepository.deleteByCommentFeed(feed);
+        commentRepository.deleteRepliesByFeed(feed);
+        commentRepository.deleteAllByFeed(feed);
     }
 
     @Transactional
     public void deleteByFeeds(List<Feed> feeds) {
-        commentRepository.deleteByFeedIn(feeds);
+        if (feeds == null || feeds.isEmpty()) {
+            return;
+        }
+        commentLikeRepository.deleteByCommentFeedIn(feeds);
+        commentRepository.deleteRepliesByFeeds(feeds);
+        commentRepository.deleteAllByFeeds(feeds);
     }
 
+    /**
+     * 회원 탈퇴용. 회원이 누른/받은 공감 → 회원 원댓글에 달린 (남의) 답글 → 회원이 쓴 답글 → 회원 원댓글 순으로 삭제
+     */
     @Transactional
     public void deleteByUserId(Long userId) {
-        commentRepository.deleteByUserId(userId);
+        commentLikeRepository.deleteRelatedToUser(userId);
+        List<Long> rootIds = commentRepository.findRootCommentIdsByUserId(userId);
+        if (!rootIds.isEmpty()) {
+            commentRepository.deleteRepliesByParentIds(rootIds);
+        }
+        commentRepository.deleteRepliesByUserId(userId);
+        commentRepository.deleteAllByUserId(userId);
     }
 }

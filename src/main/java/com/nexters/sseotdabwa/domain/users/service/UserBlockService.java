@@ -75,6 +75,13 @@ public class UserBlockService {
     }
 
     /**
+     * 해당 사용자를 차단한 사용자 ID 목록 조회 (답글 알림 수신자 필터링용)
+     */
+    public List<Long> findBlockerIds(Long blockedUserId) {
+        return userBlockRepository.findBlockerIdsByBlockedUserId(blockedUserId);
+    }
+
+    /**
      * 사용자 탈퇴 시 차단 관계 정리
      */
     @Transactional

@@ -55,3 +55,10 @@ aws:
     max-bytes: 20971520
   cloudfront:
     domain: https://d111.cloudfront.net
+
+app:
+  mail:
+    from-address: test@example.com
+    from-name: 살까말까
+    web-base-url: https://web.test
+    api-base-url: https://api.test
