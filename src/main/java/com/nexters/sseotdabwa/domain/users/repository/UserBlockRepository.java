@@ -25,6 +25,12 @@ public interface UserBlockRepository extends JpaRepository<UserBlock, Long> {
     @Query("SELECT ub.blockedUser.id FROM UserBlock ub WHERE ub.user.id = :userId")
     List<Long> findBlockedUserIdsByUserId(@Param("userId") Long userId);
 
+    /**
+     * 해당 유저를 차단한 유저 id 목록 (답글 알림에서 차단한 사람의 답글 알림을 받지 않도록 제외할 때 사용)
+     */
+    @Query("SELECT ub.user.id FROM UserBlock ub WHERE ub.blockedUser.id = :blockedUserId")
+    List<Long> findBlockerIdsByBlockedUserId(@Param("blockedUserId") Long blockedUserId);
+
     void deleteAllByUserId(Long userId);
 
     void deleteAllByBlockedUserId(Long userId);

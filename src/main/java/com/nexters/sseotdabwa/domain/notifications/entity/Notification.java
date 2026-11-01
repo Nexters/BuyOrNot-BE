@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 @Table(
         name = "notifications",
         uniqueConstraints = {
-                @UniqueConstraint(name ="uk_notifications_user_feed_type", columnNames ={"user_id","feed_id","type"})
+                @UniqueConstraint(name = "uk_notifications_user_feed_type_target", columnNames = {"user_id", "feed_id", "type", "target_id"})
         },
         indexes = {
                 @Index(name = "idx_notifications_user_created", columnList = "user_id, created_at"),
@@ -63,13 +63,23 @@ public class Notification extends BaseEntity {
     @Column
     private LocalDateTime readAt;
 
+    /**
+     * 같은 (user, feed, type) 안에서 알림을 구분하는 대상 id. 중복 방지 유니크 키에 포함된다.
+     * - 답글 알림(COMMENT_REPLIED): 답글 id → 답글이 달릴 때마다 알림 1건
+     * - 그 외 타입: 0 고정 → 기존처럼 (user, feed, type)당 1건
+     * NULL은 MySQL 유니크에서 중복 허용되므로 nullable로 두지 않는다.
+     */
+    @Column(name = "target_id", nullable = false)
+    private Long targetId;
+
     @Builder
-    public Notification(User user, Feed feed, String title, String body, NotificationType type) {
+    public Notification(User user, Feed feed, String title, String body, NotificationType type, Long targetId) {
         this.user = user;
         this.feed = feed;
         this.title = title;
         this.body = body;
         this.type = type;
+        this.targetId = targetId == null ? 0L : targetId;
         this.isRead = false;
         this.readAt = null;
     }

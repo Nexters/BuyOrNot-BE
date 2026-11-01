@@ -1,5 +1,7 @@
 package com.nexters.sseotdabwa.domain.comments.entity;
 
+import java.time.LocalDateTime;
+
 import com.nexters.sseotdabwa.common.entity.BaseEntity;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
 import com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus;
@@ -13,7 +15,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "feed_comments")
+@Table(
+        name = "feed_comments",
+        indexes = {
+                @Index(name = "idx_feed_comments_parent_id", columnList = "parent_id, id")
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Comment extends BaseEntity {
@@ -29,6 +36,13 @@ public class Comment extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = true)
     @JoinColumn(name = "user_id", nullable = true)
     private User user;
+
+    /**
+     * 답글이면 부모(원댓글), 원댓글이면 null. 답글의 부모는 항상 원댓글이다(답글에 답글 불가, depth 1).
+     */
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "parent_id", nullable = true)
+    private Comment parent;
 
     /**
      * 비회원(게스트) 작성 댓글의 닉네임. 회원 작성 댓글은 null.
@@ -55,19 +69,32 @@ public class Comment extends BaseEntity {
     @Column(name = "display_nickname", nullable = false, length = 40)
     private String displayNickname;
 
+    /**
+     * 길이를 지정하지 않으면 Hibernate 6가 @Lob String을 길이 255로 보고 MySQL tinytext(최대 255바이트)로 매핑한다.
+     * 한글은 1자 3바이트라 약 85자를 넘으면 저장이 실패하므로, 300자 제한을 담을 수 있게 text로 매핑한다.
+     * (DB: ALTER TABLE feed_comments MODIFY COLUMN content TEXT ... — prod validate와 맞추기 위해 함께 반영)
+     */
     @Lob
-    @Column(name = "content", nullable = false)
+    @Column(name = "content", nullable = false, length = 65535)
     private String content;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "report_status", nullable = false)
     private ReportStatus reportStatus;
 
+    /**
+     * 답글이 남아있는 원댓글을 삭제했을 때만 채워진다(soft delete, "삭제된 댓글입니다" 표시용).
+     * 답글이 없는 원댓글과 답글은 hard delete되므로 항상 null.
+     */
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
     @Builder
-    public Comment(Feed feed, User user, String guestNickname, String guestPasswordHash, String guestProfileImage,
-                   String displayNickname, String content) {
+    public Comment(Feed feed, User user, Comment parent, String guestNickname, String guestPasswordHash,
+                   String guestProfileImage, String displayNickname, String content) {
         this.feed = feed;
         this.user = user;
+        this.parent = parent;
         this.guestNickname = guestNickname;
         this.guestPasswordHash = guestPasswordHash;
         this.guestProfileImage = guestProfileImage;
@@ -97,5 +124,17 @@ public class Comment extends BaseEntity {
 
     public boolean isReported() {
         return this.reportStatus == ReportStatus.REPORTED;
+    }
+
+    public boolean isReply() {
+        return this.parent != null;
+    }
+
+    public boolean isDeleted() {
+        return this.deletedAt != null;
+    }
+
+    public void softDelete() {
+        this.deletedAt = LocalDateTime.now();
     }
 }

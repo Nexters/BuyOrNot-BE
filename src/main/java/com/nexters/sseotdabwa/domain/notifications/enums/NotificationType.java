@@ -8,5 +8,6 @@ public enum NotificationType {
     MARKETING_NO_VOTE,             // 투표 미등록 유저 마케팅 푸시
     MARKETING_INACTIVE_3D,         // 마지막 업로드 후 3일 미활동 재참여 유도
     MARKETING_INACTIVE_7D,         // 마지막 업로드 후 7일 미활동 재참여 유도
-    MARKETING_ONBOARDING_INACTIVE  // 가입 후 2일 미업로드 온보딩 유도
+    MARKETING_ONBOARDING_INACTIVE, // 가입 후 2일 미업로드 온보딩 유도
+    COMMENT_REPLIED                // 내 의견 / 내가 참여한 대화에 답글이 달림 (DB ENUM에 수동 ALTER 필요)
 }
