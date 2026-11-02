@@ -21,7 +21,10 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Feed extends BaseEntity {
 
-    private static final long VOTE_DEADLINE_HOURS = 48;
+    /**
+     * 투표 마감 기준(작성 후 48시간). 마감 스케줄러·핫플 만료 cutoff·응답의 voteClosedAt이 모두 이 값을 따른다.
+     */
+    public static final long VOTE_DEADLINE_HOURS = 48;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

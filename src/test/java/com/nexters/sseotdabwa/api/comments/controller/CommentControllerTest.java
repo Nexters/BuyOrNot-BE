@@ -86,6 +86,30 @@ class CommentControllerTest {
     }
 
     @Test
+    @DisplayName("게스트 답글 작성 성공 - 201 Created (인증 불필요, 비밀번호 포함)")
+    void createGuestReply_success_201() throws Exception {
+        // given
+        User owner = createUser();
+        Feed feed = createFeed(owner);
+        String token = jwtTokenService.createAccessToken(createUser().getId());
+        String rootResponse = mockMvc.perform(post("/api/v1/feeds/" + feed.getId() + "/comments")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentCreateRequest("원댓글"))))
+                .andReturn().getResponse().getContentAsString();
+        long rootId = objectMapper.readTree(rootResponse).path("data").path("id").asLong();
+        CommentCreateRequestGuest request = new CommentCreateRequestGuest("게스트 답글", "지름신들린수달_1234", "guest-password");
+
+        // when & then
+        mockMvc.perform(post("/api/v1/feeds/" + feed.getId() + "/comments/" + rootId + "/replies/guest")
+                        .header("X-Forwarded-For", randomIp())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.id").isNotEmpty());
+    }
+
+    @Test
     @DisplayName("게스트 댓글 작성 성공 - 201 Created (인증 불필요, 비밀번호 포함)")
     void createGuestComment_success_201() throws Exception {
         // given

@@ -18,6 +18,8 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     boolean existsByUserIdAndFeedIdAndType(Long userId, Long feedId, NotificationType type);
 
+    boolean existsByUserIdAndFeedIdAndTypeAndTargetId(Long userId, Long feedId, NotificationType type, Long targetId);
+
     Optional<Notification> findByIdAndUserId(Long id, Long userId);
 
     // type 없는 케이스

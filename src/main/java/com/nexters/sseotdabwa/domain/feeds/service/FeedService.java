@@ -154,6 +154,31 @@ public class FeedService {
         return feedRepository.findFeedsWithCursorExcludingUsersByCategories(cursor, feedStatus, categories, excludedUserIds, pageable);
     }
 
+    /**
+     * 핫플 투표 목록 (진행중 + 투표 수 많은 순, 동률은 최신순)
+     * - 투표 0개인 진행중 피드도 포함 (정렬상 맨 뒤에 최신순으로 위치)
+     * - size + 1개를 조회해 hasNext 판단은 호출 측에서 한다.
+     */
+    public List<Feed> findHotFeedsWithCursor(HotFeedCursor cursor, int size, List<FeedCategory> categories, List<Long> excludedUserIds) {
+        Pageable pageable = PageRequest.ofSize(size + 1);
+        LocalDateTime cutoff = LocalDateTime.now().minusHours(Feed.VOTE_DEADLINE_HOURS);
+        Long cursorVotes = cursor != null ? cursor.votes() : null;
+        Long cursorId = cursor != null ? cursor.feedId() : null;
+        boolean hasExcluded = excludedUserIds != null && !excludedUserIds.isEmpty();
+        boolean hasCategories = categories != null && !categories.isEmpty();
+
+        if (!hasExcluded && !hasCategories) {
+            return feedRepository.findHotFeedsWithCursor(cutoff, cursorVotes, cursorId, pageable);
+        }
+        if (!hasExcluded) {
+            return feedRepository.findHotFeedsWithCursorByCategories(cutoff, cursorVotes, cursorId, categories, pageable);
+        }
+        if (!hasCategories) {
+            return feedRepository.findHotFeedsWithCursorExcludingUsers(cutoff, cursorVotes, cursorId, excludedUserIds, pageable);
+        }
+        return feedRepository.findHotFeedsWithCursorExcludingUsersByCategories(cutoff, cursorVotes, cursorId, categories, excludedUserIds, pageable);
+    }
+
     public List<Feed> findByUserIdWithCursor(Long userId, Long cursor, int size, FeedStatus feedStatus, List<FeedCategory> categories) {
         Pageable pageable = PageRequest.ofSize(size + 1);
         if (categories == null || categories.isEmpty()) {
@@ -185,7 +210,7 @@ public class FeedService {
     @Transactional
     public List<Long> closeExpiredFeedsAndReturnIds() {
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime cutoff = now.minusHours(48);
+        LocalDateTime cutoff = now.minusHours(Feed.VOTE_DEADLINE_HOURS);
 
         List<ReportStatus> excluded = Arrays.asList(ReportStatus.DELETED);
 

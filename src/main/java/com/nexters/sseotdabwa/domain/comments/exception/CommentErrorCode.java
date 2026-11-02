@@ -16,6 +16,10 @@ public enum CommentErrorCode implements ErrorCode {
 
     COMMENT_CONTENT_REQUIRED(HttpStatus.BAD_REQUEST, "COMMENT_001", "댓글 내용을 입력해주세요."),
     COMMENT_CONTENT_TOO_LONG(HttpStatus.BAD_REQUEST, "COMMENT_002", "댓글은 300자 이하로 입력해주세요."),
+    /**
+     * 더 이상 발생하지 않음 — 마감된 피드에도 댓글/답글/공감을 허용하도록 정책 변경됨.
+     * 클라이언트에 이미 공개된 코드라 다른 의미로 재사용되지 않도록 enum은 남겨둔다.
+     */
     COMMENT_FEED_CLOSED(HttpStatus.BAD_REQUEST, "COMMENT_003", "마감된 피드에는 댓글을 작성할 수 없습니다."),
     COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMENT_004", "댓글을 찾을 수 없습니다."),
     COMMENT_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "COMMENT_005", "본인의 댓글만 삭제할 수 있습니다."),
@@ -25,7 +29,11 @@ public enum CommentErrorCode implements ErrorCode {
     COMMENT_ALREADY_REPORTED(HttpStatus.BAD_REQUEST, "COMMENT_009", "이미 신고된 댓글입니다."),
     COMMENT_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "COMMENT_010", "잠시 후 다시 댓글을 남길 수 있어요."),
     COMMENT_PROFANITY_DETECTED(HttpStatus.BAD_REQUEST, "COMMENT_011", "부적절한 표현을 수정한 뒤 다시 등록해주세요."),
-    COMMENT_TEMPORARILY_RESTRICTED(HttpStatus.TOO_MANY_REQUESTS, "COMMENT_012", "잠시 후 다시 댓글을 남길 수 있어요.");
+    COMMENT_TEMPORARILY_RESTRICTED(HttpStatus.TOO_MANY_REQUESTS, "COMMENT_012", "잠시 후 다시 댓글을 남길 수 있어요."),
+    COMMENT_REPLY_TO_REPLY(HttpStatus.BAD_REQUEST, "COMMENT_013", "답글에는 답글을 남길 수 없습니다."),
+    COMMENT_INVALID_PARENT(HttpStatus.BAD_REQUEST, "COMMENT_014", "답글을 남길 수 없는 댓글입니다."),
+    COMMENT_LIKE_ON_REPLY(HttpStatus.BAD_REQUEST, "COMMENT_015", "답글에는 공감할 수 없습니다."),
+    COMMENT_LIKE_UNAVAILABLE(HttpStatus.BAD_REQUEST, "COMMENT_016", "공감할 수 없는 댓글입니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

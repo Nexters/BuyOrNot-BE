@@ -9,6 +9,7 @@ import com.nexters.sseotdabwa.api.feeds.dto.FeedGuestDeleteRequest;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedResponse;
 import com.nexters.sseotdabwa.common.response.ApiResponse;
 import com.nexters.sseotdabwa.common.response.CursorPageResponse;
+import com.nexters.sseotdabwa.common.response.StringCursorPageResponse;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedCategory;
 import com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus;
 import com.nexters.sseotdabwa.domain.users.entity.User;
@@ -194,5 +195,29 @@ public interface FeedControllerSpec {
     ApiResponse<Void> reportFeed(
             @Parameter(hidden = true) User user,
             @PathVariable Long feedId
+    );
+
+    @Operation(
+            summary = "핫플 투표 리스트 조회",
+            description = """
+                    진행 중인 투표를 투표 수가 많은 순으로 조회합니다. (핫플 투표🔥 탭)
+
+                    - 대상: 진행중(OPEN)이면서 마감 시각(작성 후 48시간)이 지나지 않은 피드. 신고/삭제 피드 제외, 로그인 시 차단 유저 피드 제외
+                    - 정렬: 투표 수(yesCount + noCount) 내림차순, 동률이면 최신순(feedId 내림차순). 투표 0개 피드도 맨 뒤에 최신순으로 포함
+                    - 커서: 응답의 nextCursor 문자열("{투표수}_{feedId}")을 그대로 다음 요청의 cursor로 전달 (첫 페이지는 생략)
+                    - 투표 수가 실시간으로 바뀌어 페이지 사이에 같은 피드가 다시 나올 수 있으므로 클라이언트에서 feedId 기준 중복 제거를 권장합니다.
+                    - 비로그인 유저도 접근 가능하며, 로그인 시 투표 상태가 포함됩니다.
+                    """,
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "핫플 투표 리스트 조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "유효하지 않은 커서 (FEED_013)")
+    })
+    ApiResponse<StringCursorPageResponse<FeedResponse>> getHotFeedList(
+            @Parameter(hidden = true) User user,
+            @Parameter(description = "이전 응답의 nextCursor (\"{투표수}_{feedId}\", 첫 페이지는 생략)") String cursor,
+            @Parameter(description = "페이지 크기 (기본값 20, 최대 50)") Integer size,
+            @Parameter(name = "category", description = "카테고리 필터 - 복수 선택 가능 (?category=BOOK&category=FASHION / 미지정 시 전체)") List<FeedCategory> categories
     );
 }

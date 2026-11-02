@@ -26,6 +26,7 @@ public class JwtTokenService {
     private static final String TOKEN_TYPE_CLAIM = "type";
     private static final String TOKEN_TYPE_ACCESS = "access";
     private static final String TOKEN_TYPE_REFRESH = "refresh";
+    private static final String TOKEN_TYPE_EMAIL_UNSUBSCRIBE = "email-unsubscribe";
 
     private final SecretKey secretKey;
     private final long accessTokenExpiration;
@@ -112,6 +113,38 @@ public class JwtTokenService {
             return false;
         } catch (JwtException e) {
             return false;
+        }
+    }
+
+    /**
+     * 이메일 알림 수신 거부 링크용 토큰 (type: email-unsubscribe, 만료 없음)
+     * - 메일은 오래 지나서 열어볼 수도 있어 만료를 두지 않는다. 할 수 있는 일이 "본인 이메일 알림 끄기"뿐이라 위험이 낮음
+     * - type이 access가 아니므로 이 토큰으로 API 인증은 불가 (validateToken에서 거부)
+     */
+    public String createEmailUnsubscribeToken(Long userId) {
+        return Jwts.builder()
+                .subject(String.valueOf(userId))
+                .claim(TOKEN_TYPE_CLAIM, TOKEN_TYPE_EMAIL_UNSUBSCRIBE)
+                .issuedAt(new Date())
+                .signWith(secretKey)
+                .compact();
+    }
+
+    /**
+     * 이메일 수신 거부 토큰을 검증하고 userId를 반환한다. 서명 위조/형식 오류/다른 타입 토큰이면 null.
+     */
+    public Long parseEmailUnsubscribeToken(String token) {
+        if (!StringUtils.hasText(token)) {
+            return null;
+        }
+        try {
+            Claims claims = getClaims(token);
+            if (!TOKEN_TYPE_EMAIL_UNSUBSCRIBE.equals(claims.get(TOKEN_TYPE_CLAIM, String.class))) {
+                return null;
+            }
+            return Long.parseLong(claims.getSubject());
+        } catch (JwtException | IllegalArgumentException e) {
+            return null;
         }
     }
 

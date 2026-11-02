@@ -84,8 +84,8 @@ class CommentFacadeTest {
     }
 
     @Test
-    @DisplayName("마감된 피드에 회원이 댓글 작성 시 COMMENT_003 에러")
-    void createComment_closedFeed_throwsComment003() {
+    @DisplayName("마감된 피드에도 회원 댓글 작성 가능 (마감 제한 제거)")
+    void createComment_closedFeed_success() {
         // given
         User owner = createUser();
         User commenter = createUser();
@@ -93,10 +93,11 @@ class CommentFacadeTest {
         feed.closeVote();
         feedRepository.save(feed);
 
-        // when & then
-        assertThatThrownBy(() -> commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("내용")))
-                .isInstanceOf(GlobalException.class)
-                .hasMessage("마감된 피드에는 댓글을 작성할 수 없습니다.");
+        // when
+        CommentCreateResponse response = commentFacade.createComment(commenter, feed.getId(), new CommentCreateRequest("내용"));
+
+        // then
+        assertThat(commentRepository.findById(response.id())).isPresent();
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.nexters.sseotdabwa.domain.notifications.entity;
 
 import com.nexters.sseotdabwa.common.entity.BaseEntity;
+import com.nexters.sseotdabwa.domain.notifications.enums.NotificationChannel;
 import com.nexters.sseotdabwa.domain.notifications.enums.NotificationType;
 
 import jakarta.persistence.*;
@@ -11,7 +12,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 푸시(FCM) 발송 시도 로그
+ * 푸시(FCM)/이메일 발송 시도 로그
  * - Notification(알림함 콘텐츠)과 무관한, 순수 발송 감사(audit) 기록
  * - user/feed는 FK 연관관계 없이 id만 저장 (엔티티 생명주기와 분리)
  */
@@ -55,9 +56,14 @@ public class PushLog extends BaseEntity {
     @Column(name = "error_message", length = 500)
     private String errorMessage;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private NotificationChannel channel;
+
     @Builder
     public PushLog(Long userId, Long feedId, NotificationType type, String title, String body,
-                   boolean success, String errorMessage) {
+                   boolean success, String errorMessage, NotificationChannel channel) {
+        this.channel = channel == null ? NotificationChannel.PUSH : channel;
         this.userId = userId;
         this.feedId = feedId;
         this.type = type;

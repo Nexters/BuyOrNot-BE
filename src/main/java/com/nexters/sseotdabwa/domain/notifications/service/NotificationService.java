@@ -28,7 +28,7 @@ import lombok.extern.slf4j.Slf4j;
  * 원칙:
  * - Notification 테이블이 SSOT
  * - Push는 best-effort (실패해도 DB 롤백하지 않음)
- * - 중복 방지: (user, feed, type)
+ * - 중복 방지: (user, feed, type, targetId) — 답글 알림 외 타입은 targetId=0이라 사실상 (user, feed, type)
  */
 @Slf4j
 @Service
@@ -82,7 +82,15 @@ public class NotificationService {
      */
     @Transactional
     public Notification createIfAbsent(User user, Feed feed, NotificationType type, String title, String body) {
-        boolean exists = notificationRepository.existsByUserIdAndFeedIdAndType(user.getId(), feed.getId(), type);
+        return createIfAbsent(user, feed, type, 0L, title, body);
+    }
+
+    /**
+     * (user, feed, type, targetId) 중복이면 생성하지 않고 null 반환 — 답글 알림처럼 같은 피드에서 여러 건이 필요한 타입용
+     */
+    @Transactional
+    public Notification createIfAbsent(User user, Feed feed, NotificationType type, Long targetId, String title, String body) {
+        boolean exists = notificationRepository.existsByUserIdAndFeedIdAndTypeAndTargetId(user.getId(), feed.getId(), type, targetId);
         if (exists) {
             return null;
         }
@@ -93,6 +101,7 @@ public class NotificationService {
                 .title(title)
                 .body(body)
                 .type(type)
+                .targetId(targetId)
                 .build();
 
         try {

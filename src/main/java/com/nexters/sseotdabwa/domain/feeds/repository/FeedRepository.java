@@ -100,6 +100,94 @@ public interface FeedRepository extends JpaRepository<Feed, Long> {
             @Param("excludedUserIds") List<Long> excludedUserIds,
             Pageable pageable);
 
+    // ===== 핫플 투표 커서 기반 조회 (진행중 + 투표 수 많은 순) =====
+    // - 정렬: (yesCount + noCount) DESC, id DESC / 커서: (cursorVotes, cursorId) 다음 행부터
+    // - createdAt > cutoff: 스케줄러가 아직 CLOSED 처리하지 못한 만료 피드 제외
+
+    @Query("""
+        SELECT f FROM Feed f
+        WHERE f.feedStatus = com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus.OPEN
+          AND f.createdAt > :cutoff
+          AND f.reportStatus NOT IN (
+              com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.DELETED,
+              com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.REPORTED
+          )
+          AND (:cursorVotes IS NULL
+               OR (f.yesCount + f.noCount) < :cursorVotes
+               OR ((f.yesCount + f.noCount) = :cursorVotes AND f.id < :cursorId))
+        ORDER BY (f.yesCount + f.noCount) DESC, f.id DESC
+    """)
+    List<Feed> findHotFeedsWithCursor(
+            @Param("cutoff") LocalDateTime cutoff,
+            @Param("cursorVotes") Long cursorVotes,
+            @Param("cursorId") Long cursorId,
+            Pageable pageable);
+
+    @Query("""
+        SELECT f FROM Feed f
+        WHERE f.feedStatus = com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus.OPEN
+          AND f.createdAt > :cutoff
+          AND f.category IN :categories
+          AND f.reportStatus NOT IN (
+              com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.DELETED,
+              com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.REPORTED
+          )
+          AND (:cursorVotes IS NULL
+               OR (f.yesCount + f.noCount) < :cursorVotes
+               OR ((f.yesCount + f.noCount) = :cursorVotes AND f.id < :cursorId))
+        ORDER BY (f.yesCount + f.noCount) DESC, f.id DESC
+    """)
+    List<Feed> findHotFeedsWithCursorByCategories(
+            @Param("cutoff") LocalDateTime cutoff,
+            @Param("cursorVotes") Long cursorVotes,
+            @Param("cursorId") Long cursorId,
+            @Param("categories") List<FeedCategory> categories,
+            Pageable pageable);
+
+    @Query("""
+        SELECT f FROM Feed f
+        WHERE f.feedStatus = com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus.OPEN
+          AND f.createdAt > :cutoff
+          AND f.reportStatus NOT IN (
+              com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.DELETED,
+              com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.REPORTED
+          )
+          AND (f.user.id IS NULL OR f.user.id NOT IN :excludedUserIds)
+          AND (:cursorVotes IS NULL
+               OR (f.yesCount + f.noCount) < :cursorVotes
+               OR ((f.yesCount + f.noCount) = :cursorVotes AND f.id < :cursorId))
+        ORDER BY (f.yesCount + f.noCount) DESC, f.id DESC
+    """)
+    List<Feed> findHotFeedsWithCursorExcludingUsers(
+            @Param("cutoff") LocalDateTime cutoff,
+            @Param("cursorVotes") Long cursorVotes,
+            @Param("cursorId") Long cursorId,
+            @Param("excludedUserIds") List<Long> excludedUserIds,
+            Pageable pageable);
+
+    @Query("""
+        SELECT f FROM Feed f
+        WHERE f.feedStatus = com.nexters.sseotdabwa.domain.feeds.enums.FeedStatus.OPEN
+          AND f.createdAt > :cutoff
+          AND f.category IN :categories
+          AND f.reportStatus NOT IN (
+              com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.DELETED,
+              com.nexters.sseotdabwa.domain.feeds.enums.ReportStatus.REPORTED
+          )
+          AND (f.user.id IS NULL OR f.user.id NOT IN :excludedUserIds)
+          AND (:cursorVotes IS NULL
+               OR (f.yesCount + f.noCount) < :cursorVotes
+               OR ((f.yesCount + f.noCount) = :cursorVotes AND f.id < :cursorId))
+        ORDER BY (f.yesCount + f.noCount) DESC, f.id DESC
+    """)
+    List<Feed> findHotFeedsWithCursorExcludingUsersByCategories(
+            @Param("cutoff") LocalDateTime cutoff,
+            @Param("cursorVotes") Long cursorVotes,
+            @Param("cursorId") Long cursorId,
+            @Param("categories") List<FeedCategory> categories,
+            @Param("excludedUserIds") List<Long> excludedUserIds,
+            Pageable pageable);
+
     // ===== 내 피드 커서 기반 조회 =====
 
     @Query("""

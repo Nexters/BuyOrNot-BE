@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.nexters.sseotdabwa.domain.notifications.entity.PushLog;
+import com.nexters.sseotdabwa.domain.notifications.enums.NotificationChannel;
 import com.nexters.sseotdabwa.domain.notifications.enums.NotificationType;
 import com.nexters.sseotdabwa.domain.notifications.repository.PushLogRepository;
 
@@ -25,6 +26,12 @@ public class PushLogService {
     @Transactional
     public void record(Long userId, Long feedId, NotificationType type, String title, String body,
                         boolean success, String errorMessage) {
+        record(userId, feedId, type, title, body, success, errorMessage, NotificationChannel.PUSH);
+    }
+
+    @Transactional
+    public void record(Long userId, Long feedId, NotificationType type, String title, String body,
+                       boolean success, String errorMessage, NotificationChannel channel) {
         try {
             PushLog pushLog = PushLog.builder()
                     .userId(userId)
@@ -34,6 +41,7 @@ public class PushLogService {
                     .body(body)
                     .success(success)
                     .errorMessage(errorMessage)
+                    .channel(channel)
                     .build();
 
             pushLogRepository.save(pushLog);

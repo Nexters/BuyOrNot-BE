@@ -25,7 +25,8 @@ public enum FeedErrorCode implements ErrorCode {
     FEED_TITLE_TOO_LONG(HttpStatus.BAD_REQUEST, "FEED_009", "제목은 40자 이하로 입력해주세요."),
     FEED_IMAGE_INVALID_SIZE(HttpStatus.BAD_REQUEST, "FEED_010", "이미지 크기(width/height)는 1 이상이어야 합니다."),
     FEED_GUEST_PASSWORD_MISMATCH(HttpStatus.FORBIDDEN, "FEED_011", "비밀번호가 일치하지 않습니다."),
-    FEED_NOT_GUEST_POST(HttpStatus.FORBIDDEN, "FEED_012", "비회원이 작성한 피드가 아닙니다.");
+    FEED_NOT_GUEST_POST(HttpStatus.FORBIDDEN, "FEED_012", "비회원이 작성한 피드가 아닙니다."),
+    FEED_INVALID_CURSOR(HttpStatus.BAD_REQUEST, "FEED_013", "유효하지 않은 커서입니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

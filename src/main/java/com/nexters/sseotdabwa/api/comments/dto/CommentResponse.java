@@ -1,6 +1,7 @@
 package com.nexters.sseotdabwa.api.comments.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import com.nexters.sseotdabwa.domain.comments.entity.Comment;
 import com.nexters.sseotdabwa.domain.users.entity.User;
@@ -8,7 +9,7 @@ import com.nexters.sseotdabwa.domain.votes.enums.VoteChoice;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-@Schema(description = "댓글(의견) 응답")
+@Schema(description = "댓글(의견, 원댓글) 응답")
 public record CommentResponse(
         @Schema(description = "댓글 id")
         Long id,
@@ -18,7 +19,7 @@ public record CommentResponse(
         String nickname,
         @Schema(description = "작성자 프로필 이미지 URL. 게스트는 작성 시점에 랜덤 배정되어 고정된다.")
         String profileImage,
-        @Schema(description = "댓글 내용")
+        @Schema(description = "댓글 내용.")
         String content,
         @Schema(
                 description = "이 댓글을 지금 조회 중인 회원 본인이 작성했는지 (삭제 버튼 노출 판단용). 게스트로 조회하거나 "
@@ -36,12 +37,23 @@ public record CommentResponse(
         )
         VoteChoice voteChoice,
         @Schema(description = "작성 시각")
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        @Schema(description = "공감 수 (0이면 \"공감\" 텍스트, 99 초과 표기는 FE)")
+        long likeCount,
+        @Schema(description = "지금 조회 중인 회원이 공감했는지. 비로그인이면 항상 false")
+        boolean isLiked,
+        @Schema(description = "답글 수 (신고된 답글 제외, 0이면 \"답글쓰기\" 텍스트)")
+        long replyCount,
+        @Schema(description = "답글 전체 목록 (등록순). 답글 페이지 조회(GET .../comments/{commentId})에서는 빈 배열이며, 답글은 .../replies로 조회한다")
+        List<CommentReplyResponse> replies
 ) {
     /**
      * @param voteChoice 댓글 작성자(회원)가 이 피드에 투표했다면 그 선택. 게스트 또는 미투표 회원은 null.
      */
-    public static CommentResponse of(Comment comment, User currentUser, String profileImage, VoteChoice voteChoice) {
+    public static CommentResponse of(Comment comment, User currentUser, String profileImage, VoteChoice voteChoice,
+                                     long likeCount, boolean isLiked, long replyCount, List<CommentReplyResponse> replies) {
+        String authorType = comment.isGuestComment() ? "GUEST" : "MEMBER";
+
         boolean isMine = !comment.isGuestComment()
                 && currentUser != null
                 && comment.getUser().getId().equals(currentUser.getId());
@@ -49,14 +61,18 @@ public record CommentResponse(
 
         return new CommentResponse(
                 comment.getId(),
-                comment.isGuestComment() ? "GUEST" : "MEMBER",
+                authorType,
                 comment.getDisplayNickname(),
                 profileImage,
                 comment.getContent(),
                 isMine,
                 isAuthor,
                 isAuthor ? null : voteChoice,
-                comment.getCreatedAt()
+                comment.getCreatedAt(),
+                likeCount,
+                isLiked,
+                replyCount,
+                replies
         );
     }
 }

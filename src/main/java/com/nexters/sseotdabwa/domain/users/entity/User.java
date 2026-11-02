@@ -61,6 +61,13 @@ public class User extends BaseEntity {
     @Column
     private LocalDateTime nicknameUpdatedAt;
 
+    /**
+     * 이메일 알림 수신 여부 (푸시를 받을 수 없는 웹 회원 대상). 메일 하단 "이메일 알림 끄기"로 false가 된다.
+     * pushEnabled와 분리 — 나중에 앱을 설치해도 푸시까지 꺼져 있지 않도록.
+     */
+    @Column(nullable = false)
+    private boolean emailNotificationEnabled;
+
     @Builder
     public User(String socialId, String nickname, SocialAccount socialAccount,
             String profileImage, String email) {
@@ -70,6 +77,7 @@ public class User extends BaseEntity {
         this.profileImage = profileImage;
         this.email = email;
         this.pushEnabled = true;
+        this.emailNotificationEnabled = true;
     }
 
     public void updateEmail(String email) {
@@ -104,5 +112,19 @@ public class User extends BaseEntity {
 
     public boolean canReceivePush() {
         return this.pushEnabled && this.fcmToken != null && !this.fcmToken.isBlank();
+    }
+
+    /**
+     * 푸시를 받을 수 없는(FCM 토큰 없는) 웹 회원 중, 알림을 끄지 않았고 이메일이 있는 경우
+     */
+    public boolean canReceiveEmail() {
+        return !canReceivePush()
+                && this.pushEnabled
+                && this.emailNotificationEnabled
+                && this.email != null && !this.email.isBlank();
+    }
+
+    public void disableEmailNotification() {
+        this.emailNotificationEnabled = false;
     }
 }

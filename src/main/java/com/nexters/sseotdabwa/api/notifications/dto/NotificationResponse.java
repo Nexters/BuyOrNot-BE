@@ -17,7 +17,8 @@ public record NotificationResponse(
         Integer resultPercent,
         String resultLabel,
         String viewUrl,
-        String feedTitle
+        String feedTitle,
+        Long commentId
 ) {
     public static NotificationResponse of(
             Notification n,
@@ -25,7 +26,8 @@ public record NotificationResponse(
             Integer resultPercent,
             String resultLabel,
             String viewUrl,
-            String feedTitle
+            String feedTitle,
+            Long commentId
     ) {
         return new NotificationResponse(
                 n.getId(),
@@ -38,7 +40,8 @@ public record NotificationResponse(
                 resultPercent,
                 resultLabel,
                 viewUrl,
-                feedTitle
+                feedTitle,
+                commentId
         );
     }
 }
