@@ -26,7 +26,14 @@ public enum FeedErrorCode implements ErrorCode {
     FEED_IMAGE_INVALID_SIZE(HttpStatus.BAD_REQUEST, "FEED_010", "이미지 크기(width/height)는 1 이상이어야 합니다."),
     FEED_GUEST_PASSWORD_MISMATCH(HttpStatus.FORBIDDEN, "FEED_011", "비밀번호가 일치하지 않습니다."),
     FEED_NOT_GUEST_POST(HttpStatus.FORBIDDEN, "FEED_012", "비회원이 작성한 피드가 아닙니다."),
-    FEED_INVALID_CURSOR(HttpStatus.BAD_REQUEST, "FEED_013", "유효하지 않은 커서입니다.");
+    FEED_INVALID_CURSOR(HttpStatus.BAD_REQUEST, "FEED_013", "유효하지 않은 커서입니다."),
+
+    // AI 피드 초안
+    FEED_AI_DRAFT_INVALID_IMAGE(HttpStatus.BAD_REQUEST, "FEED_014", "유효하지 않은 이미지입니다."),
+    FEED_AI_DRAFT_UNSUPPORTED_IMAGE(HttpStatus.BAD_REQUEST, "FEED_015", "AI 초안은 JPG, PNG, WEBP, GIF 사진만 지원해요."),
+    FEED_AI_DRAFT_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "FEED_016", "잠시 후 다시 시도해주세요."),
+    FEED_AI_DRAFT_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "FEED_017", "AI 초안을 만들지 못했어요. 직접 입력해주세요."),
+    FEED_AI_DRAFT_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "FEED_018", "지금은 AI 초안 기능을 사용할 수 없어요.");
 
     private final HttpStatus httpStatus;
     private final String code;

@@ -2,6 +2,8 @@ package com.nexters.sseotdabwa.api.feeds.controller;
 
 import java.util.List;
 
+import com.nexters.sseotdabwa.api.feeds.dto.FeedAiDraftRequest;
+import com.nexters.sseotdabwa.api.feeds.dto.FeedAiDraftResponse;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequest;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateRequestGuest;
 import com.nexters.sseotdabwa.api.feeds.dto.FeedCreateResponse;
@@ -19,6 +21,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -219,5 +222,57 @@ public interface FeedControllerSpec {
             @Parameter(description = "이전 응답의 nextCursor (\"{투표수}_{feedId}\", 첫 페이지는 생략)") String cursor,
             @Parameter(description = "페이지 크기 (기본값 20, 최대 50)") Integer size,
             @Parameter(name = "category", description = "카테고리 필터 - 복수 선택 가능 (?category=BOOK&category=FASHION / 미지정 시 전체)") List<FeedCategory> categories
+    );
+
+    @Operation(
+            summary = "사진으로 AI 피드 초안 생성",
+            description = """
+                    업로드한 상품 사진으로 AI가 피드(투표) 글의 제목/내용/카테고리 초안을 만들어줍니다. (회원용, 앱/웹 공통 — 비회원은 /ai-draft/guest)
+
+                    - 초안은 저장되지 않습니다. 폼에 채운 뒤 사용자가 수정해서 기존 피드 등록 API로 등록하세요.
+                    - 요청: 기존 presigned 업로드(POST /api/v1/uploads/presigned-put)로 올린 s3ObjectKey 1~3장
+                    - 응답: title(40자 이하), content(100자 이하), category(애매하면 ETC), price
+                      - 금칙어가 포함되거나 비어 있으면 title/content는 null
+                      - price: 사진에 원화 가격이 글자로 보일 때만 금액(원, 할인가 우선), 아니면 null (추정가는 넣지 않음)
+                      - price는 필수 입력값이므로 null이면 사용자가 직접 입력해야 하고, 값이 있어도 잘못 읽었을 수 있어 확인 안내 권장
+                    - HEIC 사진은 AI 초안 대상에서 제외됩니다 (모두 HEIC면 FEED_015)
+                    - 응답까지 수 초 걸릴 수 있어 로딩 UI가 필요합니다.
+                    - 빈도 제한: 계정당 분당 5회, 하루 20회
+                    - 실패(FEED_017, FEED_018, 429)해도 피드 등록은 가능해야 하므로 직접 입력 화면을 유지하세요.
+                    """,
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "초안 생성 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 값 검증 실패 / feeds 경로가 아닌 key (FEED_014) / 지원하지 않는 이미지 포맷 (FEED_015)"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "요청 빈도 제한 초과 (FEED_016)"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "503", description = "AI 초안 생성 실패 (FEED_017) / 기능 비활성 (FEED_018)")
+    })
+    ApiResponse<FeedAiDraftResponse> createAiDraft(
+            @Parameter(hidden = true) User user,
+            @Valid @RequestBody FeedAiDraftRequest request
+    );
+
+    @Operation(
+            summary = "사진으로 AI 피드 초안 생성 (비회원)",
+            description = """
+                    비회원용 AI 초안 생성 API입니다. 인증 없이 호출하며, 요청/응답/에러는 회원용(POST /api/v1/feeds/ai-draft)과 같습니다.
+
+                    - 초안은 저장되지 않습니다. 폼에 채운 뒤 기존 게스트 피드 등록 API(POST /api/v1/feeds/guest)로 등록하세요.
+                    - 빈도 제한: IP와 디바이스(`X-Device-Id`) 각각 분당 5회, 하루 20회 (어느 하나라도 넘으면 FEED_016)
+                    - `X-Device-Id`는 선택이지만, 보내지 않으면 IP 기준으로만 제한되어 같은 네트워크의 다른 사용자와 횟수를 나눠 쓸 수 있습니다.
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "초안 생성 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 값 검증 실패 / feeds 경로가 아닌 key (FEED_014) / 지원하지 않는 이미지 포맷 (FEED_015)"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "요청 빈도 제한 초과 (FEED_016)"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "503", description = "AI 초안 생성 실패 (FEED_017) / 기능 비활성 (FEED_018)")
+    })
+    ApiResponse<FeedAiDraftResponse> createGuestAiDraft(
+            @Valid @RequestBody FeedAiDraftRequest request,
+            @Parameter(description = "클라이언트 디바이스 식별자(요청 빈도 제한용, 선택)") String deviceId,
+            @Parameter(hidden = true) HttpServletRequest httpRequest
     );
 }

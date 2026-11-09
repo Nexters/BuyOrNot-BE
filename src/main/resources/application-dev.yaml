@@ -70,3 +70,10 @@ app:
     from-name: 살까말까
     web-base-url: https://dev-web.buy-or-not.com
     api-base-url: https://dev.buy-or-not.com
+  # AI 피드 초안 (Claude API). 키는 여기 쓰지 않고 환경변수 ANTHROPIC_API_KEY(k8s Secret buyornot-db)로만 주입한다.
+  # 키가 없으면 NoopAiDraftGenerator가 동작해 기능만 비활성화되고 서버는 정상 기동한다.
+  ai:
+    api-key: ${ANTHROPIC_API_KEY:}
+    model: claude-haiku-5-5
+    timeout: 30s
+    max-tokens: 1024
