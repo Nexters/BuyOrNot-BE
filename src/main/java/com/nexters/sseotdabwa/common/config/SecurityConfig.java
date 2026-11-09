@@ -66,6 +66,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/feeds/*/comments/*/replies/guest").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/feeds/*/comments/*/guest").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/feeds/*/comments/*/report").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/feeds/*/comments/*/likes/guest").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/guest/nickname").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/feeds/guest").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/feeds/ai-draft/guest").permitAll()

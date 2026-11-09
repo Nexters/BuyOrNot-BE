@@ -170,4 +170,16 @@ public class CommentController implements CommentControllerSpec {
     ) {
         return ApiResponse.success(commentFacade.unlikeComment(user, feedId, commentId), HttpStatus.OK);
     }
+
+    @Override
+    @PostMapping("/{feedId}/comments/{commentId}/likes/guest")
+    public ApiResponse<CommentLikeResponse> likeCommentAsGuest(
+            @PathVariable Long feedId,
+            @PathVariable Long commentId,
+            @RequestHeader(value = "X-Device-Id", required = false) String deviceId,
+            HttpServletRequest httpRequest
+    ) {
+        String ip = ClientIpResolver.resolve(httpRequest);
+        return ApiResponse.success(commentFacade.likeCommentAsGuest(feedId, commentId, ip, deviceId), HttpStatus.OK);
+    }
 }

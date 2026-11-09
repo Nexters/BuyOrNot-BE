@@ -41,6 +41,13 @@ public interface CommentLikeRepository extends JpaRepository<CommentLike, Long> 
     @Query("DELETE FROM CommentLike l WHERE l.comment.id IN :commentIds")
     void deleteByCommentIdIn(@Param("commentIds") List<Long> commentIds);
 
+    /**
+     * 원댓글들에 달린 답글의 공감 삭제 — 답글을 일괄 삭제하기 전에 호출 (comment_likes.comment_id FK)
+     */
+    @Modifying(flushAutomatically = true)
+    @Query("DELETE FROM CommentLike l WHERE l.comment.id IN (SELECT c.id FROM Comment c WHERE c.parent.id IN :parentIds)")
+    void deleteByReplyParentIds(@Param("parentIds") List<Long> parentIds);
+
     @Modifying(flushAutomatically = true)
     @Query("DELETE FROM CommentLike l WHERE l.comment.id IN (SELECT c.id FROM Comment c WHERE c.feed = :feed)")
     void deleteByCommentFeed(@Param("feed") Feed feed);
@@ -50,13 +57,15 @@ public interface CommentLikeRepository extends JpaRepository<CommentLike, Long> 
     void deleteByCommentFeedIn(@Param("feeds") List<Feed> feeds);
 
     /**
-     * 회원이 누른 공감 + 회원이 쓴 댓글에 달린 공감을 모두 삭제 (회원 탈퇴용)
+     * 회원 탈퇴용. 회원이 누른 공감 + 회원이 쓴 댓글(답글 포함)에 달린 공감
+     * + 회원 원댓글에 달린 (남의) 답글의 공감 — 탈퇴 시 그 답글들도 함께 삭제되므로 먼저 지운다
      */
     @Modifying(flushAutomatically = true)
     @Query("""
         DELETE FROM CommentLike l
         WHERE l.user.id = :userId
            OR l.comment.id IN (SELECT c.id FROM Comment c WHERE c.user.id = :userId)
+           OR l.comment.id IN (SELECT r.id FROM Comment r WHERE r.parent.user.id = :userId)
     """)
     void deleteRelatedToUser(@Param("userId") Long userId);
 }
