@@ -18,7 +18,8 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * 댓글 공감 도메인 서비스
- * - like/unlike는 멱등 (이미 공감한 상태에서 like, 공감 안 한 상태에서 unlike 해도 그대로 성공)
+ * - 회원 like/unlike는 멱등 (이미 공감한 상태에서 like, 공감 안 한 상태에서 unlike 해도 그대로 성공)
+ * - 비회원 공감은 구분 없이 호출할 때마다 1건 추가 (취소 없음)
  * - 같은 댓글에 대한 동시 요청은 호출하는 쪽에서 댓글 행을 잠근 상태로 호출해 직렬화한다
  *   (유니크 위반 예외를 잡으면 트랜잭션이 rollback-only가 되어버려서, 예외 대신 잠금으로 중복을 막는다)
  */
@@ -34,7 +35,12 @@ public class CommentLikeService {
         if (commentLikeRepository.existsByCommentIdAndUserId(comment.getId(), user.getId())) {
             return;
         }
-        commentLikeRepository.save(new CommentLike(comment, user));
+        commentLikeRepository.save(CommentLike.ofMember(comment, user));
+    }
+
+    @Transactional
+    public void likeAsGuest(Comment comment) {
+        commentLikeRepository.save(CommentLike.ofGuest(comment));
     }
 
     @Transactional

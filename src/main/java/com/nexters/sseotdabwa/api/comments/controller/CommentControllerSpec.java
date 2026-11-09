@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RequestParam;
         name = "Comments",
         description = "피드 댓글(의견)/답글/공감 API. 원댓글은 투표 여부와 무관하게 회원/게스트 모두 작성 가능하며, "
                 + "투표 여부는 댓글 작성 자격이 아니라 응답의 isAuthor/voteChoice(태그·버블 노출용)에만 영향을 준다. "
-                + "답글(원댓글에만, depth 1)은 회원/게스트 모두, 공감(원댓글에만)은 회원만 가능하다. 마감된 피드에도 모두 가능하다."
+                + "답글(원댓글에만, depth 1)과 공감(원댓글/답글)은 회원/게스트 모두 가능하다. 마감된 피드에도 모두 가능하다."
 )
 public interface CommentControllerSpec {
 
@@ -276,41 +276,66 @@ public interface CommentControllerSpec {
     );
 
     @Operation(
-            summary = "댓글 공감",
+            summary = "댓글 공감 (회원)",
             description = """
-                    원댓글에 공감한다. 회원만 가능. 멱등 — 이미 공감한 상태에서 다시 요청해도 200.
+                    원댓글 또는 답글에 공감한다. 멱등 — 이미 공감한 상태에서 다시 요청해도 200.
 
-                    - 원댓글에만 가능(답글은 공감 불가), 본인 댓글도 가능, 마감된 피드에서도 가능
-                    - 응답의 likeCount/isLiked로 화면을 바로 갱신하면 됨
+                    - 원댓글/답글 모두 가능, 본인 댓글도 가능, 마감된 피드에서도 가능
+                    - 응답의 likeCount/isLiked로 화면을 바로 갱신하면 됨 (likeCount는 회원 + 비회원 공감 합계)
+                    - 비회원은 POST .../likes/guest 사용
                     """,
             security = @SecurityRequirement(name = "Bearer Authentication")
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "공감 성공"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "답글에 공감(COMMENT_015) / 신고된 댓글(COMMENT_016)"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "신고된 댓글(COMMENT_016)"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "댓글을 찾을 수 없음(COMMENT_004)")
     })
     ApiResponse<CommentLikeResponse> likeComment(
             @Parameter(hidden = true) User user,
             @Parameter(description = "피드 id", required = true) @PathVariable Long feedId,
-            @Parameter(description = "공감할 원댓글 id", required = true) @PathVariable Long commentId
+            @Parameter(description = "공감할 원댓글 또는 답글 id", required = true) @PathVariable Long commentId
     );
 
     @Operation(
-            summary = "댓글 공감 취소",
-            description = "원댓글 공감을 취소한다. 회원만 가능. 멱등 — 공감하지 않은 상태에서 요청해도 200.",
+            summary = "댓글 공감 취소 (회원)",
+            description = "원댓글 또는 답글 공감을 취소한다. 회원만 가능(비회원 공감은 취소 없음). 멱등 — 공감하지 않은 상태에서 요청해도 200.",
             security = @SecurityRequirement(name = "Bearer Authentication")
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "공감 취소 성공"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "답글에 공감 취소(COMMENT_015)"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "댓글을 찾을 수 없음(COMMENT_004)")
     })
     ApiResponse<CommentLikeResponse> unlikeComment(
             @Parameter(hidden = true) User user,
             @Parameter(description = "피드 id", required = true) @PathVariable Long feedId,
-            @Parameter(description = "공감 취소할 원댓글 id", required = true) @PathVariable Long commentId
+            @Parameter(description = "공감 취소할 원댓글 또는 답글 id", required = true) @PathVariable Long commentId
+    );
+
+    @Operation(
+            summary = "댓글 공감 (비회원)",
+            description = """
+                    비회원이 원댓글 또는 답글에 공감한다. 인증 불필요.
+
+                    - 누가 눌렀는지 구분하지 않아 **호출할 때마다 공감 수가 1씩 증가**한다 (중복 방지 없음)
+                    - 공감 취소 API는 없고, 응답/조회의 isLiked는 비회원에게 항상 false (새로고침하면 하트 미표시)
+                    - 빈도 제한: 디바이스(`X-Device-Id`)당 분당 10회, IP당 분당 30회 — 어느 하나라도 넘으면 COMMENT_017
+                      - `X-Device-Id`는 선택이지만, 없으면 IP 기준으로만 제한되어 같은 네트워크 사용자와 횟수를 나눠 쓸 수 있음
+                    - 신고된 댓글은 공감 불가, 마감된 피드에서도 가능
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "공감 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "신고된 댓글(COMMENT_016)"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "댓글을 찾을 수 없음(COMMENT_004)"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "요청 빈도 제한 초과(COMMENT_017)")
+    })
+    ApiResponse<CommentLikeResponse> likeCommentAsGuest(
+            @Parameter(description = "피드 id", required = true) @PathVariable Long feedId,
+            @Parameter(description = "공감할 원댓글 또는 답글 id", required = true) @PathVariable Long commentId,
+            @Parameter(description = "클라이언트 디바이스 식별자(요청 빈도 제한용, 선택)") @RequestHeader(value = "X-Device-Id", required = false) String deviceId,
+            @Parameter(hidden = true) HttpServletRequest httpRequest
     );
 }
