@@ -1408,6 +1408,92 @@ class FeedControllerTest {
                 .andExpect(jsonPath("$.errorCode").value("FEED_003"));
     }
 
+    // ===== 치이카와 카테고리 =====
+
+    @Test
+    @DisplayName("[V2] 치이카와 카테고리로 피드 등록 후 category=CHIIKAWA 필터로 조회, ETC 필터에는 안 나옴")
+    void chiikawaCategory_v2_createAndFilter() throws Exception {
+        // given
+        User user = createUser();
+        String token = jwtTokenService.createAccessToken(user.getId());
+        Feed etcFeed = feedRepository.save(Feed.builder().user(user).content("기타").price(1000L).category(FeedCategory.ETC).build());
+        feedImageRepository.save(FeedImage.builder().feed(etcFeed).s3ObjectKey("f.jpg").imageWidth(10).imageHeight(10).build());
+
+        FeedCreateRequestV2 request = new FeedCreateRequestV2(
+                FeedCategory.CHIIKAWA,
+                25000L,
+                "하치와레 인형 살까 말까",
+                List.of(new FeedCreateRequestV2.ImageRequest("feeds/chiikawa.jpg", 1080, 1350)),
+                null,
+                "하치와레 인형"
+        );
+
+        String responseBody = mockMvc.perform(post("/api/v2/feeds")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        Long feedId = objectMapper.readTree(responseBody).path("data").path("feedId").asLong();
+
+        // when & then
+        mockMvc.perform(get("/api/v2/feeds").param("category", "CHIIKAWA"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].feedId").value(feedId))
+                .andExpect(jsonPath("$.data.content[0].category").value("CHIIKAWA"));
+
+        mockMvc.perform(get("/api/v2/feeds").param("category", "ETC"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].feedId").value(etcFeed.getId()));
+    }
+
+    @Test
+    @DisplayName("게스트 피드 등록 - 치이카와 카테고리 저장")
+    void chiikawaCategory_guestCreate() throws Exception {
+        // given
+        FeedCreateRequestGuest request = new FeedCreateRequestGuest(
+                FeedCategory.CHIIKAWA,
+                12000L,
+                "우사기 키링 살까요",
+                List.of(new FeedCreateRequestGuest.ImageRequest("feeds/usagi.jpg", 1080, 1350)),
+                null,
+                null,
+                randomNicknameGenerator.generate(),
+                "guestpw1"
+        );
+
+        // when
+        String responseBody = mockMvc.perform(post("/api/v1/feeds/guest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        // then
+        Long feedId = objectMapper.readTree(responseBody).path("data").path("feedId").asLong();
+        org.assertj.core.api.Assertions.assertThat(feedRepository.findById(feedId).orElseThrow().getCategory())
+                .isEqualTo(FeedCategory.CHIIKAWA);
+    }
+
+    @Test
+    @DisplayName("[V2] 핫플 목록 - category=CHIIKAWA 필터")
+    void chiikawaCategory_hotFeedFilter() throws Exception {
+        // given
+        User user = createUser();
+        Feed chiikawaFeed = feedRepository.save(Feed.builder().user(user).content("치이카와").price(1000L).category(FeedCategory.CHIIKAWA).build());
+        Feed fashionFeed = feedRepository.save(Feed.builder().user(user).content("패션").price(1000L).category(FeedCategory.FASHION).build());
+        feedImageRepository.save(FeedImage.builder().feed(chiikawaFeed).s3ObjectKey("c.jpg").imageWidth(10).imageHeight(10).build());
+        feedImageRepository.save(FeedImage.builder().feed(fashionFeed).s3ObjectKey("f.jpg").imageWidth(10).imageHeight(10).build());
+
+        // when & then
+        mockMvc.perform(get("/api/v2/feeds/hot").param("category", "CHIIKAWA"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].feedId").value(chiikawaFeed.getId()));
+    }
+
     // ===== 핫플 투표 / voteClosedAt =====
 
     @Test
