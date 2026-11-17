@@ -29,7 +29,7 @@ import lombok.RequiredArgsConstructor;
  * 정책:
  * - content: 300자 이하
  * - 답글은 원댓글에만 달 수 있다 (depth 1)
- * - 원댓글을 지우면 답글/공감까지 함께 삭제, 답글을 지우면 해당 답글만 삭제
+ * - 원댓글을 지우면 답글/공감까지 함께 삭제, 답글을 지우면 해당 답글과 그 공감만 삭제
  * - parent_id self FK 때문에 일괄 삭제는 항상 공감 → 답글 → 원댓글 순
  */
 @Service
@@ -228,18 +228,20 @@ public class CommentService {
     /**
      * 사용자 요청에 의한 댓글 1건 삭제 (회원/게스트 공통 삭제 정책)
      * - 원댓글 → 공감, 답글 전체(신고된 답글 포함)와 함께 삭제 ("삭제된 댓글"로 남기지 않음)
-     * - 답글 → 해당 답글만 삭제 (답글에는 공감이 없음)
+     * - 답글 → 해당 답글과 그 공감만 삭제
      */
     @Transactional
     public void delete(Comment comment) {
+        List<Long> commentIds = List.of(comment.getId());
+        commentLikeRepository.deleteByCommentIdIn(commentIds);
         if (comment.isReply()) {
             commentRepository.delete(comment);
             return;
         }
 
-        // parent_id self FK 때문에 공감 → 답글 → 원댓글 순으로 지운다
-        commentLikeRepository.deleteByCommentIdIn(List.of(comment.getId()));
-        commentRepository.deleteRepliesByParentIds(List.of(comment.getId()));
+        // FK(comment_likes.comment_id, parent_id) 때문에 공감 → 답글 → 원댓글 순으로 지운다
+        commentLikeRepository.deleteByReplyParentIds(commentIds);
+        commentRepository.deleteRepliesByParentIds(commentIds);
         commentRepository.delete(comment);
     }
 

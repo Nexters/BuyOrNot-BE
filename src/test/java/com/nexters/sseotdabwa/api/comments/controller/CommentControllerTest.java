@@ -293,6 +293,37 @@ class CommentControllerTest {
                 .andExpect(jsonPath("$.status").value("200"));
     }
 
+    @Test
+    @DisplayName("비회원 공감 - 인증 없이 200, 호출할 때마다 likeCount +1, isLiked false")
+    void likeCommentAsGuest_success_200() throws Exception {
+        // given
+        User commenter = createUser();
+        Feed feed = createFeed(createUser());
+        CommentCreateResponse created = createCommentDirectly(feed, commenter, jwtTokenService.createAccessToken(commenter.getId()));
+        String url = "/api/v1/feeds/" + feed.getId() + "/comments/" + created.id() + "/likes/guest";
+        String ip = randomIp();
+
+        // when & then
+        mockMvc.perform(post(url).header("X-Forwarded-For", ip).header("X-Device-Id", UUID.randomUUID().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.likeCount").value(1))
+                .andExpect(jsonPath("$.data.isLiked").value(false));
+        mockMvc.perform(post(url).header("X-Forwarded-For", ip))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.likeCount").value(2));
+    }
+
+    @Test
+    @DisplayName("회원 공감 취소/공감은 여전히 인증 필요 - 401")
+    void likeComment_unauthenticated_401() throws Exception {
+        User commenter = createUser();
+        Feed feed = createFeed(createUser());
+        CommentCreateResponse created = createCommentDirectly(feed, commenter, jwtTokenService.createAccessToken(commenter.getId()));
+
+        mockMvc.perform(post("/api/v1/feeds/" + feed.getId() + "/comments/" + created.id() + "/likes"))
+                .andExpect(status().isUnauthorized());
+    }
+
     // ===== Helper Methods =====
 
     private CommentCreateResponse createCommentDirectly(Feed feed, User commenter, String token) throws Exception {

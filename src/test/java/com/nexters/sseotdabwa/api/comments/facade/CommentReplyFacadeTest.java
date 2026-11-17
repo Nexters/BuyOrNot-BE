@@ -43,6 +43,7 @@ import jakarta.persistence.EntityManager;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.groups.Tuple.tuple;
 
 /**
  * 답글 / 공감 / 삭제 정책 / 댓글 수 집계
@@ -376,15 +377,97 @@ class CommentReplyFacadeTest {
     }
 
     @Test
-    @DisplayName("답글에 공감 시 COMMENT_015 에러")
-    void like_onReply_throwsComment015() {
+    @DisplayName("답글에도 공감/공감 취소가 가능하고, 목록과 답글 페이지에 답글별 likeCount/isLiked가 반영된다")
+    void like_onReply_success() {
+        Feed feed = createFeed(createUser());
+        User replier = createUser();
+        User liker = createUser();
+        Long rootId = comment(createUser(), feed, "원댓글");
+        Long replyId = reply(replier, feed, rootId, "답글");
+        Long otherReplyId = reply(createUser(), feed, rootId, "다른 답글");
+
+        commentFacade.likeComment(liker, feed.getId(), replyId);
+        CommentLikeResponse self = commentFacade.likeComment(replier, feed.getId(), replyId); // 본인 답글 공감 허용
+        assertThat(self.likeCount()).isEqualTo(2);
+
+        CommentResponse root = commentFacade.getComments(liker, feed.getId(), null, null, null).content().get(0);
+        assertThat(root.likeCount()).isZero();
+        assertThat(root.replies()).extracting(CommentReplyResponse::id, CommentReplyResponse::likeCount, CommentReplyResponse::isLiked)
+                .containsExactly(
+                        tuple(replyId, 2L, true),
+                        tuple(otherReplyId, 0L, false));
+
+        List<CommentReplyResponse> page = commentFacade.getReplies(liker, feed.getId(), rootId, null, null).content();
+        assertThat(page.get(0).likeCount()).isEqualTo(2);
+        assertThat(page.get(0).isLiked()).isTrue();
+        assertThat(commentFacade.getReplies(null, feed.getId(), rootId, null, null).content().get(0).isLiked()).isFalse();
+
+        CommentLikeResponse unliked = commentFacade.unlikeComment(liker, feed.getId(), replyId);
+        assertThat(unliked.likeCount()).isEqualTo(1);
+        assertThat(unliked.isLiked()).isFalse();
+    }
+
+    @Test
+    @DisplayName("신고된 답글에는 공감할 수 없다 (COMMENT_016)")
+    void like_onReportedReply_throwsComment016() {
         Feed feed = createFeed(createUser());
         Long rootId = comment(createUser(), feed, "원댓글");
         Long replyId = reply(createUser(), feed, rootId, "답글");
+        commentFacade.reportComment(createUser(), replyId);
 
         assertThatThrownBy(() -> commentFacade.likeComment(createUser(), feed.getId(), replyId))
                 .isInstanceOf(GlobalException.class)
-                .hasMessage(CommentErrorCode.COMMENT_LIKE_ON_REPLY.getMessage());
+                .hasMessage(CommentErrorCode.COMMENT_LIKE_UNAVAILABLE.getMessage());
+        assertThatThrownBy(() -> commentFacade.likeCommentAsGuest(feed.getId(), replyId, uniqueIp(), null))
+                .isInstanceOf(GlobalException.class)
+                .hasMessage(CommentErrorCode.COMMENT_LIKE_UNAVAILABLE.getMessage());
+    }
+
+    // ===== 비회원 공감 =====
+
+    @Test
+    @DisplayName("비회원 공감은 구분 없이 호출할 때마다 +1, 회원 공감과 합산되고 비회원 isLiked는 항상 false")
+    void guestLike_incrementsEveryCall() {
+        Feed feed = createFeed(createUser());
+        User member = createUser();
+        Long rootId = comment(createUser(), feed, "원댓글");
+        Long replyId = reply(createUser(), feed, rootId, "답글");
+        String ip = uniqueIp();
+
+        CommentLikeResponse first = commentFacade.likeCommentAsGuest(feed.getId(), rootId, ip, "device-1");
+        CommentLikeResponse second = commentFacade.likeCommentAsGuest(feed.getId(), rootId, ip, "device-1");
+        commentFacade.likeComment(member, feed.getId(), rootId);
+        commentFacade.likeCommentAsGuest(feed.getId(), replyId, ip, null);
+
+        assertThat(first.likeCount()).isEqualTo(1);
+        assertThat(first.isLiked()).isFalse();
+        assertThat(second.likeCount()).isEqualTo(2);
+
+        CommentResponse guestView = commentFacade.getComments(null, feed.getId(), null, null, null).content().get(0);
+        assertThat(guestView.likeCount()).isEqualTo(3);
+        assertThat(guestView.isLiked()).isFalse();
+        assertThat(guestView.replies().get(0).likeCount()).isEqualTo(1);
+        assertThat(guestView.replies().get(0).isLiked()).isFalse();
+        assertThat(commentFacade.getComments(member, feed.getId(), null, null, null).content().get(0).isLiked()).isTrue();
+
+        // 회원 공감 취소는 회원 본인 공감만 빠진다
+        assertThat(commentFacade.unlikeComment(member, feed.getId(), rootId).likeCount()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("비회원 공감은 같은 디바이스 분당 10회를 넘으면 COMMENT_017")
+    void guestLike_rateLimited() {
+        Feed feed = createFeed(createUser());
+        Long rootId = comment(createUser(), feed, "원댓글");
+        String device = "device-" + UUID.randomUUID();
+
+        for (int i = 0; i < 10; i++) {
+            commentFacade.likeCommentAsGuest(feed.getId(), rootId, uniqueIp(), device);
+        }
+        assertThatThrownBy(() -> commentFacade.likeCommentAsGuest(feed.getId(), rootId, uniqueIp(), device))
+                .isInstanceOf(GlobalException.class)
+                .hasMessage(CommentErrorCode.COMMENT_LIKE_RATE_LIMIT_EXCEEDED.getMessage());
+        assertThat(commentLikeRepository.countByCommentId(rootId)).isEqualTo(10);
     }
 
     @Test
@@ -526,6 +609,46 @@ class CommentReplyFacadeTest {
         assertThat(aggregates.get(feed.getId()).latestComment().getId()).isEqualTo(latestRoot);
     }
 
+    @Test
+    @DisplayName("공감이 달린 답글을 삭제하면 답글과 그 공감만 삭제된다")
+    void delete_replyWithLikes() {
+        Feed feed = createFeed(createUser());
+        User replier = createUser();
+        Long rootId = comment(createUser(), feed, "원댓글");
+        Long replyId = reply(replier, feed, rootId, "답글");
+        commentFacade.likeComment(createUser(), feed.getId(), replyId);
+        commentFacade.likeCommentAsGuest(feed.getId(), replyId, uniqueIp(), null);
+        commentFacade.likeComment(createUser(), feed.getId(), rootId);
+
+        commentFacade.deleteComment(replier, replyId);
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(commentRepository.findById(replyId)).isEmpty();
+        assertThat(commentLikeRepository.countByCommentId(replyId)).isZero();
+        assertThat(commentRepository.findById(rootId)).isPresent();
+        assertThat(commentLikeRepository.countByCommentId(rootId)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("답글에 공감이 달린 원댓글을 삭제해도 FK 오류 없이 스레드 전체와 공감이 삭제된다")
+    void delete_rootWhoseRepliesHaveLikes() {
+        Feed feed = createFeed(createUser());
+        User commenter = createUser();
+        Long rootId = comment(commenter, feed, "원댓글");
+        Long replyId = reply(createUser(), feed, rootId, "답글");
+        commentFacade.likeComment(createUser(), feed.getId(), replyId);
+        commentFacade.likeCommentAsGuest(feed.getId(), replyId, uniqueIp(), null);
+
+        commentFacade.deleteComment(commenter, rootId);
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(commentRepository.findById(rootId)).isEmpty();
+        assertThat(commentRepository.findById(replyId)).isEmpty();
+        assertThat(commentLikeRepository.countByCommentId(replyId)).isZero();
+    }
+
     // ===== 피드 삭제 / 회원 탈퇴 (FK 순서) =====
 
     @Test
@@ -534,8 +657,10 @@ class CommentReplyFacadeTest {
         User owner = createUser();
         Feed feed = createFeed(owner);
         Long rootId = comment(createUser(), feed, "원댓글");
-        reply(createUser(), feed, rootId, "답글");
+        Long replyId = reply(createUser(), feed, rootId, "답글");
         commentFacade.likeComment(createUser(), feed.getId(), rootId);
+        commentFacade.likeComment(createUser(), feed.getId(), replyId);
+        commentFacade.likeCommentAsGuest(feed.getId(), replyId, uniqueIp(), null);
         entityManager.flush();
 
         feedFacade.deleteFeed(owner, feed.getId());
@@ -558,6 +683,10 @@ class CommentReplyFacadeTest {
         Long myReplyOnOthersRoot = reply(leaving, othersFeed, othersRoot, "내 답글");
         commentFacade.likeComment(other, othersFeed.getId(), myRoot);
         commentFacade.likeComment(leaving, othersFeed.getId(), othersRoot);
+        // 내 원댓글에 달린 남의 답글에 달린 공감 (탈퇴 시 그 답글도 지워지므로 공감이 먼저 지워져야 함)
+        commentFacade.likeComment(createUser(), othersFeed.getId(), othersReplyOnMyRoot);
+        commentFacade.likeCommentAsGuest(othersFeed.getId(), othersReplyOnMyRoot, uniqueIp(), null);
+        commentFacade.likeComment(other, othersFeed.getId(), myReplyOnOthersRoot);
         entityManager.flush();
 
         userFacade.withdraw(leaving);
@@ -587,6 +716,10 @@ class CommentReplyFacadeTest {
                 new CommentCreateRequestGuest("게스트 답글", "지름신들린수달_1234", password),
                 "ip-" + UUID.randomUUID(), null
         ).id();
+    }
+
+    private String uniqueIp() {
+        return "ip-" + UUID.randomUUID();
     }
 
     private User createUser() {

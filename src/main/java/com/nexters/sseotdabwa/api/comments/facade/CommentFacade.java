@@ -3,6 +3,7 @@ package com.nexters.sseotdabwa.api.comments.facade;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import com.nexters.sseotdabwa.api.comments.dto.CommentCreateRequest;
 import com.nexters.sseotdabwa.api.comments.dto.CommentCreateRequestGuest;
@@ -22,6 +23,7 @@ import com.nexters.sseotdabwa.domain.comments.exception.CommentErrorCode;
 import com.nexters.sseotdabwa.domain.comments.service.CommentLikeService;
 import com.nexters.sseotdabwa.domain.comments.service.CommentProfanityFilter;
 import com.nexters.sseotdabwa.domain.comments.service.CommentProfanityViolationTracker;
+import com.nexters.sseotdabwa.domain.comments.service.CommentLikeRateLimiter;
 import com.nexters.sseotdabwa.domain.comments.service.CommentRateLimiter;
 import com.nexters.sseotdabwa.domain.comments.service.CommentService;
 import com.nexters.sseotdabwa.domain.feeds.entity.Feed;
@@ -40,7 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 댓글(의견)/답글/공감 생성·조회·삭제·신고 흐름 조합 Facade
  * - 투표 여부와 무관하게 회원/게스트 모두 원댓글 작성 가능. 투표는 태그/버블(voteChoice) 노출에만 영향
- * - 답글은 회원/게스트 모두 가능, 공감은 회원만 가능
+ * - 답글과 공감(원댓글/답글)은 회원/게스트 모두 가능. 게스트 공감은 구분 없이 누를 때마다 1건 추가(취소 없음)
  * - 마감된 피드에도 댓글/답글/공감 가능
  */
 @Component
@@ -57,6 +59,7 @@ public class CommentFacade {
     private final AwsProperties awsProperties;
     private final PasswordEncoder passwordEncoder;
     private final CommentRateLimiter commentRateLimiter;
+    private final CommentLikeRateLimiter commentLikeRateLimiter;
     private final CommentProfanityFilter commentProfanityFilter;
     private final CommentProfanityViolationTracker commentProfanityViolationTracker;
     private final ApplicationEventPublisher eventPublisher;
@@ -186,7 +189,7 @@ public class CommentFacade {
     }
 
     /**
-     * 공감 (회원 전용, 멱등). 원댓글에만 가능, 본인 댓글도 가능
+     * 회원 공감 (멱등). 원댓글/답글 모두 가능, 본인 댓글도 가능
      * - 같은 댓글에 대한 동시 요청은 댓글 행 잠금으로 직렬화해 중복 공감을 막는다
      */
     @Transactional
@@ -200,12 +203,29 @@ public class CommentFacade {
     }
 
     /**
-     * 공감 취소 (회원 전용, 멱등)
+     * 회원 공감 취소 (멱등)
      */
     @Transactional
     public CommentLikeResponse unlikeComment(User user, Long feedId, Long commentId) {
         Comment comment = findLikeTargetWithLock(feedId, commentId);
         commentLikeService.unlike(comment, user);
+        return CommentLikeResponse.of(commentLikeService.countByCommentId(comment.getId()), false);
+    }
+
+    /**
+     * 비회원 공감. 누가 눌렀는지 구분하지 않고 호출할 때마다 공감 1건 추가 (취소 없음, isLiked는 항상 false)
+     * - 숫자 부풀리기 방지를 위해 IP/디바이스ID 기준 빈도 제한
+     */
+    @Transactional
+    public CommentLikeResponse likeCommentAsGuest(Long feedId, Long commentId, String ip, String deviceId) {
+        if (commentLikeRateLimiter.isExceededForGuest(ip, deviceId)) {
+            throw new GlobalException(CommentErrorCode.COMMENT_LIKE_RATE_LIMIT_EXCEEDED);
+        }
+        Comment comment = findLikeTargetWithLock(feedId, commentId);
+        if (comment.isReported()) {
+            throw new GlobalException(CommentErrorCode.COMMENT_LIKE_UNAVAILABLE);
+        }
+        commentLikeService.likeAsGuest(comment);
         return CommentLikeResponse.of(commentLikeService.countByCommentId(comment.getId()), false);
     }
 
@@ -227,14 +247,21 @@ public class CommentFacade {
 
         List<Long> rootIds = roots.stream().map(Comment::getId).toList();
         Map<Long, List<Comment>> repliesByParentId = commentService.findRepliesByParentIds(rootIds);
-        Map<Long, Long> likeCountByCommentId = commentLikeService.countByCommentIds(rootIds);
-        Set<Long> likedCommentIds = commentLikeService.findLikedCommentIds(user, rootIds);
+        // 공감 수/공감 여부는 원댓글 + 답글을 한 번에 배치 조회
+        List<Long> commentIds = Stream.concat(
+                rootIds.stream(),
+                repliesByParentId.values().stream().flatMap(List::stream).map(Comment::getId)
+        ).toList();
+        Map<Long, Long> likeCountByCommentId = commentLikeService.countByCommentIds(commentIds);
+        Set<Long> likedCommentIds = commentLikeService.findLikedCommentIds(user, commentIds);
         Map<Long, VoteChoice> voteChoiceByUserId = findRootAuthorVoteChoices(feedId, roots);
 
         List<CommentResponse> content = roots.stream()
                 .map(root -> {
                     List<CommentReplyResponse> replies = repliesByParentId.getOrDefault(root.getId(), List.of()).stream()
-                            .map(reply -> CommentReplyResponse.of(reply, user))
+                            .map(reply -> CommentReplyResponse.of(reply, user,
+                                    likeCountByCommentId.getOrDefault(reply.getId(), 0L),
+                                    likedCommentIds.contains(reply.getId())))
                             .toList();
                     VoteChoice voteChoice = root.isGuestComment() ? null : voteChoiceByUserId.get(root.getUser().getId());
                     return CommentResponse.of(
@@ -291,8 +318,14 @@ public class CommentFacade {
         boolean hasNext = replies.size() > pageSize;
         List<Comment> sliced = hasNext ? replies.subList(0, pageSize) : replies;
 
+        List<Long> replyIds = sliced.stream().map(Comment::getId).toList();
+        Map<Long, Long> likeCountByCommentId = commentLikeService.countByCommentIds(replyIds);
+        Set<Long> likedCommentIds = commentLikeService.findLikedCommentIds(user, replyIds);
+
         List<CommentReplyResponse> content = sliced.stream()
-                .map(reply -> CommentReplyResponse.of(reply, user))
+                .map(reply -> CommentReplyResponse.of(reply, user,
+                        likeCountByCommentId.getOrDefault(reply.getId(), 0L),
+                        likedCommentIds.contains(reply.getId())))
                 .toList();
 
         Long nextCursor = hasNext ? sliced.get(sliced.size() - 1).getId() : null;
@@ -335,9 +368,6 @@ public class CommentFacade {
     private Comment findLikeTargetWithLock(Long feedId, Long commentId) {
         Comment comment = commentService.findByIdWithLock(commentId);
         validateBelongsToFeed(comment, feedId);
-        if (comment.isReply()) {
-            throw new GlobalException(CommentErrorCode.COMMENT_LIKE_ON_REPLY);
-        }
         return comment;
     }
 

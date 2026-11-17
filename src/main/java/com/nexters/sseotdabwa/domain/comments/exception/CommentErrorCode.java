@@ -32,8 +32,13 @@ public enum CommentErrorCode implements ErrorCode {
     COMMENT_TEMPORARILY_RESTRICTED(HttpStatus.TOO_MANY_REQUESTS, "COMMENT_012", "잠시 후 다시 댓글을 남길 수 있어요."),
     COMMENT_REPLY_TO_REPLY(HttpStatus.BAD_REQUEST, "COMMENT_013", "답글에는 답글을 남길 수 없습니다."),
     COMMENT_INVALID_PARENT(HttpStatus.BAD_REQUEST, "COMMENT_014", "답글을 남길 수 없는 댓글입니다."),
+    /**
+     * 더 이상 발생하지 않음 — 답글에도 공감을 허용하도록 정책 변경됨.
+     * 클라이언트에 이미 공개된 코드라 다른 의미로 재사용되지 않도록 enum은 남겨둔다.
+     */
     COMMENT_LIKE_ON_REPLY(HttpStatus.BAD_REQUEST, "COMMENT_015", "답글에는 공감할 수 없습니다."),
-    COMMENT_LIKE_UNAVAILABLE(HttpStatus.BAD_REQUEST, "COMMENT_016", "공감할 수 없는 댓글입니다.");
+    COMMENT_LIKE_UNAVAILABLE(HttpStatus.BAD_REQUEST, "COMMENT_016", "공감할 수 없는 댓글입니다."),
+    COMMENT_LIKE_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "COMMENT_017", "잠시 후 다시 공감할 수 있어요.");
 
     private final HttpStatus httpStatus;
     private final String code;
