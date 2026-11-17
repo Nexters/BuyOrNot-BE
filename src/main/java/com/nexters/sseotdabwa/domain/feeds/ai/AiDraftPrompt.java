@@ -70,6 +70,7 @@ final class AiDraftPrompt {
             ## 카테고리 (category)
             아래 중 가장 가까운 하나를 고르고, 애매하면 ETC
             %s
+            치이카와 캐릭터(치이카와, 하치와레, 우사기 등)가 분명히 보이는 굿즈는 상품 종류(인형, 키링, 의류, 생활용품 등)와 상관없이 CHIIKAWA
             """.formatted(categoryList());
 
     static final String INSTRUCTION = "이 사진으로 살까말까 투표 글 초안을 만들어줘. 사진이 여러 장이면 같은 상품을 여러 각도에서 찍은 사진일 수 있어.";

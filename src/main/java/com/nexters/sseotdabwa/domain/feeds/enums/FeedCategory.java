@@ -21,6 +21,7 @@ public enum FeedCategory {
     BOOK("도서"),
     INTERIOR("인테리어"),
     KITCHEN("주방·식기"),
+    CHIIKAWA("치이카와"),
     ETC("기타");
 
     private final String displayName;
